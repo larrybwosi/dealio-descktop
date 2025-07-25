@@ -69,8 +69,6 @@ export const useSetSelectedTableNumber = () =>
 export const useCurrency = () => useStore((state) => state.currency);
 export const useSetCurrency = () => useStore((state) => state.setCurrency);
 
-// Option 2: Memoized group selectors (use with caution)
-
 export const useProductState = () => {
   const selectedCategory = useStore((state) => state.selectedCategory);
   const setSelectedCategory = useStore((state) => state.setSelectedCategory);

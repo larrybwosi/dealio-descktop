@@ -13,7 +13,8 @@ import {
   BarChart2,
   Settings,
   HelpCircle,
-  CheckCircle
+  CheckCircle,
+  SidebarClose
 } from 'lucide-react';
 
 const sidebarItems = [
@@ -55,7 +56,7 @@ export function Sidebar() {
           className="ml-auto"
           onClick={() => setCollapsed(!collapsed)}
         >
-          <ChevronRight className={cn("h-4 w-4 transition-all", collapsed ? "-rotate-180" : "")} />
+          <SidebarClose className={cn("h-4 w-4 transition-all", collapsed ? "-rotate-180" : "")} />
         </Button>
       </div>
 

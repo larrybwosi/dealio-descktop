@@ -1,5 +1,5 @@
 {
-  "name": "shadcnui",
+  "name": "Dealio",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -8,7 +8,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@hookform/resolvers": "^3.10.0",
+    "@hookform/resolvers": "^5.1.1",
+    "@legendapp/state": "^3.0.0-beta.31",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
@@ -40,6 +41,16 @@
     "@tailwindcss/vite": "^4.1.11",
     "@tanstack/react-query": "^5.83.0",
     "@tanstack/react-query-devtools": "^5.83.0",
+    "@tauri-apps/plugin-autostart": "~2",
+    "@tauri-apps/plugin-clipboard-manager": "~2",
+    "@tauri-apps/plugin-deep-link": "~2",
+    "@tauri-apps/plugin-fs": "~2",
+    "@tauri-apps/plugin-store": "~2.3.0",
+    "@tauri-apps/plugin-stronghold": "~2",
+    "@tauri-apps/plugin-updater": "~2",
+    "@tauri-apps/plugin-upload": "~2",
+    "@tauri-apps/plugin-websocket": "~2.4.0",
+    "axios": "^1.11.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -48,13 +59,14 @@
     "input-otp": "^1.4.2",
     "lucide-react": "^0.525.0",
     "next-themes": "^0.3.0",
-    "react": "^19.1.0",
+    "qrcode": "^1.5.4",
+    "react": "18",
     "react-day-picker": "^8.10.1",
-    "react-dom": "^19.1.0",
+    "react-dom": "18",
     "react-hook-form": "^7.61.1",
     "react-qrcode-logo": "^3.0.0",
     "react-resizable-panels": "^3.0.3",
-    "react-router-dom": "^7.7.0",
+    "react-router-dom": "^7.7.1",
     "react-to-print": "^3.1.1",
     "recharts": "^3.1.0",
     "sonner": "^2.0.6",
@@ -62,7 +74,7 @@
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^11.1.0",
     "vaul": "^0.9.9",
-    "zod": "^4.0.8",
+    "zod": "^4.0.10",
     "zustand": "^5.0.6"
   },
   "devDependencies": {
@@ -70,8 +82,9 @@
     "@tailwindcss/aspect-ratio": "^0.4.2",
     "@tailwindcss/postcss": "^4.1.11",
     "@tailwindcss/typography": "^0.5.16",
+    "@tauri-apps/cli": "^2.7.1",
     "@types/node": "^22.16.5",
-    "@types/react": "^18.3.23",
+    "@types/react": "^19.1.8",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitejs/plugin-react-swc": "^3.11.0",
@@ -84,6 +97,6 @@
     "tailwindcss": "^4.1.11",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^5.4.19"
+    "vite": "^7.0.6"
   }
 }

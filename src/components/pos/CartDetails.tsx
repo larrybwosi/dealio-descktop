@@ -68,9 +68,6 @@ export function CartDetails({
     <div className="bg-white rounded-lg shadow-xs border h-full flex flex-col">
       <div className="flex justify-between items-center p-4 border-b">
         <h2 className="text-xl font-semibold">Cart Details</h2>
-        <Button variant="ghost" size="icon">
-          <Eye className="h-5 w-5" />
-        </Button>
       </div>
 
       {/* Order type selector */}
