@@ -198,6 +198,7 @@ console.log(session)
         }
 
         toast.success("Employee card verified! Welcome back");
+        router('/')
       }
     } catch (error) {
       console.error("Login error:", error);

@@ -23,6 +23,7 @@ export interface Customer {
   lastOrderDate?: string;
   customerTier?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
   preferredContactMethod?: 'email' | 'phone' | 'sms';
+  lastVisit?: string;
   orders?: Order[];
 }
 
@@ -42,15 +43,17 @@ interface Order {
 // Customers
 export const useListCustomers = () => {
   const organizationId = useOrgStore(state => state.organizationId);
-  const { data, isLoading, error }= useQuery<ApiResponse<Customer[]>, Error>({
+  const { data, isLoading, error, refetch }= useQuery({
     queryKey: ['customers', organizationId],
     queryFn: () => apiClient.customers.list(organizationId!),
     enabled: !!organizationId,
   });
+  
   return{
-    data: data?.data?.customers as Customer[] || [],
+    data: data as Customer[] || [],
     isLoading,
-    error
+    error,
+    refetch
   }
 };
 
@@ -83,7 +86,7 @@ export const useDeleteCustomer = () => {
   const queryClient = useQueryClient();
   const organizationId = useOrgStore(state => state.organizationId);
 
-  return useMutation<ApiResponse<void>, Error, string>({
+  return useMutation({
     mutationFn: customerId => apiClient.customers.delete(organizationId!, customerId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers', organizationId] });
@@ -93,7 +96,7 @@ export const useDeleteCustomer = () => {
 
 export const useGetCustomer = (customerId: string) => {
   const organizationId = useOrgStore(state => state.organizationId);
-  return useQuery<ApiResponse<Customer>, Error>({
+  return useQuery({
     queryKey: ['customer', organizationId, customerId],
     queryFn: () => apiClient.customers.get(organizationId!, customerId),
     enabled: !!organizationId && !!customerId,

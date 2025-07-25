@@ -3,7 +3,7 @@ import { Sidebar } from "@/components/pos/Sidebar";
 import { OrderQueues } from "@/components/pos/OrderQueues";
 import { ProductList } from "@/components/pos/ProductList";
 import { CartDetails } from "@/components/pos/CartDetails";
-import { CustomerManagement } from "@/components/pos/CustomerManagement";
+import { CustomerManagement } from "@/components/pos/customers";
 import { PaymentModal } from "@/components/pos/PaymentModal";
 import { InvoiceModal } from "@/components/pos/InvoiceModal";
 import { GlobalCurrencySelector } from "@/components/pos/GlobalCurrencySelector";
