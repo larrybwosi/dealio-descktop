@@ -26,20 +26,37 @@ export function ProductList({ onAddToCart }: ProductListProps) {
   const { selectedCategory, setSelectedCategory, searchQuery, setSearchQuery } =
     useProductState();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [selectedVariants, setSelectedVariants] = useState<
+    Record<string, string>
+  >({});
   const { data: products = [], isLoading } = useListProducts();
 
-  const handleAddToCart = (product: any, variant: string = "") => {
-    const selectedVariant =
-      variant || (product.variants?.length > 0 ? product.variants[0].name : "");
+  const getProductKey = (productId: string, variant?: string) => {
+    return variant ? `${productId}-${variant}` : productId;
+  };
 
-    const quantity = quantities[product.id || product.name] || 1;
+  const handleAddToCart = (product: any, specificVariant?: string) => {
+    const productId = product.id || product.name;
+
+    // Determine which variant to use
+    let selectedVariant = specificVariant;
+    if (!selectedVariant && product.variants?.length > 0) {
+      selectedVariant = selectedVariants[productId] || product.variants[0].name;
+    }
+
+    // Find the selected variant details
+    const variantDetails = product.variants?.find(
+      (v) => v.name === selectedVariant
+    );
+    const productKey = getProductKey(productId, selectedVariant);
+    const quantity = quantities[productKey] || 1;
 
     const cartItem: CartItem = {
-      id: product.id || product.name, // Use name as fallback ID
+      id: getProductKey(productId, selectedVariant), // Unique ID for product + variant combination
       name: product.name,
-      price: product.variants?.[0]?.price || "0", // Use first variant's price or default
+      price: variantDetails?.price || product.variants?.[0]?.price || "0",
       quantity: quantity,
-      variant: selectedVariant,
+      variant: selectedVariant || "",
       image: product.image,
     };
 
@@ -48,18 +65,45 @@ export function ProductList({ onAddToCart }: ProductListProps) {
     // Reset quantity after adding to cart
     setQuantities({
       ...quantities,
-      [product.id || product.name]: 0,
+      [productKey]: 0,
     });
   };
 
-  const updateQuantity = (productId: string, delta: number) => {
-    const currentQty = quantities[productId] || 0;
+  const updateQuantity = (
+    productId: string,
+    variant: string | undefined,
+    delta: number
+  ) => {
+    const productKey = getProductKey(productId, variant);
+    const currentQty = quantities[productKey] || 0;
     const newQty = Math.max(0, currentQty + delta);
 
     setQuantities({
       ...quantities,
-      [productId]: newQty,
+      [productKey]: newQty,
     });
+  };
+
+  const handleVariantSelect = (productId: string, variantName: string) => {
+    setSelectedVariants({
+      ...selectedVariants,
+      [productId]: variantName,
+    });
+  };
+
+  const getSelectedVariant = (product: any) => {
+    const productId = product.id || product.name;
+    return (
+      selectedVariants[productId] ||
+      (product.variants?.length > 0 ? product.variants[0].name : "")
+    );
+  };
+
+  const getCurrentQuantity = (product: any) => {
+    const productId = product.id || product.name;
+    const selectedVariant = getSelectedVariant(product);
+    const productKey = getProductKey(productId, selectedVariant);
+    return quantities[productKey] || 0;
   };
 
   // Filter products by search query and category
@@ -75,7 +119,7 @@ export function ProductList({ onAddToCart }: ProductListProps) {
   });
 
   // Extract unique categories from products
-  const availableCategories = [
+  const availableCategories: string[] = [
     "All",
     ...new Set(products.map((p) => p.category?.name).filter(Boolean)),
   ];
@@ -127,104 +171,144 @@ export function ProductList({ onAddToCart }: ProductListProps) {
         <ProductSkeleton />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredProducts.map((product) => (
-            <div
-              key={product.id || product.name}
-              className="border rounded-md overflow-hidden"
-            >
-              <div className="h-48 w-full overflow-hidden bg-gray-100">
-                {product.image ? (
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        "https://placehold.co/400x300/e2e8f0/64748b?text=No+Image";
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                    <span className="text-gray-500">No image available</span>
-                  </div>
-                )}
-              </div>
-              <div className="p-3">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-medium">{product.name}</h3>
-                  {product.category && (
-                    <span
-                      className="text-xs px-2 py-1 rounded-full"
-                      style={{
-                        backgroundColor: product.category.color || "#e2e8f0",
+          {filteredProducts.map((product) => {
+            const productId = product.id || product.name;
+            const selectedVariant = getSelectedVariant(product);
+            const selectedVariantDetails = product.variants?.find(
+              (v) => v.name === selectedVariant
+            );
+            const currentQuantity = getCurrentQuantity(product);
+
+            return (
+              <div
+                key={productId}
+                className="border rounded-md overflow-hidden"
+              >
+                <div className="h-48 w-full overflow-hidden bg-gray-100">
+                  {product.image ? (
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          "https://placehold.co/400x300/e2e8f0/64748b?text=No+Image";
                       }}
-                    >
-                      {product.category.name}
-                    </span>
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                      <span className="text-gray-500">No image available</span>
+                    </div>
                   )}
                 </div>
-
-                {product.variants?.length > 0 && (
-                  <div className="text-sm text-gray-700 mt-1">
-                    {product.variants[0].price}{" "}
-                    {/* Show first variant's price by default */}
+                <div className="p-3">
+                  <div className="flex justify-between items-start">
+                    <h3 className="font-medium">{product.name}</h3>
+                    {product.category && (
+                      <span
+                        className="text-xs px-2 py-1 rounded-full"
+                        style={{
+                          backgroundColor: product.category.color || "#e2e8f0",
+                        }}
+                      >
+                        {product.category.name}
+                      </span>
+                    )}
                   </div>
-                )}
 
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {product.variants?.map((variant) => (
-                    <Button
-                      key={variant.name}
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-7 px-2 rounded-sm"
-                      onClick={() => handleAddToCart(product, variant.name)}
-                    >
-                      {variant.name} ({variant.price})
-                    </Button>
-                  ))}
-                </div>
+                  {selectedVariantDetails && (
+                    <div className="text-sm text-gray-700 mt-1 font-medium">
+                      {selectedVariantDetails.price}
+                    </div>
+                  )}
 
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
+                  {/* Variant Selection - Show as selection buttons when multiple variants */}
+                  {product.variants?.length > 1 && (
+                    <div className="mt-3">
+                      <div className="text-xs text-gray-600 mb-2">
+                        Select variant:
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {product.variants.map((variant) => (
+                          <Button
+                            key={variant.name}
+                            variant={
+                              selectedVariant === variant.name
+                                ? "default"
+                                : "outline"
+                            }
+                            size="sm"
+                            className="text-xs h-7 px-2 rounded-sm"
+                            onClick={() =>
+                              handleVariantSelect(productId, variant.name)
+                            }
+                          >
+                            {variant.name}
+                          </Button>
+                        ))}
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        Price: {selectedVariantDetails?.price || "N/A"}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quick add buttons for single variant products */}
+                  {product.variants?.length === 1 && (
+                    <div className="mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7 px-2 rounded-sm"
+                        onClick={() =>
+                          handleAddToCart(product, product.variants[0].name)
+                        }
+                      >
+                        Add {product.variants[0].name} (
+                        {product.variants[0].price})
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() =>
+                          updateQuantity(productId, selectedVariant, -1)
+                        }
+                      >
+                        <MinusIcon className="h-3 w-3" />
+                      </Button>
+                      <span className="text-sm w-6 text-center">
+                        {currentQuantity}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() =>
+                          updateQuantity(productId, selectedVariant, 1)
+                        }
+                      >
+                        <PlusIcon className="h-3 w-3" />
+                      </Button>
+                    </div>
                     <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() =>
-                        updateQuantity(product.id || product.name, -1)
-                      }
+                      onClick={() => handleAddToCart(product)}
+                      className="h-8 text-xs"
+                      disabled={currentQuantity === 0}
                     >
-                      <MinusIcon className="h-3 w-3" />
-                    </Button>
-                    <span className="text-sm w-6 text-center">
-                      {quantities[product.id || product.name] || 0}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() =>
-                        updateQuantity(product.id || product.name, 1)
-                      }
-                    >
-                      <PlusIcon className="h-3 w-3" />
+                      <ShoppingCart className="mr-1 h-3 w-3" />
+                      Add to cart
                     </Button>
                   </div>
-                  <Button
-                    onClick={() => handleAddToCart(product)}
-                    className="h-8 text-xs"
-                    disabled={
-                      (quantities[product.id || product.name] || 0) === 0
-                    }
-                  >
-                    <ShoppingCart className="mr-1 h-3 w-3" />
-                    Add to cart
-                  </Button>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </ScrollArea>

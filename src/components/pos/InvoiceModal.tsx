@@ -7,9 +7,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { InvoicePDF } from "./InvoicePDF";
 import { InvoiceData, Order } from "@/types";
-import { PDFViewer } from "@react-pdf/renderer";
+import { PDFViewer, pdf } from "@react-pdf/renderer";
 import { useReactToPrint } from "react-to-print";
 import { Printer, Download, Mail, Share2 } from "lucide-react";
 import { toast } from "sonner";
@@ -17,7 +16,8 @@ import { BaseDirectory, open, writeFile } from "@tauri-apps/plugin-fs";
 import { save } from "@tauri-apps/plugin-dialog";
 import { isTauri } from "@tauri-apps/api/core";
 import { documentDir } from "@tauri-apps/api/path";
-import { getInvoicePDFBlob } from "@/lib/pdf-utils";
+import QRCode from "qrcode";
+import { InvoicePDF } from "@/components/pos/InvoicePDF";
 
 interface InvoiceModalProps {
   isOpen: boolean;
@@ -30,6 +30,11 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
 
   // Generate QR code URL with order info
   const qrCodeUrl = `https://dealioerp.vecel.app/pay/${order.id}`;
+  const qrCodeImage = QRCode.toDataURL(qrCodeUrl);
+
+  const handlePrint = useReactToPrint({
+    contentRef: pdfRef,
+  });
 
   const invoiceData: InvoiceData = {
     order,
@@ -37,16 +42,13 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
     restaurantAddress: "Indah Kapuk Beach, Jakarta",
     restaurantPhone: "+62 812 3456 7890",
     restaurantEmail: "info@bountycatch.com",
-    qrCodeUrl,
+    qrCodeUrl:qrCodeImage,
   };
-
-  const handlePrint = useReactToPrint({
-    contentRef: pdfRef,
-  });
 
   const handleDownload = async () => {
     try {
-      const blob = await getInvoicePDFBlob(invoiceData);
+    const pdfDoc = InvoicePDF({ data: invoiceData});
+    const blob = await pdf(pdfDoc).toBlob();
       const arrayBuffer = await blob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
 
@@ -126,7 +128,6 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
           <Button
             variant="secondary"
             onClick={() => {
-              // In a real app, you would implement email sending here
               toast.info(
                 "Email functionality would send the invoice to the customer"
               );
@@ -138,7 +139,6 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
           <Button
             variant="secondary"
             onClick={() => {
-              // In a real app, you would implement sharing functionality here
               toast.info("Share functionality would open native share dialog");
             }}
           >

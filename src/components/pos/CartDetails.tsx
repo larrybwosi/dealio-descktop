@@ -21,9 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CartItem, OrderType, Customer } from '@/types';
-import { cn } from '@/lib/utils';
-import {useCurrency, useStore} from '@/store';
-import { formatCurrency } from '@/lib/currencyFormatter';
+import { useFormattedCurrency } from '@/lib/utils';
+import { useOrgStore } from '@/lib/tanstack-axios';
 
 interface CartDetailsProps {
   cartItems: CartItem[];
@@ -54,14 +53,15 @@ export function CartDetails({
 }: CartDetailsProps) {
   const [isCustomerInfoOpen, setIsCustomerInfoOpen] = useState(true);
   const [promoCode, setPromoCode] = useState('');
-  const currency = useCurrency()
+  const { taxRate, currency } = useOrgStore()
+  const formatCurrency = useFormattedCurrency();
 
   const calculateSubtotal = () => {
     return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
   };
 
   const discount = calculateSubtotal() * 0.1; // 10% discount
-  const tax = calculateSubtotal() * 0.025; // 2.5% tax
+  const tax = calculateSubtotal() * Number(taxRate)
   const total = calculateSubtotal() - discount + tax;
 
   return (
@@ -221,7 +221,7 @@ export function CartDetails({
                     {item.addition && <div>Addition: {item.addition}</div>}
                   </div>
                   <div className="mt-1 font-medium">
-                    {formatCurrency(item.price, currency)}
+                    {formatCurrency(item.price)}
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -255,24 +255,24 @@ export function CartDetails({
         <div className="flex justify-between text-sm">
           <span>Sub total</span>
           <span className="font-medium">
-            {formatCurrency(calculateSubtotal(), currency)}
+            {formatCurrency(calculateSubtotal())}
           </span>
         </div>
         <div className="flex justify-between text-sm">
           <span>Discount (10%)</span>
           <span className="font-medium">
-            - {formatCurrency(discount, currency)}
+            - {formatCurrency(discount)}
           </span>
         </div>
         <div className="flex justify-between text-sm">
-          <span>Tax (2.5%)</span>
+          <span>Tax ({Number(taxRate)*100})%</span>
           <span className="font-medium">
-            {formatCurrency(tax, currency)}
+            {formatCurrency(tax)}
           </span>
         </div>
         <div className="flex justify-between font-medium">
           <span>Total amount</span>
-          <span>{formatCurrency(total, currency)}</span>
+          <span>{formatCurrency(total)}</span>
         </div>
 
         <div>

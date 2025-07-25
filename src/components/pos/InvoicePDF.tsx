@@ -6,10 +6,8 @@ import {
   StyleSheet, 
   Image
 } from '@react-pdf/renderer';
-import { useRef, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { InvoiceData } from '@/types';
-// import Qrcode from 'reacct-q'
 
 // Create styles
 const styles = StyleSheet.create({
@@ -133,23 +131,6 @@ const styles = StyleSheet.create({
   },
 });
 
-// Define component for QR code image
-const QRCodeImage = ({ value }: { value: string }) => {
-  const [qrDataURL, setQrDataURL] = useState<string>('');
-  
-  useEffect(() => {
-    const canvas = document.createElement('canvas');
-    const qr = new QRCode(canvas, {
-      text: value,
-      width: 120,
-      height: 120,
-    });
-    setQrDataURL(canvas.toDataURL());
-  }, [value]);
-
-  return qrDataURL ? <Image src={qrDataURL} style={styles.qrCode} /> : null;
-};
-
 interface InvoicePDFProps {
   data: InvoiceData;
 }
@@ -163,7 +144,7 @@ export const InvoicePDF = ({ data }: InvoicePDFProps) => {
     restaurantEmail, 
     qrCodeUrl 
   } = data;
-
+  
   return (
     <Document>
       <Page size="A4" style={styles.page}>

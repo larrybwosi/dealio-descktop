@@ -6,7 +6,6 @@ import { CartDetails } from "@/components/pos/CartDetails";
 import { CustomerManagement } from "@/components/pos/customers";
 import { PaymentModal } from "@/components/pos/PaymentModal";
 import { InvoiceModal } from "@/components/pos/InvoiceModal";
-import { GlobalCurrencySelector } from "@/components/pos/GlobalCurrencySelector";
 import { CartItem, Customer, Order, OrderType, OrderQueue } from "@/types";
 import { withAuth } from "@/providers/session";
 
@@ -189,7 +188,6 @@ function PosSystem() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-semibold">Orders & Products</h2>
-                  <GlobalCurrencySelector />
                 </div>
                 <OrderQueues />
                 <ProductList onAddToCart={handleAddToCart} />
