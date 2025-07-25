@@ -24,41 +24,218 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { signIn } from "@/lib/authClient";
+import { useNavigate } from "react-router-dom";
+import { useSession } from "@/providers/session";
+
+interface LoginOptions {
+  loginWithEmail: (
+    email: string,
+    password: string,
+    callbackUrl?: string
+  ) => Promise<{ error?: string }>;
+  loginWithUsername: (
+    username: string,
+    password: string
+  ) => Promise<{ error?: string }>;
+  loginWithCard: (cardNumber: string) => Promise<{ error?: string }>;
+}
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"email" | "card">("email");
   const [credentials, setCredentials] = useState({
     email: "",
     password: "",
     employeeCard: "",
   });
+  const [errors, setErrors] = useState({
+    email: "",
+    password: "",
+    employeeCard: "",
+    general: "",
+  });
+const router = useNavigate()
+const session = useSession()
+console.log(session)
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validateInputs = (loginType: "email" | "card"): boolean => {
+    let isValid = true;
+    const newErrors = {
+      email: "",
+      password: "",
+      employeeCard: "",
+      general: "",
+    };
+
+    if (loginType === "email") {
+      if (!credentials.email) {
+        newErrors.email = "Email or username is required";
+        isValid = false;
+      } else if (
+        credentials.email.includes("@") &&
+        !validateEmail(credentials.email)
+      ) {
+        newErrors.email = "Please enter a valid email address";
+        isValid = false;
+      }
+
+      if (!credentials.password) {
+        newErrors.password = "Password is required";
+        isValid = false;
+      } else if (credentials.password.length < 6) {
+        newErrors.password = "Password must be at least 6 characters";
+        isValid = false;
+      }
+    } else {
+      if (!credentials.employeeCard) {
+        newErrors.employeeCard = "Employee card number is required";
+        isValid = false;
+      } else if (!/^\d+$/.test(credentials.employeeCard)) {
+        newErrors.employeeCard = "Card number must contain only digits";
+        isValid = false;
+      } else if (credentials.employeeCard.length < 8) {
+        newErrors.employeeCard = "Card number must be at least 8 digits";
+        isValid = false;
+      }
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  const loginOptions: LoginOptions = {
+    loginWithEmail: async (email, password, callbackUrl) => {
+      const { error } = await signIn.email({
+        email,
+        password,
+        callbackURL: callbackUrl || "",
+      });
+      return { error };
+    },
+    loginWithUsername: async (username, password) => {
+      const { error } = await signIn.username({
+        username,
+        password,
+        rememberMe: true,
+      });
+      return { error };
+    },
+    loginWithCard: async (cardNumber) => {
+      try {
+        const response = await fetch("/api/login/card", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ cardNumber }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Card verification failed");
+        }
+
+        return await response.json();
+      } catch (error) {
+        return {
+          error:
+            error instanceof Error ? error.message : "Card verification failed",
+        };
+      }
+    },
+  };
 
   const handleLogin = async (loginType: "email" | "card") => {
+    // Clear previous errors
+    setErrors({
+      email: "",
+      password: "",
+      employeeCard: "",
+      general: "",
+    });
+
+    // Validate inputs
+    if (!validateInputs(loginType)) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
       if (loginType === "email") {
-        if (!credentials.email || !credentials.password) {
-          toast.error("Please fill in all required fields");
-          return;
+        let result;
+        if (validateEmail(credentials.email)) {
+          result = await loginOptions.loginWithEmail(
+            credentials.email,
+            credentials.password
+          );
+        } else {
+          result = await loginOptions.loginWithUsername(
+            credentials.email,
+            credentials.password
+          );
         }
+
+        if (result?.error) {
+          throw new Error(result.error);
+        }
+
         toast.success("Login successful! Welcome to Dealio");
+        router("/");
       } else {
-        if (!credentials.employeeCard) {
-          toast.error("Please enter your employee card number");
-          return;
+        const result = await loginOptions.loginWithCard(
+          credentials.employeeCard
+        );
+
+        if (result?.error) {
+          throw new Error(result.error);
         }
+
         toast.success("Employee card verified! Welcome back");
       }
-
-      // Redirect logic would go here
-      console.log("Redirecting to dashboard...");
     } catch (error) {
-      toast.error("Login failed. Please try again.");
+      console.error("Login error:", error);
+
+      let errorMessage = "Login failed. Please try again.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+
+        // Handle specific error cases
+        if (
+          errorMessage.includes("invalid credentials") ||
+          errorMessage.includes("incorrect password")
+        ) {
+          errorMessage = "Invalid email/username or password";
+          setErrors((prev) => ({
+            ...prev,
+            email: "Invalid credentials",
+            password: "Invalid credentials",
+          }));
+        } else if (errorMessage.includes("user not found")) {
+          errorMessage = "Account not found. Please check your email/username";
+          setErrors((prev) => ({
+            ...prev,
+            email: "Account not found",
+          }));
+        } else if (errorMessage.includes("card not found")) {
+          errorMessage = "Employee card not recognized";
+          setErrors((prev) => ({
+            ...prev,
+            employeeCard: "Card not recognized",
+          }));
+        } else if (errorMessage.includes("inactive")) {
+          errorMessage = "Your account is inactive. Please contact support";
+        }
+      }
+
+      toast.error(errorMessage);
+      setErrors((prev) => ({ ...prev, general: errorMessage }));
     } finally {
       setIsLoading(false);
     }
@@ -66,6 +243,10 @@ export default function LoginPage() {
 
   const handleInputChange = (field: string, value: string) => {
     setCredentials((prev) => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field as keyof typeof errors]) {
+      setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
   };
 
   return (
@@ -156,7 +337,19 @@ export default function LoginPage() {
             </CardHeader>
 
             <CardContent className="space-y-6">
-              <Tabs defaultValue="email" className="w-full">
+              {errors.general && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-800 text-sm">
+                  {errors.general}
+                </div>
+              )}
+
+              <Tabs
+                defaultValue="email"
+                className="w-full"
+                onValueChange={(value) =>
+                  setActiveTab(value as "email" | "card")
+                }
+              >
                 <TabsList className="grid w-full grid-cols-2 mb-6">
                   <TabsTrigger
                     value="email"
@@ -191,7 +384,11 @@ export default function LoginPage() {
                         handleInputChange("email", e.target.value)
                       }
                       className="h-11"
+                      aria-invalid={!!errors.email}
                     />
+                    {errors.email && (
+                      <p className="text-sm text-red-600">{errors.email}</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -211,6 +408,7 @@ export default function LoginPage() {
                           handleInputChange("password", e.target.value)
                         }
                         className="h-11 pr-10"
+                        aria-invalid={!!errors.password}
                       />
                       <button
                         type="button"
@@ -224,6 +422,9 @@ export default function LoginPage() {
                         )}
                       </button>
                     </div>
+                    {errors.password && (
+                      <p className="text-sm text-red-600">{errors.password}</p>
+                    )}
                   </div>
 
                   <Button
@@ -262,7 +463,13 @@ export default function LoginPage() {
                         handleInputChange("employeeCard", e.target.value)
                       }
                       className="h-11"
+                      aria-invalid={!!errors.employeeCard}
                     />
+                    {errors.employeeCard && (
+                      <p className="text-sm text-red-600">
+                        {errors.employeeCard}
+                      </p>
+                    )}
                   </div>
 
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
