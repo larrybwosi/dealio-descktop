@@ -9,6 +9,26 @@
     "core:default",
     "autostart:allow-enable",
     "autostart:allow-disable",
-    "autostart:allow-is-enabled"
+    "autostart:allow-is-enabled",
+    "store:default",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        {
+          "path": "/downloads/file"
+        },
+        {
+          "path": "$APPDATA/file"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [{ "path": "$APPDATA/*" }, { "path": "$DOCUMENT" }]
+    },
+    {
+      "identifier": "fs:scope",
+      "allow": [{ "path": "$DOWNLOAD/*" }, { "path": "$DOCUMENT/*" }]
+    }
   ]
 }
