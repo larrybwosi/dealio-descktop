@@ -36,6 +36,9 @@ import { UnitOfMeasure } from './api/units';
 import { ExtendedOrder } from './api/orders';
 // import { SupplierFormValues } from '@/components/supplier-create-modal';
 import { Notification } from './api/notifications';
+import { isTauri } from "@tauri-apps/api/core";
+import { Store } from "@tauri-apps/plugin-store";
+import { LazyStore } from "@tauri-apps/plugin-store";
 
 // Zustand store for organization and member details
 
@@ -54,33 +57,78 @@ interface OrgState {
   clear: () => void;
 }
 
+
+const tauriStore = isTauri() ? new LazyStore(".settings.dat") : null;
 export const useOrgStore = create<OrgState>()(
   persist(
-    set => ({
+    (set) => ({
       organizationId: null,
       memberId: null,
       locationId: null,
       logo: null,
       taxRate: null,
-      currency: 'USD',
+      currency: "USD",
       address: null,
       locationName: null,
       orgName: null,
       plan: null,
-      set: state => set(state),
+      set: (state) => set(state),
       clear: () =>
-        set({ organizationId: null, memberId: null, locationId: null, logo: null, taxRate: null, currency: 'USD' }),
+        set({
+          organizationId: null,
+          memberId: null,
+          locationId: null,
+          logo: null,
+          taxRate: null,
+          currency: "USD",
+          address: null,
+          locationName: null,
+          orgName: null,
+          plan: null,
+        }),
     }),
     {
-      name: 'org-storage',
-      storage: {
-        getItem: name => {
-          const value = localStorage.getItem(name);
-          return value ? JSON.parse(value) : null;
-        },
-        setItem: (name, value) => localStorage.setItem(name, JSON.stringify(value)),
-        removeItem: name => localStorage.removeItem(name),
-      },
+      name: "dealio-org-storage",
+      storage:
+        isTauri() && tauriStore
+          ? {
+              getItem: async (name: string) => {
+                try {
+                  const value = await tauriStore.get(name);
+                  return value ? JSON.parse(value as string) : null;
+                } catch (error) {
+                  console.error("Error reading from Tauri store:", error);
+                  return null;
+                }
+              },
+              //eslint-disable-next-line
+              setItem: async (name: string, value: any) => {
+                try {
+                  await tauriStore.set(name, JSON.stringify(value));
+                  await tauriStore.save();
+                } catch (error) {
+                  console.error("Error writing to Tauri store:", error);
+                }
+              },
+              removeItem: async (name: string) => {
+                try {
+                  await tauriStore.delete(name);
+                  await tauriStore.save();
+                } catch (error) {
+                  console.error("Error removing from Tauri store:", error);
+                }
+              },
+            }
+          : {
+              getItem: (name: string) => {
+                const value = localStorage.getItem(name);
+                return value ? JSON.parse(value) : null;
+              },
+              //eslint-disable-next-line
+              setItem: (name: string, value: any) =>
+                localStorage.setItem(name, JSON.stringify(value)),
+              removeItem: (name: string) => localStorage.removeItem(name),
+            },
     }
   )
 );
@@ -97,6 +145,7 @@ type ExtendedProduct = {
   imageUrls: string[]; // Array of image URLs for the product
   createdAt: Date; // Creation timestamp
   updatedAt: Date; // Last updated timestamp
+  image?:string
 
   // Physical dimensions
   width: number; // Width of the product
@@ -360,7 +409,7 @@ class ApiClient {
       if (locationId) {
         params.append('locationId', locationId);
       }
-      return this.axiosInstance.get(`/${organizationId}/v2/products?${params.toString()}`).then(res => res.data);
+      return this.axiosInstance.get(`/${organizationId}/v2/products?${params.toString()}`).then(res => res);
     },
     create: (organizationId: string, data: Partial<Product>): Promise<ApiResponse<Product>> =>
       this.axiosInstance.post(`/${organizationId}/products`, data).then(res => res.data),
@@ -807,7 +856,7 @@ export const apiClient = new ApiClient(
   '/api/organizations'
 );
 
-// TanStack Query Provider with Sonner integration
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -823,17 +872,50 @@ const queryClient = new QueryClient({
       },
     },
     mutations: {
-      //eslint-disable-next-line
       onSuccess: (data: any) => {
         if (data.meta?.message && data.meta.success) {
           toast.success(data.meta.message);
         }
       },
-      //eslint-disable-next-line
-      onError: (error: any) => {
-        const message = error.response?.data?.error || error.response?.data?.message || 'An unexpected error occurred';
-        console.log(message)
-        toast.error('An unexpected error occurred',{ description: message});
+      onError: (error: unknown) => {
+        let errorMessage = 'An unexpected error occurred';
+
+        // Handle different error formats
+        if (typeof error === 'string') {
+          errorMessage = error; // Direct string error
+        } else if (error instanceof Error && error.message) {
+          errorMessage = error.message; // Native Error object
+        } else if (typeof error === 'object' && error !== null) {
+          const err = error as any; // Use any for compatibility, but safely access properties
+          // Prioritize error.response.data.error (string or object with message)
+          if (err.response?.data?.error) {
+            if (typeof err.response.data.error === 'string') {
+              errorMessage = err.response.data.error;
+            } else if (typeof err.response.data.error === 'object' && err.response.data.error?.message) {
+              errorMessage = err.response.data.error.message;
+            }
+          }
+          // Fallback to error.response.data.message for backward compatibility
+          else if (err.response?.data?.message && typeof err.response.data.message === 'string') {
+            errorMessage = err.response.data.message;
+          }
+          // Fallback to generic error.message
+          else if (err.message && typeof err.message === 'string') {
+            errorMessage = err.message;
+          }
+        }
+
+        // Log detailed error information for debugging
+        console.error('Mutation error:', {
+          error,
+          extractedMessage: errorMessage,
+        });
+
+        // Display the specific error message in the toast
+        toast.error(errorMessage, {
+          description:
+            errorMessage !== 'An unexpected error occurred' ? undefined : 'Please try again or contact support.',
+        });
       },
     },
   },

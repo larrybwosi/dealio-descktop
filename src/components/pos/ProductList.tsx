@@ -12,9 +12,8 @@ import {
 } from "lucide-react";
 import { CartItem, Product } from "@/types";
 import { cn } from "@/lib/utils";
-import { useProductState, useCurrencyState } from "@/store";
+import { useProductState } from "@/store";
 import { ProductSkeleton } from "@/components/ui/skeletons/ProductSkeleton";
-import { useProductsByCategory } from "@/hooks/use-query-hooks";
 import { ScrollArea } from "../ui/scroll-area";
 import { useListProducts } from "@/lib/api/products";
 
@@ -206,7 +205,7 @@ export function ProductList({ onAddToCart }: ProductListProps) {
                     <h3 className="font-medium">{product.name}</h3>
                     {product.category && (
                       <span
-                        className="text-xs px-2 py-1 rounded-full"
+                        className="text-xs px-2 py-1 rounded-full text-gray-100"
                         style={{
                           backgroundColor: product.category.color || "#e2e8f0",
                         }}

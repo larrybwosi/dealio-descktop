@@ -1,23 +1,28 @@
-import { useRef } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { InvoiceData, Order } from "@/types";
-import { PDFViewer, pdf } from "@react-pdf/renderer";
-import { useReactToPrint } from "react-to-print";
-import { Printer, Download, Mail, Share2 } from "lucide-react";
-import { toast } from "sonner";
-import { BaseDirectory, open, writeFile } from "@tauri-apps/plugin-fs";
-import { save } from "@tauri-apps/plugin-dialog";
-import { isTauri } from "@tauri-apps/api/core";
-import { documentDir } from "@tauri-apps/api/path";
-import QRCode from "qrcode";
-import { InvoicePDF } from "@/components/pos/InvoicePDF";
+import { useEffect, useRef, useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { InvoiceData, Order } from '@/types';
+import { PDFViewer, pdf } from '@react-pdf/renderer';
+import { useReactToPrint } from 'react-to-print';
+import { Printer, Download, Mail, Share2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { BaseDirectory, writeFile } from '@tauri-apps/plugin-fs';
+import { isTauri } from '@tauri-apps/api/core';
+import { documentDir } from '@tauri-apps/api/path';
+import QRCode from 'qrcode';
+import { InvoicePDF } from '@/components/pos/InvoicePDF';
+import { useOrgStore } from '@/lib/tanstack-axios';
+import { ThermalReceiptPDF, OrganizationData } from './ThermalReceiptPDF';
+
+export interface PaymentData {
+  paymentMethod: 'cash' | 'mobile' | 'card';
+  amountPaid: number;
+  change: number;
+  orderId: string;
+  customerName?: string;
+  customerPhone?: string;
+  table?: string;
+}
 
 interface InvoiceModalProps {
   isOpen: boolean;
@@ -27,76 +32,129 @@ interface InvoiceModalProps {
 
 export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   const pdfRef = useRef<HTMLDivElement>(null);
+  // --- ✨ Assuming useOrgStore provides all necessary fields ---
+  const { orgName, address,} = useOrgStore();
 
-  // Generate QR code URL with order info
-  const qrCodeUrl = `https://dealioerp.vecel.app/pay/${order.id}`;
-  const qrCodeImage = QRCode.toDataURL(qrCodeUrl);
+  const orgInfo = {
+    phone: '+62 812 3456 7890',
+    email: 'dealio@gealio.co',
+    website: 'www.dealio.co',
+    tagline: 'Your favorite spot',
+  }
+  const { phone, email, website, tagline } = orgInfo;
+  const isPaid = order.status === 'completed';
+  const [qrCodeImage, setQrCodeImage] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const handlePrint = useReactToPrint({
     contentRef: pdfRef,
   });
 
+  useEffect(() => {
+    const generateQrCode = async () => {
+      if (!order?.id) return;
+      setIsLoading(true);
+      try {
+        const url = isPaid
+          ? `https://dealioerp.vercel.app/receipt/${order.id}`
+          : `https://dealioerp.vercel.app/pay/${order.id}`;
+
+        const dataUrl = await QRCode.toDataURL(url, {
+          width: 128,
+          margin: 1,
+          errorCorrectionLevel: 'H',
+        });
+        setQrCodeImage(dataUrl);
+      } catch (err) {
+        console.error('Failed to generate QR code', err);
+        toast.error('Could not generate QR code.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (isOpen) {
+      generateQrCode();
+    }
+  }, [order.id, isPaid, isOpen]);
+
+  // --- ✨ Data structured for ThermalReceiptPDF ---
+  const organizationData: OrganizationData = {
+    name: orgName || 'Dealio',
+    address: address || 'Indah Kapuk Beach, Jakarta',
+    phone: phone || '+62 812 3456 7890',
+    email: email || 'info@dealio.co',
+    website: website || 'www.dealio.co',
+    tagline: tagline || 'Your favorite spot',
+  };
+
+  const paymentData: PaymentData = {
+    paymentMethod: order.paymentMethod as 'cash' | 'mobile' | 'card',
+    amountPaid: order.amountPaid ?? order.total,
+    change: order.change ?? 0,
+    orderId: order.id,
+    customerName: order.customer?.name,
+    customerPhone: order.customer?.phone,
+    table: order.tableNumber,
+  };
+
+  // --- ✨ Data structured for standard InvoicePDF ---
   const invoiceData: InvoiceData = {
     order,
-    restaurantName: "Dealio",
-    restaurantAddress: "Indah Kapuk Beach, Jakarta",
-    restaurantPhone: "+62 812 3456 7890",
-    restaurantEmail: "info@bountycatch.com",
-    qrCodeUrl:qrCodeImage,
+    restaurantName: orgName || 'Dealio',
+    restaurantAddress: address || 'Indah Kapuk Beach, Jakarta',
+    restaurantPhone: phone || '+62 812 3456 7890',
+    restaurantEmail: 'info@dealio.co',
+    qrCodeImage: qrCodeImage,
   };
 
   const handleDownload = async () => {
+    if (isLoading) return toast.info('Please wait ...');
     try {
-    const pdfDoc = InvoicePDF({ data: invoiceData});
-    const blob = await pdf(pdfDoc).toBlob();
+      // --- ✨ Conditionally generate the correct PDF document for download ---
+      const pdfDoc = isPaid
+        ? ThermalReceiptPDF({
+            items: order.items,
+            paymentData: paymentData,
+            qrCodeImage: qrCodeImage,
+            organization: organizationData,
+          })
+        : InvoicePDF({ data: invoiceData });
+
+      const blob = await pdf(pdfDoc).toBlob();
       const arrayBuffer = await blob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
+      const fileName = isPaid ? `Receipt_${order.orderNumber}.pdf` : `Invoice_${order.orderNumber}.pdf`;
 
       if (isTauri()) {
-        // Tauri specific download logic
-        const defaultFileName = `Invoice_${order.orderNumber}.pdf`;
         const documentDirPath = await documentDir();
+        const filePath = `${documentDirPath}/${fileName}`;
+        await writeFile(filePath, uint8Array, { baseDir: BaseDirectory.Download });
 
-        // Suggest saving to Documents folder
-        const filePath = await save({
-          defaultPath: `${documentDirPath}/${defaultFileName}`,
-          filters: [
-            {
-              name: "PDF",
-              extensions: ["pdf"],
+        toast.success('Document downloaded successfully!', {
+          action: {
+            label: 'View Document',
+            onClick: async () => {
+              const { openPath } = await import('@tauri-apps/plugin-opener');
+              await openPath(filePath);
             },
-          ],
+          },
         });
-
-        if (filePath) {
-          await writeFile(filePath, uint8Array);
-
-          toast.success("Invoice downloaded successfully!", {
-            action: {
-              label: "View Document",
-              onClick: async () => {
-                const { openPath } = await import("@tauri-apps/plugin-opener");
-                await openPath(filePath);
-              },
-            },
-          });
-        }
       } else {
-        // Web browser download logic
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
+        const a = document.createElement('a');
         a.href = url;
-        a.download = `Invoice_${order.orderNumber}.pdf`;
+        a.download = fileName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        toast.success("Invoice downloaded successfully!");
+        toast.success('Document downloaded successfully!');
       }
     } catch (error) {
-      console.error("Error downloading invoice:", error);
-      toast.error("Failed to download invoice");
+      console.error('Error downloading document:', error);
+      toast.error('Failed to download document');
     }
   };
 
@@ -104,12 +162,25 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Invoice #{order.orderNumber}</DialogTitle>
+          {/* --- ✨ Title changes based on payment status --- */}
+          <DialogTitle>
+            {isPaid ? 'Receipt' : 'Invoice'} #{order.orderNumber}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-auto" ref={pdfRef}>
-          <PDFViewer width="100%" height={500} style={{ border: "none" }}>
-            <InvoicePDF data={invoiceData} />
+          <PDFViewer width="100%" height={500} style={{ border: 'none' }}>
+            {/* --- ✨ Conditionally render correct component with correct props --- */}
+            {isPaid ? (
+              <ThermalReceiptPDF
+                items={order.items}
+                paymentData={paymentData}
+                qrCodeImage={qrCodeImage}
+                organization={organizationData}
+              />
+            ) : (
+              <InvoicePDF data={invoiceData} />
+            )}
           </PDFViewer>
         </div>
 
@@ -128,9 +199,7 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
           <Button
             variant="secondary"
             onClick={() => {
-              toast.info(
-                "Email functionality would send the invoice to the customer"
-              );
+              toast.info('Email functionality would send the invoice to the customer');
             }}
           >
             <Mail className="mr-2 h-4 w-4" />
@@ -139,7 +208,7 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
           <Button
             variant="secondary"
             onClick={() => {
-              toast.info("Share functionality would open native share dialog");
+              toast.info('Share functionality would open native share dialog');
             }}
           >
             <Share2 className="mr-2 h-4 w-4" />

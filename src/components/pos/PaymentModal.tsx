@@ -1,31 +1,14 @@
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle,
-  DialogFooter
-} from '@/components/ui/dialog';
-import { 
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger
-} from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { CartItem, Customer, Order, OrderType, PaymentMethod } from '@/types';
-import { 
-  CreditCard, 
-  Smartphone, 
-  DollarSign, 
-  Check, 
-  ReceiptText, 
-  UserPlus
-} from 'lucide-react';
+import { CreditCard, Smartphone, DollarSign, Check, ReceiptText, UserPlus } from 'lucide-react';
+import { useFormattedCurrency } from '@/lib/utils';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -54,22 +37,31 @@ export function PaymentModal({
   orderType,
   tableNumber,
   onOpenCustomer,
-  onPaymentComplete
+  onPaymentComplete,
 }: PaymentModalProps) {
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Mobile Payment');
+  const [paymentMethod, setPaymentMethod] = useState<Omit<PaymentMethod, 'Pending'>>('Mobile Payment');
   const [cashReceived, setCashReceived] = useState<string>(total.toString());
   const [isProcessing, setIsProcessing] = useState(false);
   const [notes, setNotes] = useState('');
 
   const generateOrderNumber = () => {
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const random = Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, '0');
     const date = new Date();
     const month = String(date.getMonth() + 1).padStart(2, '0');
-    return `#${month}${String(date.getDate()).padStart(2, '0')}${random}`;
+    return `${month}${String(date.getDate()).padStart(2, '0')}${random}`;
+  };
+
+  const calculateChange = () => {
+    const received = parseFloat(cashReceived) || 0;
+    return received > total ? received - total : 0;
   };
 
   const handlePayment = () => {
     setIsProcessing(true);
+
+    const received = parseFloat(cashReceived) || 0;
 
     // Create order object
     const newOrder: Order = {
@@ -83,10 +75,13 @@ export function PaymentModal({
       total,
       orderType,
       status: 'completed',
-      paymentMethod,
+      paymentMethod: paymentMethod as PaymentMethod,
       tableNumber,
       datetime: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
-      notes
+      notes,
+      // --- ✨ New data being added ---
+      amountPaid: paymentMethod === 'cash' ? received : total,
+      change: paymentMethod === 'cash' ? calculateChange() : 0,
     };
 
     // Simulate payment processing
@@ -97,10 +92,7 @@ export function PaymentModal({
     }, 1000);
   };
 
-  const calculateChange = () => {
-    const received = parseFloat(cashReceived) || 0;
-    return received - total;
-  };
+  const formatCurrency = useFormattedCurrency()
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -134,32 +126,29 @@ export function PaymentModal({
           <div className="space-y-1">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal:</span>
-              <span>Rp. {subtotal.toLocaleString()}</span>
+              <span> {formatCurrency(subtotal)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Discount (10%):</span>
-              <span>Rp. {discount.toLocaleString()}</span>
+              <span> {formatCurrency(discount)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tax (2.5%):</span>
-              <span>Rp. {tax.toLocaleString()}</span>
+              <span> {formatCurrency(tax)}</span>
             </div>
             <div className="flex justify-between font-medium pt-2 border-t">
               <span>Total:</span>
-              <span>Rp. {total.toLocaleString()}</span>
+              <span> {formatCurrency(total)}</span>
             </div>
           </div>
 
           {/* Payment Method */}
           <div className="space-y-3">
             <Label>Payment Method</Label>
-            <Tabs 
-              defaultValue="mobile" 
-              onValueChange={(value) => {
-                setPaymentMethod(
-                  value === 'mobile' ? 'Mobile Payment' : 
-                  value === 'cash' ? 'Cash' : 'Card'
-                );
+            <Tabs
+              defaultValue="mobile"
+              onValueChange={value => {
+                setPaymentMethod(value as 'mobile' | 'cash' | 'card');
               }}
             >
               <TabsList className="grid grid-cols-3 w-full">
@@ -176,35 +165,31 @@ export function PaymentModal({
                   Card
                 </TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="mobile" className="pt-4 space-y-3">
                 <p className="text-sm">The customer will receive a QR code to make the payment.</p>
               </TabsContent>
-              
+
               <TabsContent value="cash" className="pt-4 space-y-3">
                 <div className="space-y-2">
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <Label htmlFor="cash-received">Cash Received</Label>
-                      <Input 
-                        id="cash-received" 
+                      <Input
+                        id="cash-received"
                         value={cashReceived}
-                        onChange={(e) => setCashReceived(e.target.value)}
+                        onChange={e => setCashReceived(e.target.value)}
                         type="number"
                       />
                     </div>
                     <div>
                       <Label htmlFor="change">Change</Label>
-                      <Input 
-                        id="change" 
-                        value={calculateChange() > 0 ? calculateChange().toLocaleString() : '0'}
-                        disabled
-                      />
+                      <Input id="change" value={calculateChange()} disabled />
                     </div>
                   </div>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="card" className="pt-4 space-y-3">
                 <p className="text-sm">Process card payment using the card terminal.</p>
               </TabsContent>
@@ -214,28 +199,23 @@ export function PaymentModal({
           {/* Notes */}
           <div className="space-y-2">
             <Label htmlFor="notes">Order Notes</Label>
-            <Input 
-              id="notes" 
+            <Input
+              id="notes"
               placeholder="Add any special instructions"
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={e => setNotes(e.target.value)}
             />
           </div>
         </div>
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
-          <Button 
-            variant="outline" 
-            onClick={onClose} 
-            className="sm:w-auto w-full"
-            disabled={isProcessing}
-          >
+          <Button variant="outline" onClick={onClose} className="sm:w-auto w-full" disabled={isProcessing}>
             Cancel
           </Button>
-          <Button 
-            onClick={handlePayment} 
+          <Button
+            onClick={handlePayment}
             className="sm:w-auto w-full"
-            disabled={isProcessing}
+            disabled={isProcessing || (paymentMethod === 'cash' && parseFloat(cashReceived) < total)}
           >
             {isProcessing ? (
               <div className="flex items-center">
@@ -249,8 +229,8 @@ export function PaymentModal({
               </div>
             )}
           </Button>
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             className="sm:w-auto w-full"
             onClick={() => {
               const newOrder: Order = {
@@ -267,7 +247,7 @@ export function PaymentModal({
                 paymentMethod: 'Pending',
                 tableNumber,
                 datetime: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
-                notes
+                notes,
               };
               onPaymentComplete(newOrder);
               onClose();

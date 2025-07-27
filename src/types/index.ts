@@ -77,6 +77,8 @@ export interface Order {
   tableNumber?: string;
   datetime: string;
   notes?: string;
+  amountPaid?: number;
+  change?: number;
 }
 
 export interface InvoiceData {
@@ -85,7 +87,7 @@ export interface InvoiceData {
   restaurantAddress: string;
   restaurantPhone: string;
   restaurantEmail: string;
-  qrCodeUrl: string;
+  qrCodeImage: string;
 }
 
 export interface IconProps {

@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Dealio",
-  "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "version": "1.2.0",
+  "identifier": "com.dealio.apps",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",

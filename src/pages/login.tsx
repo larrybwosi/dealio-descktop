@@ -25,8 +25,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { signIn } from "@/lib/authClient";
-import { useNavigate } from "react-router-dom";
-import { useSession } from "@/providers/session";
+import { Link, useNavigate } from "react-router";
+import IDCardScannerDialog from "@/components/hid";
 
 interface LoginOptions {
   loginWithEmail: (
@@ -57,8 +57,9 @@ export default function LoginPage() {
     general: "",
   });
 const router = useNavigate()
-const session = useSession()
-console.log(session)
+
+
+
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -187,7 +188,7 @@ console.log(session)
         }
 
         toast.success("Login successful! Welcome to Dealio");
-        router("/");
+        router("/home");
       } else {
         const result = await loginOptions.loginWithCard(
           credentials.employeeCard
@@ -198,7 +199,7 @@ console.log(session)
         }
 
         toast.success("Employee card verified! Welcome back");
-        router('/')
+        router('/home')
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -325,6 +326,7 @@ console.log(session)
             <span className="ml-3 text-xl font-bold text-gray-900">Dealio</span>
           </div>
 
+{/* <IDCardScannerDialog/> */}
           <Card className="border-0 shadow-xl">
             <CardHeader className="space-y-4 pb-6">
               <div>

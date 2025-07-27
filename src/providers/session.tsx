@@ -1,4 +1,4 @@
-import React, {
+import {
   createContext,
   useContext,
   useEffect,
@@ -7,7 +7,7 @@ import React, {
   useRef,
 } from "react";
 import { useSession as useAuthSession } from "@/lib/authClient";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 interface Session {
   user: {
@@ -30,7 +30,7 @@ interface SessionContextType {
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
-const SESSION_STORAGE_KEY = "app_session";
+const SESSION_STORAGE_KEY = "dealio-app_session";
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 interface SessionProviderProps {
@@ -159,6 +159,7 @@ export function SessionProvider({
       }
     } else if (error || !authSession) {
       // No valid session and no persisted session, redirect to login
+      console.log(session)
       if (!session) {
         router(redirectTo);
       }

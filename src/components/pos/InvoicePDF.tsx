@@ -8,6 +8,7 @@ import {
 } from '@react-pdf/renderer';
 import { format } from 'date-fns';
 import { InvoiceData } from '@/types';
+import { formatCurrency, useFormattedCurrency } from '@/lib/utils';
 
 // Create styles
 const styles = StyleSheet.create({
@@ -57,6 +58,7 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   table: {
+    // @ts-expect-error table not defined
     display: 'table',
     width: 'auto',
     marginVertical: 10,
@@ -142,7 +144,7 @@ export const InvoicePDF = ({ data }: InvoicePDFProps) => {
     restaurantAddress, 
     restaurantPhone, 
     restaurantEmail, 
-    qrCodeUrl 
+    qrCodeImage 
   } = data;
   
   return (
@@ -152,20 +154,26 @@ export const InvoicePDF = ({ data }: InvoicePDFProps) => {
           <View style={styles.headerLeft}>
             <Text style={styles.title}>INVOICE</Text>
             <Text style={styles.subtitle}>Order #{order.orderNumber}</Text>
-            <Text style={styles.subtitle}>Date: {format(new Date(order.datetime), 'dd/MM/yyyy HH:mm')}</Text>
+            <Text style={styles.subtitle}>
+              Date: {format(new Date(order.datetime), "dd/MM/yyyy HH:mm")}
+            </Text>
           </View>
           <View style={styles.headerRight}>
             <Text style={styles.restaurantName}>{restaurantName}</Text>
             <Text style={styles.restaurantDetails}>{restaurantAddress}</Text>
-            <Text style={styles.restaurantDetails}>Phone: {restaurantPhone}</Text>
-            <Text style={styles.restaurantDetails}>Email: {restaurantEmail}</Text>
+            <Text style={styles.restaurantDetails}>
+              Phone: {restaurantPhone}
+            </Text>
+            <Text style={styles.restaurantDetails}>
+              Email: {restaurantEmail}
+            </Text>
           </View>
         </View>
 
         {/* Customer Information */}
         <View style={styles.section}>
           <Text style={styles.bold}>Customer Information</Text>
-          <Text>{order.customer?.name || 'Walk-in Customer'}</Text>
+          <Text>{order.customer?.name || "Walk-in Customer"}</Text>
           {order.customer?.phone && <Text>{order.customer.phone}</Text>}
           {order.customer?.email && <Text>{order.customer.email}</Text>}
           {order.customer?.address && <Text>{order.customer.address}</Text>}
@@ -183,42 +191,43 @@ export const InvoicePDF = ({ data }: InvoicePDFProps) => {
         {/* Order Items */}
         <View style={styles.table}>
           <View style={styles.tableRow}>
-            <View style={[styles.tableColHeader, { width: '40%' }]}>
+            <View style={[styles.tableColHeader, { width: "40%" }]}>
               <Text style={styles.tableCell}>Item</Text>
             </View>
-            <View style={[styles.tableColHeader, { width: '20%' }]}>
+            <View style={[styles.tableColHeader, { width: "20%" }]}>
               <Text style={styles.tableCell}>Variant</Text>
             </View>
-            <View style={[styles.tableColHeader, { width: '10%' }]}>
+            <View style={[styles.tableColHeader, { width: "10%" }]}>
               <Text style={styles.tableCell}>Qty</Text>
             </View>
-            <View style={[styles.tableColHeader, { width: '15%' }]}>
+            <View style={[styles.tableColHeader, { width: "15%" }]}>
               <Text style={styles.tableCell}>Price</Text>
             </View>
-            <View style={[styles.tableColHeader, { width: '15%' }]}>
+            <View style={[styles.tableColHeader, { width: "15%" }]}>
               <Text style={styles.tableCell}>Total</Text>
             </View>
           </View>
 
           {order.items.map((item, index) => (
             <View key={index} style={styles.tableRow}>
-              <View style={[styles.tableCol, { width: '40%' }]}>
+              <View style={[styles.tableCol, { width: "40%" }]}>
                 <Text style={styles.tableCell}>{item.name}</Text>
               </View>
-              <View style={[styles.tableCol, { width: '20%' }]}>
+              <View style={[styles.tableCol, { width: "20%" }]}>
                 <Text style={styles.tableCell}>
-                  {item.variant || '-'}{item.addition ? `, ${item.addition}` : ''}
+                  {item.variant || "-"}
+                  {item.addition ? `, ${item.addition}` : ""}
                 </Text>
               </View>
-              <View style={[styles.tableCol, { width: '10%' }]}>
+              <View style={[styles.tableCol, { width: "10%" }]}>
                 <Text style={styles.tableCell}>{item.quantity}</Text>
               </View>
-              <View style={[styles.tableCol, { width: '15%' }]}>
-                <Text style={styles.tableCell}>Rp. {item.price.toLocaleString()}</Text>
+              <View style={[styles.tableCol, { width: "15%" }]}>
+                <Text style={styles.tableCell}>{formatCurrency(item.price)}</Text>
               </View>
-              <View style={[styles.tableCol, { width: '15%' }]}>
+              <View style={[styles.tableCol, { width: "15%" }]}>
                 <Text style={styles.tableCell}>
-                  Rp. {(item.price * item.quantity).toLocaleString()}
+                  {formatCurrency(item.price * item.quantity)}
                 </Text>
               </View>
             </View>
@@ -229,36 +238,34 @@ export const InvoicePDF = ({ data }: InvoicePDFProps) => {
         <View style={styles.summary}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal:</Text>
-            <Text style={styles.summaryValue}>
-              Rp. {order.subtotal.toLocaleString()}
-            </Text>
+            <Text style={styles.summaryValue}>{formatCurrency(order.subtotal)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Discount:</Text>
-            <Text style={styles.summaryValue}>
-              Rp. {order.discount.toLocaleString()}
-            </Text>
+            <Text style={styles.summaryValue}>{formatCurrency(order.discount)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Tax (2.5%):</Text>
             <Text style={styles.summaryValue}>
-              Rp. {order.tax.toLocaleString()}
+              {formatCurrency(order.tax)}
             </Text>
           </View>
           <View style={[styles.summaryRow, styles.total]}>
             <Text style={styles.summaryLabel}>Total:</Text>
             <Text style={styles.summaryValue}>
-              Rp. {order.total.toLocaleString()}
+              {formatCurrency(order.total)}
             </Text>
           </View>
         </View>
 
         {/* QR Code for Payment */}
         <View style={styles.qrSection}>
-          {qrCodeUrl && (
+          {qrCodeImage && (
             <>
-              <Text style={styles.qrText}>Scan to pay or check order status</Text>
-              <Image src={qrCodeUrl} style={styles.qrCode} />
+              <Text style={styles.qrText}>
+                Scan to pay or check order status
+              </Text>
+              <Image src={qrCodeImage} style={styles.qrCode} />
             </>
           )}
         </View>
@@ -274,7 +281,9 @@ export const InvoicePDF = ({ data }: InvoicePDFProps) => {
         {/* Footer */}
         <View style={styles.footer}>
           <Text>Thank you for dining with us!</Text>
-          <Text>{restaurantName} - {restaurantPhone}</Text>
+          <Text>
+            {restaurantName} - {restaurantPhone}
+          </Text>
         </View>
       </Page>
     </Document>

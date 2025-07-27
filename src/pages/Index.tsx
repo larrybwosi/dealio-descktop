@@ -8,6 +8,7 @@ import { PaymentModal } from "@/components/pos/PaymentModal";
 import { InvoiceModal } from "@/components/pos/InvoiceModal";
 import { CartItem, Customer, Order, OrderType, OrderQueue } from "@/types";
 import { withAuth } from "@/providers/session";
+import { useOrgStore } from "@/lib/tanstack-axios";
 
 function PosSystem() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -21,6 +22,7 @@ function PosSystem() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
+  const { taxRate } = useOrgStore()
 
   // Memoized cart calculations
   const { subtotal, discount, tax, total } = useMemo(() => {
@@ -29,10 +31,10 @@ function PosSystem() {
       0
     );
     const discount = subtotal * 0.1;
-    const tax = subtotal * 0.025;
+    const tax = subtotal * Number(taxRate);
     const total = subtotal - discount + tax;
     return { subtotal, discount, tax, total };
-  }, [cartItems]);
+  }, [cartItems, taxRate]);
 
   // Stable callback for adding to cart
   const handleAddToCart = useCallback((item: CartItem) => {

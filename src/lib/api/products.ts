@@ -3,16 +3,67 @@ import { apiClient, ApiResponse, useOrgStore } from '@/lib/tanstack-axios';
 import { Product, ProductVariant } from '@/prisma/client';
 
 // Products
+
+
+const CACHE_DURATION = 5 * 60 * 1000;
+
+interface CachedData {
+  data: any[];
+  timestamp: number;
+}
+
 export const useListProducts = (inLocation: boolean = false) => {
   const organizationId = useOrgStore(state => state.organizationId);
-  const locationId = useOrgStore(state => state.locationId); 
+  const locationId = useOrgStore(state => state.locationId);
+
+  // Generate cache key based on organizationId and locationId
+  const cacheKey = `products_${organizationId}_${inLocation ? locationId : 'no-location'}`;
+
+  // Function to get cached data
+  const getCachedData = (): CachedData | null => {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      // Check if cache is still valid
+      if (Date.now() - parsed.timestamp < CACHE_DURATION) {
+        return parsed;
+      }
+      // Remove expired cache
+      localStorage.removeItem(cacheKey);
+    }
+    return null;
+  };
+
+  // Function to set cached data
+  const setCachedData = (data: any[]) => {
+    const cacheData: CachedData = {
+      data,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+  };
+
   const { data, refetch, error } = useQuery({
     queryKey: ['products', organizationId, inLocation ? locationId : undefined],
-    queryFn: async () => await apiClient.products.list(organizationId!, inLocation ? locationId! : undefined),
+    queryFn: async () => {
+      const cachedData = getCachedData();
+      if (cachedData) {
+        return { data: cachedData.data };
+      }
+
+      const response = await apiClient.products.list(organizationId!, inLocation ? locationId! : undefined);
+
+      // Cache the new data
+      setCachedData(response.data);
+      return response;
+    },
     enabled: !!organizationId,
+    // Set initial data from cache if available
+    initialData: getCachedData() ? { data: getCachedData()!.data } : undefined,
   });
+
   return {
-    data: data || [],
+    data: data?.data || [],
     isLoading: !data,
     isError: !data && !!organizationId,
     error,

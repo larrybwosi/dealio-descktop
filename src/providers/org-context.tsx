@@ -4,15 +4,12 @@ import { useEffect, useState } from 'react';
 import { AlertCircle, Building2 } from 'lucide-react';
 import { useOrgStore } from '@/lib/tanstack-axios';
 import { useSession } from '@/lib/authClient';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 export function OrgProvider({ children }: { children: React.ReactNode }) {
   const { data: session, isPending } = useSession();
   const router = useNavigate();
-  const { organizationId, set: setOrgDetails } = useOrgStore(state => ({
-    organizationId: state.organizationId,
-    set: state.set,
-  }));
+  const { organizationId, set: setOrgDetails } = useOrgStore();
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadingStage, setLoadingStage] = useState<'session' | 'organization' | 'complete'>('session');

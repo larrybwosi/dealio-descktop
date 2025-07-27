@@ -1,14 +1,14 @@
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router";
 import { QueryProvider } from "@/providers/query-provider";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/login";
 import { SessionProvider } from "./providers/session";
-import { OrgProvider } from "./providers/org-context";
 import { useMemo } from "react";
 import { AlertTriangle, CheckCircle2, Info, XCircle } from "lucide-react";
 import { Toaster } from "sonner";
+import { OrgProvider } from "./providers/org-context";
 
 export type ToastType =
   | "success"
@@ -70,30 +70,33 @@ const App = () => {
   return (
     <QueryProvider>
       <TooltipProvider>
-        <Toaster
-          richColors
-          position="top-right"
-          visibleToasts={3}
-          toastOptions={{
-            classNames: {
-              toast: "flex items-center gap-2 p-4 rounded-md shadow-lg",
-              success: toastConfigs.success.className,
-              error: toastConfigs.error.className,
-              info: toastConfigs.info.className,
-              warning: toastConfigs.warning.className,
-              default: toastConfigs.default.className,
-            },
-          }}
-        />
         <BrowserRouter>
           <SessionProvider redirectTo="/login">
-            {/* <OrgProvider> */}
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            {/* </OrgProvider> */}
+            <OrgProvider>
+            {/* <AppProvider> */}
+              <Toaster
+                richColors
+                position="top-right"
+                visibleToasts={3}
+                toastOptions={{
+                  classNames: {
+                    toast: "flex items-center gap-2 p-4 rounded-md shadow-lg",
+                    success: toastConfigs.success.className,
+                    error: toastConfigs.error.className,
+                    info: toastConfigs.info.className,
+                    warning: toastConfigs.warning.className,
+                    default: toastConfigs.default.className,
+                  },
+                }}
+              />
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/home" element={<Index />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            {/* </AppProvider> */}
+            </OrgProvider>
           </SessionProvider>
         </BrowserRouter>
       </TooltipProvider>
