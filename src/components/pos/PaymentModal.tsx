@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { CartItem, Customer, Order, OrderType, PaymentMethod } from '@/types';
 import { CreditCard, Smartphone, DollarSign, Check, ReceiptText, UserPlus } from 'lucide-react';
 import { useFormattedCurrency } from '@/lib/utils';
+import { useOrgStore } from '@/lib/tanstack-axios';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -43,6 +44,7 @@ export function PaymentModal({
   const [cashReceived, setCashReceived] = useState<string>(total.toString());
   const [isProcessing, setIsProcessing] = useState(false);
   const [notes, setNotes] = useState('');
+  const { taxRate } = useOrgStore()
 
   const generateOrderNumber = () => {
     const random = Math.floor(Math.random() * 10000)
@@ -133,7 +135,7 @@ export function PaymentModal({
               <span> {formatCurrency(discount)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax (2.5%):</span>
+              <span className="text-muted-foreground">Tax ({Number(taxRate) * 100}%):</span>
               <span> {formatCurrency(tax)}</span>
             </div>
             <div className="flex justify-between font-medium pt-2 border-t">

@@ -8,15 +8,7 @@ import {
 } from 'better-auth/client/plugins';
 // import { auth } from '../auth';
 
-export const {
-  signIn,
-  signUp,
-  useSession,
-  signOut,
-  changePassword,
-  organization,
-  apiKey,
-} = createAuthClient({
+ export const authClient = createAuthClient({
   // baseURL: '/',
   plugins: [
     customSessionClient(),
@@ -25,3 +17,12 @@ export const {
     organizationClient(),
   ],
 });
+export const {
+  signIn,
+  signUp,
+  useSession,
+  signOut,
+  changePassword,
+  organization,
+  apiKey,
+} = authClient

@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@daveyplate/better-auth-tauri": "^0.0.24",
     "@hookform/resolvers": "^5.1.1",
     "@legendapp/state": "^3.0.0-beta.31",
     "@radix-ui/react-accordion": "^1.2.11",
@@ -46,6 +47,7 @@
     "@tauri-apps/plugin-deep-link": "~2",
     "@tauri-apps/plugin-dialog": "~2",
     "@tauri-apps/plugin-fs": "~2",
+    "@tauri-apps/plugin-http": "~2",
     "@tauri-apps/plugin-notification": "~2",
     "@tauri-apps/plugin-opener": "~2",
     "@tauri-apps/plugin-store": "~2",

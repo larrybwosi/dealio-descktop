@@ -182,6 +182,7 @@ const router = useNavigate()
             credentials.password
           );
         }
+        console.log("Login result:", result);
 
         if (result?.error) {
           throw new Error(result.error);

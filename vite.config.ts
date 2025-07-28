@@ -14,32 +14,34 @@ export default defineConfig(async () => ({
   // 1. prevent vite from obscuring rust errors
   clearScreen: false,
   // 2. tauri expects a fixed port, fail if that port is not available
+
+  //http://localhost:3000, 'https://dealioerp.vercel.app'
   server: {
     port: 5173,
     strictPort: true,
     host: host || false,
     proxy: {
-      "/api": {
-        target: "http://localhost:3000", // Next.js server
+      '/api': {
+        target: 'http://localhost:3000',
         changeOrigin: true,
         secure: false,
       },
     },
     hmr: host
       ? {
-          protocol: "ws",
+          protocol: 'ws',
           host,
           port: 1421,
         }
       : undefined,
     watch: {
       // 3. tell vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      ignored: ['**/src-tauri/**'],
     },
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
 }));

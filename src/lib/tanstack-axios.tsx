@@ -39,6 +39,7 @@ import { Notification } from './api/notifications';
 import { isTauri } from "@tauri-apps/api/core";
 import { Store } from "@tauri-apps/plugin-store";
 import { LazyStore } from "@tauri-apps/plugin-store";
+import { useSession } from '@/providers/session';
 
 // Zustand store for organization and member details
 
@@ -222,7 +223,6 @@ export interface InvoiceResponse {
 // Axios client constructor
 class ApiClient {
   private axiosInstance: AxiosInstance;
-
   constructor(baseURL: string) {
     this.axiosInstance = axios.create({
       baseURL,
@@ -235,11 +235,11 @@ class ApiClient {
     // Request interceptor for auth token
     this.axiosInstance.interceptors.request.use(
       async config => {
-        // TODO: Add auth token from session or cookie
-        // const token = await getAuthToken();
-        // if (token) {
-        //   config.headers.Authorization = `Bearer ${token}`;
-        // }
+      //   const token = useGetAuthToken();
+      //   console.log(token)
+      // if (token) {
+      //   config.headers.Authorization = `Bearer ${token}`;
+      // }
         return config;
       },
       error => Promise.reject(error)
@@ -385,7 +385,7 @@ class ApiClient {
     list: async (organizationId: string): Promise<ApiResponse<Customer[]>> =>
       this.axiosInstance.get(`/${organizationId}/v2/customers`).then(res => res.data),
     create: async (organizationId: string, data: Partial<Customer>): Promise<ApiResponse<Customer>> =>
-      this.axiosInstance.post(`/${organizationId}/v2/customers`, data).then(res => res.data),
+      this.axiosInstance.post(`/${organizationId}/v2/customers`, data,).then(res => res.data),
     get: async (organizationId: string, customerId: string): Promise<ApiResponse<Customer>> =>
       this.axiosInstance.get(`/${organizationId}/customers/${customerId}`).then(res => res.data),
     update: async (

@@ -7,8 +7,11 @@ import LoginPage from "./pages/login";
 import { SessionProvider } from "./providers/session";
 import { useMemo } from "react";
 import { AlertTriangle, CheckCircle2, Info, XCircle } from "lucide-react";
-import { Toaster } from "sonner";
+import { toast, Toaster } from "sonner";
 import { OrgProvider } from "./providers/org-context";
+import { useBetterAuthTauri } from '@daveyplate/better-auth-tauri/react';
+import { authClient } from "./lib/authClient";
+
 
 export type ToastType =
   | "success"
@@ -66,6 +69,33 @@ const App = () => {
     }),
     []
   );
+
+  
+  useBetterAuthTauri({
+    authClient,
+    scheme: 'com.dealio.apps',
+    debugLogs: false,
+    onRequest: href => {
+      console.log('Auth request:', href);
+    },
+    onSuccess: callbackURL => {
+      console.log('Auth successful, callback URL:', callbackURL);
+      toast.success('Authentication successful! You can close this window.', {
+        icon: <CheckCircle2 className="h-5 w-5 stroke-green-500" />,
+        className: toastConfigs.success.className,
+      });
+      // Handle successful authentication
+      window.location.href = callbackURL;
+    },
+    onError: error => {
+      console.error('Auth error:', error);
+      toast.error('Authentication failed. Please try again.', {
+        icon: <XCircle className="h-5 w-5 stroke-red-500" />,
+        className: toastConfigs.error.className,
+      });
+      // Handle authentication error
+    },
+  });
 
   return (
     <QueryProvider>
