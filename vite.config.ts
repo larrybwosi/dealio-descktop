@@ -22,7 +22,7 @@ export default defineConfig(async () => ({
     host: host || false,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'https://dealioerp.vercel.app',
         changeOrigin: true,
         secure: false,
       },
