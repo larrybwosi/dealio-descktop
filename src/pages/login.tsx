@@ -112,7 +112,7 @@ const router = useNavigate()
 
   const loginOptions: LoginOptions = {
     loginWithEmail: async (email, password, callbackUrl) => {
-      const { error } = await signIn.email({
+      const { error, data } = await signIn.email({
         email,
         password,
         callbackURL: callbackUrl || "",
@@ -182,8 +182,6 @@ const router = useNavigate()
             credentials.password
           );
         }
-        console.log("Login result:", result);
-
         if (result?.error) {
           throw new Error(result.error);
         }

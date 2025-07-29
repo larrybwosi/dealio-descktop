@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { Sidebar } from "@/components/pos/Sidebar";
-import { OrderQueues } from "@/components/pos/OrderQueues";
+import OrderQueues from "@/components/pos/OrderQueues";
 import { ProductList } from "@/components/pos/ProductList";
 import { CartDetails } from "@/components/pos/CartDetails";
 import { CustomerManagement } from "@/components/pos/customers";
@@ -9,6 +9,7 @@ import { InvoiceModal } from "@/components/pos/InvoiceModal";
 import { CartItem, Customer, Order, OrderType, OrderQueue } from "@/types";
 import { withAuth } from "@/providers/session";
 import { useOrgStore } from "@/lib/tanstack-axios";
+import { useSession } from "@/lib/authClient";
 
 function PosSystem() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);

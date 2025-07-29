@@ -1,21 +1,66 @@
 import { useState, useRef } from 'react';
 import { Eye, Utensils, Armchair, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { OrderQueue } from '@/types';
-import { cn } from '@/lib/utils';
+import { Button } from '../ui/button';
+import { Skeleton } from '../ui/skeleton';
 import { useOrderQueues } from '@/hooks/use-query-hooks';
-import { OrderDetailsModal } from './OrderDetailsModal';
+import { cn } from '@/lib/utils';
 
-export function OrderQueues() {
-  const { data: orderQueues, isLoading: isLoading } = useOrderQueues();
-  const [selectedOrder, setSelectedOrder] = useState<OrderQueue | null>(null);
+
+// OrderDetailsModal component (simplified)
+const OrderDetailsModal = ({ isOpen, onOpenChange, selectedOrder, onUpdateStatus }) => {
+  if (!isOpen || !selectedOrder) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">Order Details</h3>
+          <button onClick={() => onOpenChange(false)} className="text-gray-500 hover:text-gray-700">
+            ×
+          </button>
+        </div>
+        <div className="space-y-2">
+          <p>
+            <strong>Order:</strong> {selectedOrder.orderNumber}
+          </p>
+          <p>
+            <strong>Customer:</strong> {selectedOrder.customerName}
+          </p>
+          <p>
+            <strong>Table:</strong> {selectedOrder.tableNumber}
+          </p>
+          <p>
+            <strong>Items:</strong> {selectedOrder.items}
+          </p>
+          <p>
+            <strong>Status:</strong> {selectedOrder.status}
+          </p>
+          <p>
+            <strong>Time:</strong> {selectedOrder.datetime}
+          </p>
+        </div>
+        <div className="mt-4 flex gap-2">
+          <Button size="sm" onClick={() => onUpdateStatus('ready-to-serve')}>
+            Mark Ready
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+export default function OrderQueues() {
+  const { data: orderQueues, isLoading } = useOrderQueues();
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef(null);
+  const cardRef = useRef(null);
 
   const maxIndex = Math.max(0, (orderQueues?.length || 0) - 5);
   const canScrollLeft = currentIndex > 0;
@@ -29,18 +74,22 @@ export function OrderQueues() {
     setCurrentIndex(Math.min(maxIndex, currentIndex + 5));
   };
 
-  const handleViewOrder = (order: OrderQueue) => {
+  const handleViewOrder = order => {
     setSelectedOrder(order);
     setIsViewModalOpen(true);
   };
 
-  const handleUpdateStatus = (status: OrderQueue['status']) => {
+  const handleUpdateStatus = status => {
     if (selectedOrder) {
       setSelectedOrder({ ...selectedOrder, status });
     }
   };
 
-  const getStatusBadgeClass = (status: string) => {
+  const handleCollapseToggle = () => {
+    setIsCollapsed(!isCollapsed);
+  };
+
+  const getStatusBadgeClass = status => {
     switch (status) {
       case 'ready-to-serve':
         return 'bg-green-100 text-green-800';
@@ -57,7 +106,7 @@ export function OrderQueues() {
     }
   };
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = status => {
     switch (status) {
       case 'ready-to-serve':
         return 'Ready to serve';
@@ -103,28 +152,31 @@ export function OrderQueues() {
   );
 
   return (
-    <div className="bg-white rounded-lg shadow-xs border">
-      <Collapsible open={!isCollapsed} onOpenChange={setIsCollapsed}>
-        <div className="p-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Order queues</h2>
-            <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="icon">
-                <Eye className="h-5 w-5" />
-              </Button>
-              <Button variant="link" className="text-sm font-medium">
-                View All
-              </Button>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="icon" className="ml-2">
-                  {isCollapsed ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
-                </Button>
-              </CollapsibleTrigger>
-            </div>
+    <div className="bg-white rounded-lg shadow-sm border">
+      <div className="p-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold">Order queues</h2>
+          <div className="flex items-center space-x-2">
+            <Button variant="ghost" size="icon">
+              <Eye className="h-5 w-5" />
+            </Button>
+            <Button variant="link" className="text-sm font-medium">
+              View All
+            </Button>
+            <Button variant="ghost" size="icon" className="ml-2" onClick={handleCollapseToggle}>
+              {isCollapsed ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
+            </Button>
           </div>
         </div>
+      </div>
 
-        <CollapsibleContent className="px-4 pb-4">
+      {/* Collapsible Content */}
+      <div
+        className={`transition-all duration-300 ease-in-out overflow-hidden ${
+          isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[500px] opacity-100'
+        }`}
+      >
+        <div className="px-4 pb-4">
           {isLoading ? (
             <div className="space-y-4">
               {/* Navigation skeleton */}
@@ -238,8 +290,8 @@ export function OrderQueues() {
               )}
             </div>
           )}
-        </CollapsibleContent>
-      </Collapsible>
+        </div>
+      </div>
 
       <OrderDetailsModal
         isOpen={isViewModalOpen}

@@ -14,6 +14,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [loadingStage, setLoadingStage] = useState<'session' | 'organization' | 'complete'>('session');
   const [error, setError] = useState<string | null>(null);
+  console.log('OrgProvider initialized with organizationId:', organizationId);
 
   useEffect(() => {
     const initializeOrg = async () => {

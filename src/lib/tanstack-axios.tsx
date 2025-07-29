@@ -30,18 +30,12 @@ import {
 import { Category, GeneratedCategory } from './api/categories';
 import { SalesSummary } from './api/sales';
 import { InventoryAdjustment, InventoryItem, InventoryMovement } from './types/inventory';
-// import { Permission } from './permissions';
 import { UnitOfMeasure } from './api/units';
-// import { CreateOrderInput } from './validations/orders';
 import { ExtendedOrder } from './api/orders';
-// import { SupplierFormValues } from '@/components/supplier-create-modal';
 import { Notification } from './api/notifications';
 import { isTauri } from "@tauri-apps/api/core";
-import { Store } from "@tauri-apps/plugin-store";
-import { LazyStore } from "@tauri-apps/plugin-store";
-import { useSession } from '@/providers/session';
+import { LazyStore } from '@tauri-apps/plugin-store';
 
-// Zustand store for organization and member details
 
 interface OrgState {
   organizationId: string | null;
@@ -58,8 +52,7 @@ interface OrgState {
   clear: () => void;
 }
 
-
-const tauriStore = isTauri() ? new LazyStore(".settings.dat") : null;
+const tauriStore = isTauri() ? new LazyStore('.dealio-org-storage.dat') : null;
 export const useOrgStore = create<OrgState>()(
   persist(
     (set) => ({
@@ -226,24 +219,7 @@ class ApiClient {
   constructor(baseURL: string) {
     this.axiosInstance = axios.create({
       baseURL,
-      timeout: 10000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
     });
-
-    // Request interceptor for auth token
-    this.axiosInstance.interceptors.request.use(
-      async config => {
-      //   const token = useGetAuthToken();
-      //   console.log(token)
-      // if (token) {
-      //   config.headers.Authorization = `Bearer ${token}`;
-      // }
-        return config;
-      },
-      error => Promise.reject(error)
-    );
 
     // Response interceptor for error handling
     this.axiosInstance.interceptors.response.use(
@@ -255,8 +231,8 @@ class ApiClient {
       },
       error => {
         const message = error.response?.data?.error || error.response?.data?.message || 'An unexpected error occurred';
-        console.log(message);
-        // toast.error(message);
+        console.log(error);
+        toast.error(message);
         return Promise.reject(error);
       }
     );
@@ -341,7 +317,7 @@ class ApiClient {
   suppliers = {
     list: async (organizationId: string): Promise<ApiResponse<Supplier[]>> =>
       this.axiosInstance.get(`/${organizationId}/suppliers`).then(res => res.data),
-    create: async (organizationId: string, data: SupplierFormValues): Promise<ApiResponse<Supplier>> =>
+    create: async (organizationId: string, data: unknown): Promise<ApiResponse<Supplier>> =>
       this.axiosInstance.post(`/${organizationId}/suppliers`, data).then(res => res.data),
     get: async (organizationId: string, supplierId: string): Promise<ApiResponse<Supplier>> =>
       this.axiosInstance.get(`/${organizationId}/suppliers/${supplierId}`).then(res => res.data),
@@ -404,12 +380,8 @@ class ApiClient {
     },
   };
   products = {
-    list: (organizationId: string, locationId?: string): Promise<ApiResponse<ExtendedProduct[]>> => {
-      const params = new URLSearchParams();
-      if (locationId) {
-        params.append('locationId', locationId);
-      }
-      return this.axiosInstance.get(`/${organizationId}/v2/products?${params.toString()}`).then(res => res);
+    list: async (organizationId: string, locationId?: string): Promise<ApiResponse<ExtendedProduct[]>> => {
+      return await this.axiosInstance.get(`/${organizationId}/v2/products?locationId=${locationId}`).then(res => res);
     },
     create: (organizationId: string, data: Partial<Product>): Promise<ApiResponse<Product>> =>
       this.axiosInstance.post(`/${organizationId}/products`, data).then(res => res.data),
@@ -455,7 +427,7 @@ class ApiClient {
     list: async (organizationId: string): Promise<ApiResponse<Order[]>> =>
       this.axiosInstance.get(`/${organizationId}/orders`).then(res => res.data),
     //
-    create: async (organizationId: string, data: CreateOrderInput): Promise<ApiResponse<Order>> =>
+    create: async (organizationId: string, data: unknown): Promise<ApiResponse<Order>> =>
       this.axiosInstance.post(`/${organizationId}/orders`, data).then(res => res.data),
 
     get: async (organizationId: string, orderId: string): Promise<ApiResponse<ExtendedOrder>> =>
@@ -809,7 +781,7 @@ class ApiClient {
     updatePermissions: async (
       organizationId: string,
       roleId: string,
-      permissions: Permission[]
+      permissions: unknown[]
     ): Promise<ApiResponse<CustomRole>> =>
       this.axiosInstance.put(`/${organizationId}/roles/${roleId}/permissions`, { permissions }).then(res => res.data),
 
@@ -872,6 +844,7 @@ const queryClient = new QueryClient({
       },
     },
     mutations: {
+      //eslint-disable-next-line
       onSuccess: (data: any) => {
         if (data.meta?.message && data.meta.success) {
           toast.success(data.meta.message);
@@ -886,6 +859,7 @@ const queryClient = new QueryClient({
         } else if (error instanceof Error && error.message) {
           errorMessage = error.message; // Native Error object
         } else if (typeof error === 'object' && error !== null) {
+          //eslint-disable-next-line
           const err = error as any; // Use any for compatibility, but safely access properties
           // Prioritize error.response.data.error (string or object with message)
           if (err.response?.data?.error) {

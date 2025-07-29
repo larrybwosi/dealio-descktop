@@ -1,135 +1,270 @@
-import { 
-  Document, 
-  Page, 
-  Text, 
-  View, 
-  StyleSheet, 
-  Image
-} from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import { format } from 'date-fns';
 import { InvoiceData } from '@/types';
-import { formatCurrency, useFormattedCurrency } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 
-// Create styles
+// Thermal printer styles (80mm width)
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Helvetica',
-    fontSize: 12,
-    padding: 30,
+    fontSize: 9,
+    padding: 8,
+    width: 226, // 80mm in points (80mm * 2.834)
+    minHeight: 'auto',
   },
-  section: {
-    margin: 10,
-    padding: 10,
-  },
+
+  // Header Section
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  headerLeft: {
-    flexDirection: 'column',
-  },
-  headerRight: {
-    alignItems: 'flex-end',
-  },
-  logo: {
-    width: 80,
-    height: 80,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 12,
-    marginBottom: 5,
-  },
-  restaurant: {
-    marginBottom: 20,
+    alignItems: 'center',
+    marginBottom: 12,
+    borderBottom: '1px solid #000',
+    paddingBottom: 8,
   },
   restaurantName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 5,
+    textAlign: 'center',
+    marginBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   restaurantDetails: {
-    fontSize: 10,
-    color: '#555',
+    fontSize: 8,
+    textAlign: 'center',
+    color: '#333',
+    marginBottom: 1,
   },
-  table: {
-    // @ts-expect-error table not defined
-    display: 'table',
-    width: 'auto',
-    marginVertical: 10,
-    borderWidth: 1,
-    borderColor: '#EEE',
+
+  // Invoice Info
+  invoiceInfo: {
+    marginBottom: 10,
+    paddingVertical: 6,
+    backgroundColor: '#f8f8f8',
+    paddingHorizontal: 4,
   },
-  tableRow: {
+  invoiceTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 4,
+    letterSpacing: 1,
+  },
+  invoiceDetails: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 2,
   },
-  tableColHeader: {
-    borderWidth: 1,
-    borderColor: '#EEE',
-    backgroundColor: '#F8F8F8',
-    padding: 5,
+  invoiceLabel: {
+    fontSize: 8,
     fontWeight: 'bold',
   },
-  tableCol: {
-    borderWidth: 1,
-    borderColor: '#EEE',
-    padding: 5,
+  invoiceValue: {
+    fontSize: 8,
   },
-  tableCell: {
-    fontSize: 10,
+
+  // Customer Section
+  customerSection: {
+    marginBottom: 10,
+    paddingBottom: 6,
+    borderBottom: '1px dashed #999',
   },
-  bold: {
+  sectionTitle: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    marginBottom: 3,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  customerInfo: {
+    fontSize: 8,
+    marginBottom: 1,
+  },
+
+  // Order Details
+  orderDetails: {
+    marginBottom: 10,
+    paddingBottom: 6,
+    borderBottom: '1px dashed #999',
+  },
+  orderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  orderLabel: {
+    fontSize: 8,
+    fontWeight: 'bold',
+    width: '40%',
+  },
+  orderValue: {
+    fontSize: 8,
+    width: '60%',
+    textAlign: 'right',
+  },
+
+  // Items Table
+  itemsSection: {
+    marginBottom: 10,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#000',
+    paddingVertical: 3,
+    paddingHorizontal: 2,
+    marginBottom: 1,
+  },
+  headerText: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  itemRow: {
+    paddingVertical: 3,
+    paddingHorizontal: 2,
+    borderBottom: '0.5px solid #eee',
+  },
+  itemName: {
+    fontSize: 8,
+    fontWeight: 'bold',
+    marginBottom: 1,
+  },
+  itemDetails: {
+    fontSize: 7,
+    color: '#666',
+    marginBottom: 2,
+  },
+  itemPricing: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  quantity: {
+    fontSize: 8,
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 2,
+  },
+  price: {
+    fontSize: 8,
     fontWeight: 'bold',
   },
-  summary: {
-    marginTop: 20,
-    alignItems: 'flex-end',
+
+  // Summary Section
+  summarySection: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTop: '1px solid #000',
   },
   summaryRow: {
     flexDirection: 'row',
-    marginBottom: 5,
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+    paddingHorizontal: 4,
   },
   summaryLabel: {
-    width: 100,
+    fontSize: 8,
+    textAlign: 'left',
   },
   summaryValue: {
-    width: 80,
+    fontSize: 8,
     textAlign: 'right',
-  },
-  total: {
     fontWeight: 'bold',
   },
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 30,
-    right: 30,
-    textAlign: 'center',
-    fontSize: 10,
-    color: '#555',
+  totalRow: {
+    backgroundColor: '#000',
+    marginTop: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
+  totalLabel: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  totalValue: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+
+  // QR Code Section
   qrSection: {
     alignItems: 'center',
-    marginTop: 30,
+    marginTop: 12,
+    marginBottom: 12,
+    paddingVertical: 8,
+    borderTop: '1px dashed #999',
+    borderBottom: '1px dashed #999',
   },
   qrCode: {
-    width: 100,
-    height: 100,
+    width: 60,
+    height: 60,
+    marginBottom: 4,
   },
   qrText: {
-    fontSize: 10,
-    marginTop: 5,
+    fontSize: 7,
     textAlign: 'center',
+    color: '#666',
   },
-  notes: {
-    marginTop: 20,
-    fontSize: 10,
-    color: '#555',
+
+  // Notes Section
+  notesSection: {
+    marginTop: 8,
+    paddingTop: 6,
+    borderTop: '1px dashed #999',
+  },
+  notesText: {
+    fontSize: 7,
+    color: '#666',
+    lineHeight: 1.3,
+  },
+
+  // Footer
+  footer: {
+    alignItems: 'center',
+    marginTop: 15,
+    paddingTop: 8,
+    borderTop: '2px solid #000',
+  },
+  footerText: {
+    fontSize: 8,
+    textAlign: 'center',
+    marginBottom: 2,
+    fontWeight: 'bold',
+  },
+  footerSubtext: {
+    fontSize: 7,
+    textAlign: 'center',
+    color: '#666',
+  },
+
+  // Status Badge
+  statusBadge: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 4,
+  },
+  statusText: {
+    color: '#fff',
+    fontSize: 7,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+
+  // Dividers
+  divider: {
+    height: 1,
+    backgroundColor: '#000',
+    marginVertical: 6,
+  },
+  dashedDivider: {
+    borderBottom: '1px dashed #999',
+    marginVertical: 4,
   },
 });
 
@@ -138,152 +273,151 @@ interface InvoicePDFProps {
 }
 
 export const InvoicePDF = ({ data }: InvoicePDFProps) => {
-  const { 
-    order, 
-    restaurantName, 
-    restaurantAddress, 
-    restaurantPhone, 
-    restaurantEmail, 
-    qrCodeImage 
-  } = data;
-  
+  const { order, restaurantName, restaurantAddress, restaurantPhone, restaurantEmail, qrCodeImage } = data;
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return '#4CAF50';
+      case 'pending':
+        return '#FF9800';
+      case 'cancelled':
+        return '#F44336';
+      default:
+        return '#2196F3';
+    }
+  };
+
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size={[226, 650]} style={styles.page}>
+        {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.title}>INVOICE</Text>
-            <Text style={styles.subtitle}>Order #{order.orderNumber}</Text>
-            <Text style={styles.subtitle}>
-              Date: {format(new Date(order.datetime), "dd/MM/yyyy HH:mm")}
-            </Text>
+          <Text style={styles.restaurantName}>{restaurantName}</Text>
+          <Text style={styles.restaurantDetails}>{restaurantAddress}</Text>
+          <Text style={styles.restaurantDetails}>📞 {restaurantPhone}</Text>
+          <Text style={styles.restaurantDetails}>✉ {restaurantEmail}</Text>
+        </View>
+
+        {/* Invoice Info */}
+        <View style={styles.invoiceInfo}>
+          <Text style={styles.invoiceTitle}>INVOICE</Text>
+          <View style={styles.invoiceDetails}>
+            <Text style={styles.invoiceLabel}>Order #</Text>
+            <Text style={styles.invoiceValue}>{order.orderNumber}</Text>
           </View>
-          <View style={styles.headerRight}>
-            <Text style={styles.restaurantName}>{restaurantName}</Text>
-            <Text style={styles.restaurantDetails}>{restaurantAddress}</Text>
-            <Text style={styles.restaurantDetails}>
-              Phone: {restaurantPhone}
-            </Text>
-            <Text style={styles.restaurantDetails}>
-              Email: {restaurantEmail}
-            </Text>
+          <View style={styles.invoiceDetails}>
+            <Text style={styles.invoiceLabel}>Date</Text>
+            <Text style={styles.invoiceValue}>{format(new Date(order.datetime), 'dd/MM/yyyy HH:mm')}</Text>
           </View>
+          <View style={styles.invoiceDetails}>
+            <Text style={styles.invoiceLabel}>Cashier</Text>
+            <Text style={styles.invoiceValue}>Admin</Text>
+          </View>
+        </View>
+
+        {/* Status Badge */}
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) }]}>
+          <Text style={styles.statusText}>{order.status}</Text>
         </View>
 
         {/* Customer Information */}
-        <View style={styles.section}>
-          <Text style={styles.bold}>Customer Information</Text>
-          <Text>{order.customer?.name || "Walk-in Customer"}</Text>
-          {order.customer?.phone && <Text>{order.customer.phone}</Text>}
-          {order.customer?.email && <Text>{order.customer.email}</Text>}
-          {order.customer?.address && <Text>{order.customer.address}</Text>}
+        <View style={styles.customerSection}>
+          <Text style={styles.sectionTitle}>Customer</Text>
+          <Text style={styles.customerInfo}>👤 {order.customer?.name || 'Walk-in Customer'}</Text>
+          {order.customer?.phone && <Text style={styles.customerInfo}>📱 {order.customer.phone}</Text>}
+          {order.customer?.email && <Text style={styles.customerInfo}>✉ {order.customer.email}</Text>}
+          {order.customer?.address && <Text style={styles.customerInfo}>📍 {order.customer.address}</Text>}
         </View>
 
         {/* Order Details */}
-        <View style={styles.section}>
-          <Text style={styles.bold}>Order Details</Text>
-          <Text>Type: {order.orderType}</Text>
-          {order.tableNumber && <Text>Table: {order.tableNumber}</Text>}
-          <Text>Status: {order.status}</Text>
-          <Text>Payment Method: {order.paymentMethod}</Text>
+        <View style={styles.orderDetails}>
+          <Text style={styles.sectionTitle}>Order Info</Text>
+          <View style={styles.orderRow}>
+            <Text style={styles.orderLabel}>Type:</Text>
+            <Text style={styles.orderValue}>{order.orderType}</Text>
+          </View>
+          {order.tableNumber && (
+            <View style={styles.orderRow}>
+              <Text style={styles.orderLabel}>Table:</Text>
+              <Text style={styles.orderValue}>{order.tableNumber}</Text>
+            </View>
+          )}
+          <View style={styles.orderRow}>
+            <Text style={styles.orderLabel}>Payment:</Text>
+            <Text style={styles.orderValue}>{order.paymentMethod}</Text>
+          </View>
         </View>
 
-        {/* Order Items */}
-        <View style={styles.table}>
-          <View style={styles.tableRow}>
-            <View style={[styles.tableColHeader, { width: "40%" }]}>
-              <Text style={styles.tableCell}>Item</Text>
-            </View>
-            <View style={[styles.tableColHeader, { width: "20%" }]}>
-              <Text style={styles.tableCell}>Variant</Text>
-            </View>
-            <View style={[styles.tableColHeader, { width: "10%" }]}>
-              <Text style={styles.tableCell}>Qty</Text>
-            </View>
-            <View style={[styles.tableColHeader, { width: "15%" }]}>
-              <Text style={styles.tableCell}>Price</Text>
-            </View>
-            <View style={[styles.tableColHeader, { width: "15%" }]}>
-              <Text style={styles.tableCell}>Total</Text>
-            </View>
-          </View>
+        {/* Items */}
+        <View style={styles.itemsSection}>
+          <Text style={styles.sectionTitle}>Items Ordered</Text>
 
           {order.items.map((item, index) => (
-            <View key={index} style={styles.tableRow}>
-              <View style={[styles.tableCol, { width: "40%" }]}>
-                <Text style={styles.tableCell}>{item.name}</Text>
-              </View>
-              <View style={[styles.tableCol, { width: "20%" }]}>
-                <Text style={styles.tableCell}>
-                  {item.variant || "-"}
-                  {item.addition ? `, ${item.addition}` : ""}
+            <View key={index} style={styles.itemRow}>
+              <Text style={styles.itemName}>{item.name}</Text>
+              {(item.variant || item.addition) && (
+                <Text style={styles.itemDetails}>
+                  {item.variant && `• ${item.variant}`}
+                  {item.addition && ` • ${item.addition}`}
                 </Text>
-              </View>
-              <View style={[styles.tableCol, { width: "10%" }]}>
-                <Text style={styles.tableCell}>{item.quantity}</Text>
-              </View>
-              <View style={[styles.tableCol, { width: "15%" }]}>
-                <Text style={styles.tableCell}>{formatCurrency(item.price)}</Text>
-              </View>
-              <View style={[styles.tableCol, { width: "15%" }]}>
-                <Text style={styles.tableCell}>
-                  {formatCurrency(item.price * item.quantity)}
+              )}
+              <View style={styles.itemPricing}>
+                <Text style={styles.quantity}>Qty: {item.quantity}</Text>
+                <Text style={styles.price}>
+                  {formatCurrency(item.price)} × {item.quantity} = {formatCurrency(item.price * item.quantity)}
                 </Text>
               </View>
             </View>
           ))}
         </View>
 
-        {/* Order Summary */}
-        <View style={styles.summary}>
+        {/* Summary */}
+        <View style={styles.summarySection}>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Subtotal:</Text>
+            <Text style={styles.summaryLabel}>Subtotal</Text>
             <Text style={styles.summaryValue}>{formatCurrency(order.subtotal)}</Text>
           </View>
+
+          {order.discount > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Discount</Text>
+              <Text style={styles.summaryValue}>-{formatCurrency(order.discount)}</Text>
+            </View>
+          )}
+
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Discount:</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(order.discount)}</Text>
+            <Text style={styles.summaryLabel}>Tax (2.5%)</Text>
+            <Text style={styles.summaryValue}>{formatCurrency(order.tax)}</Text>
           </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Tax (2.5%):</Text>
-            <Text style={styles.summaryValue}>
-              {formatCurrency(order.tax)}
-            </Text>
-          </View>
-          <View style={[styles.summaryRow, styles.total]}>
-            <Text style={styles.summaryLabel}>Total:</Text>
-            <Text style={styles.summaryValue}>
-              {formatCurrency(order.total)}
-            </Text>
+
+          <View style={[styles.summaryRow, styles.totalRow]}>
+            <Text style={styles.totalLabel}>TOTAL</Text>
+            <Text style={styles.totalValue}>{formatCurrency(order.total)}</Text>
           </View>
         </View>
 
-        {/* QR Code for Payment */}
-        <View style={styles.qrSection}>
-          {qrCodeImage && (
-            <>
-              <Text style={styles.qrText}>
-                Scan to pay or check order status
-              </Text>
-              <Image src={qrCodeImage} style={styles.qrCode} />
-            </>
-          )}
-        </View>
+        {/* QR Code */}
+        {qrCodeImage && (
+          <View style={styles.qrSection}>
+            <Image src={qrCodeImage} style={styles.qrCode} />
+            <Text style={styles.qrText}>Scan for payment or order tracking</Text>
+          </View>
+        )}
 
         {/* Notes */}
         {order.notes && (
-          <View style={styles.notes}>
-            <Text style={styles.bold}>Notes:</Text>
-            <Text>{order.notes}</Text>
+          <View style={styles.notesSection}>
+            <Text style={styles.sectionTitle}>Special Notes</Text>
+            <Text style={styles.notesText}>{order.notes}</Text>
           </View>
         )}
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text>Thank you for dining with us!</Text>
-          <Text>
-            {restaurantName} - {restaurantPhone}
-          </Text>
+          <Text style={styles.footerText}>Thank You for Your Order!</Text>
+          <Text style={styles.footerSubtext}>Please keep this receipt for your records</Text>
+          <Text style={styles.footerSubtext}>{format(new Date(), 'dd/MM/yyyy HH:mm')} - Powered by RestaurantPOS</Text>
         </View>
       </Page>
     </Document>
