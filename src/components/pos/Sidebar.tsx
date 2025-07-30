@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -46,6 +46,7 @@ import {
 import { useSession } from '@/providers/session';
 import { signOut } from '@/lib/authClient';
 import { toast } from 'sonner';
+import { LazyStore } from '@tauri-apps/plugin-store';
 
 const sidebarItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -72,7 +73,10 @@ export function Sidebar() {
   const handleLogout = async () => {
     try {
       await signOut();
-      logout();
+      logout(); 
+      const store =  new LazyStore('.dealio-org-storage.dat') 
+      await store.reset(); // Clear the Zustand store
+      toast.success('Logged out successfully');
       setLogoutDialogOpen(false);
       setUserDialogOpen(false);
     } catch (error) {
@@ -80,14 +84,7 @@ export function Sidebar() {
       toast.error('Logout Failed');
     }
   };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
+  
 
   if (isLoading || !currentUser) {
     return null;

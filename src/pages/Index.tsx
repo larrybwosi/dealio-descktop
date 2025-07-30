@@ -9,6 +9,7 @@ import { InvoiceModal } from "@/components/pos/InvoiceModal";
 import { CartItem, Customer, Order, OrderType, OrderQueue } from "@/types";
 import { withAuth } from "@/providers/session";
 import { useOrgStore } from "@/lib/tanstack-axios";
+import { useBusinessConfig } from "@/lib/business-config-manager";
 
 function PosSystem() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -23,6 +24,7 @@ function PosSystem() {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
   const { taxRate } = useOrgStore()
+    const businessConfig = useBusinessConfig();
 
   // Memoized cart calculations
   const { subtotal, discount, tax, total } = useMemo(() => {
@@ -135,6 +137,7 @@ function PosSystem() {
       setSelectedOrderType,
       tableNumber,
       setTableNumber,
+      businessType:businessConfig.businessType,
     }),
     [
       cartItems,

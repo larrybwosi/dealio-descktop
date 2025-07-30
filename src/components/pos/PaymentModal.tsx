@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useFormattedCurrency } from '@/lib/utils';
 import { useOrgStore } from '@/lib/tanstack-axios';
+import { getCurrentPhoneConfig, PHONE_CONFIGS } from '@/lib/phone.config';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -45,11 +46,6 @@ interface PhoneConfig {
   displayName: string;
 }
 
-const PHONE_CONFIG: PhoneConfig = {
-  countryCode: '+254',
-  formats: ['+254', '254', '07', '01'],
-  displayName: 'Kenya (+254)',
-};
 
 // Phone number validation schema
 const createPhoneSchema = (config: PhoneConfig) => {
@@ -71,7 +67,7 @@ const normalizePhoneNumber = (phone: string, config: PhoneConfig): string => {
   // Handle different input formats
   if (cleaned.startsWith(config.countryCode)) {
     return cleaned; // Already in correct format
-  }
+  } 
 
   if (cleaned.startsWith('254')) {
     return '+' + cleaned; // Add + to 254xxxxxxxxx
@@ -135,7 +131,7 @@ export function PaymentModal({
   onClose,
   cartItems,
   subtotal,
-  discount: initialDiscount,
+  discount,
   tax: initialTax,
   total: initialTotal,
   customer,
@@ -156,37 +152,20 @@ export function PaymentModal({
   const [stkPushStatus, setStkPushStatus] = useState<'idle' | 'sending' | 'sent' | 'confirmed' | 'failed'>('idle');
 
   // Editable discount state
-  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
-  const [discountValue, setDiscountValue] = useState<string>('10');
-  const [customDiscount, setCustomDiscount] = useState<number>(initialDiscount);
 
   const { taxRate } = useOrgStore();
-
+  const PHONE_CONFIG = getCurrentPhoneConfig()
   const phoneSchema = createPhoneSchema(PHONE_CONFIG);
 
   // Recalculate totals when discount changes
   const calculatedTax = subtotal * Number(taxRate);
-  const calculatedTotal = subtotal - customDiscount + calculatedTax;
+  const calculatedTotal = subtotal - discount + calculatedTax;
 
   // Update cash received when total changes
   useEffect(() => {
     setCashReceived(calculatedTotal.toString());
   }, [calculatedTotal]);
 
-  // Calculate discount based on type and value
-  useEffect(() => {
-    const value = parseFloat(discountValue) || 0;
-    let newDiscount = 0;
-
-    if (discountType === 'percentage') {
-      newDiscount = (subtotal * value) / 100;
-    } else {
-      newDiscount = value;
-    }
-
-    // Ensure discount doesn't exceed subtotal
-    setCustomDiscount(Math.min(newDiscount, subtotal));
-  }, [discountType, discountValue, subtotal]);
 
   const generateOrderNumber = () => {
     const random = Math.floor(Math.random() * 10000)
@@ -209,7 +188,7 @@ export function PaymentModal({
       return true;
     } catch (error) {
       if (error instanceof z.ZodError) {
-        setPhoneError(error.errors[0].message);
+        setPhoneError(error.format().message);
       }
       return false;
     }
@@ -278,7 +257,7 @@ export function PaymentModal({
       items: [...cartItems],
       customer: customer,
       subtotal,
-      discount: customDiscount,
+      discount: discount,
       tax: calculatedTax,
       total: calculatedTotal,
       orderType,
@@ -313,7 +292,7 @@ export function PaymentModal({
       items: [...cartItems],
       customer: customer,
       subtotal,
-      discount: customDiscount,
+      discount: discount,
       tax: calculatedTax,
       total: calculatedTotal,
       orderType,
@@ -361,51 +340,6 @@ export function PaymentModal({
             )}
           </div>
 
-          {/* Discount Section */}
-          <div className="p-4 border rounded-md space-y-3">
-            <div className="flex items-center gap-2">
-              <Percent className="h-4 w-4" />
-              <Label>Discount</Label>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <Label htmlFor="discount-type" className="text-xs">
-                  Type
-                </Label>
-                <select
-                  id="discount-type"
-                  value={discountType}
-                  onChange={e => setDiscountType(e.target.value as 'percentage' | 'fixed')}
-                  className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="percentage">%</option>
-                  <option value="fixed">Fixed</option>
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="discount-value" className="text-xs">
-                  Value
-                </Label>
-                <Input
-                  id="discount-value"
-                  value={discountValue}
-                  onChange={e => setDiscountValue(e.target.value)}
-                  type="number"
-                  min="0"
-                  max={discountType === 'percentage' ? '100' : subtotal.toString()}
-                  className="text-sm"
-                />
-              </div>
-              <div>
-                <Label htmlFor="discount-amount" className="text-xs">
-                  Amount
-                </Label>
-                <div className="px-2 py-1 text-sm bg-gray-50 border rounded font-medium">
-                  {formatCurrency(customDiscount)}
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Order Summary */}
           <div className="space-y-1">
@@ -415,9 +349,9 @@ export function PaymentModal({
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">
-                Discount {discountType === 'percentage' ? `(${discountValue}%)` : '(Fixed)'}:
+                Discount : 
               </span>
-              <span>-{formatCurrency(customDiscount)}</span>
+              <span>-{formatCurrency(discount)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tax ({Number(taxRate) * 100}%):</span>

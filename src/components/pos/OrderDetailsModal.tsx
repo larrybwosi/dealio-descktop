@@ -20,7 +20,7 @@ interface OrderDetailsModalProps {
   onUpdateStatus: (status: OrderQueue["status"]) => void;
 }
 
-export function OrderDetailsModal({
+export default  function OrderDetailsModal({
   isOpen,
   onOpenChange,
   selectedOrder,

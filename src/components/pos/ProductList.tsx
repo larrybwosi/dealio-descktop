@@ -1,26 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
+import { listen } from '@tauri-apps/api/event'; // Import Tauri's event listener
+import { toast } from 'sonner'; // Using a toast library for user feedback is recommended
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Barcode, Search, RefreshCw, MinusIcon, PlusIcon, ShoppingCart } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { CartItem, Product } from '@/types';
 import { cn } from '@/lib/utils';
 import { useProductState } from '@/store';
 import { ProductSkeleton } from '@/components/ui/skeletons/ProductSkeleton';
 import { ScrollArea } from '../ui/scroll-area';
 import { useListProducts } from '@/lib/api/products';
-import useScanDetection from 'use-scan-detection';
 
 interface ProductListProps {
   onAddToCart: (product: CartItem) => void;
+}
+
+// Matches the payload from the Rust backend
+interface ScanPayload {
+  message: string;
 }
 
 export function ProductList({ onAddToCart }: ProductListProps) {
@@ -29,20 +27,77 @@ export function ProductList({ onAddToCart }: ProductListProps) {
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const { data: products = [], isLoading, refetch } = useListProducts();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
 
-  // Barcode scanner integration
-  useScanDetection({
-    onComplete: code => {
-      if (isScanModalOpen) {
-        setSearchQuery(code);
-        setIsScanModalOpen(false);
+  // The handleAddToCart function is now wrapped in useCallback to stabilize its reference
+  const handleAddToCart = useCallback(
+    //eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (product: any, specificVariant?: string) => {
+      const productId = product.id || product.name;
+      let selectedVariant = specificVariant;
+      if (!selectedVariant && product.variants?.length > 0) {
+        selectedVariant = selectedVariants[productId] || product.variants[0].name;
       }
-    },
-    minLength: 6,
-  });
+      const variantDetails = product.variants?.find(v => v.name === selectedVariant);
+      const productKey = getProductKey(productId, selectedVariant);
+      const quantity = quantities[productKey] || 1;
 
-  // Search functions
+      const cartItem: CartItem = {
+        id: getProductKey(productId, selectedVariant),
+        name: product.name,
+        price: variantDetails?.price || product.variants?.[0]?.price || '0',
+        quantity: quantity,
+        variant: selectedVariant || '',
+        image: product.image,
+      };
+
+      onAddToCart(cartItem);
+      setQuantities(prev => ({ ...prev, [productKey]: 0 }));
+    },
+    [quantities, selectedVariants, onAddToCart]
+  );
+
+  // New hook to listen for barcode scans from the Tauri backend
+  useEffect(() => {
+    if (products.length === 0) return; // Don't listen until products are loaded
+
+    let unlisten: (() => void) | undefined;
+
+    const setupScannerListener = async () => {
+      // Listen for the 'scanner-data' event from Rust
+      const unsubscribe = await listen<ScanPayload>('scanner-data', event => {
+        const barcode = event.payload.message.trim();
+        if (!barcode) return;
+
+        console.log(`[Frontend] Barcode scanned: ${barcode}`);
+
+        // Find the product that matches the scanned barcode
+        const product = products.find(p => p.barcode === barcode);
+
+        if (product) {
+          console.log(`Product found: ${product.name}. Adding to cart.`);
+          handleAddToCart(product);
+          toast.success(`'${product.name}' added to cart.`);
+        } else {
+          console.warn(`No product found for barcode: ${barcode}`);
+          toast.error(`Product with barcode '${barcode}' not found.`);
+        }
+      });
+
+      unlisten = unsubscribe;
+    };
+
+    setupScannerListener();
+
+    // Cleanup function: remove the listener when the component unmounts
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [products, handleAddToCart]); // Rerun if products or the handler function changes
+
+  // The fuzzy search logic and other handlers remain unchanged.
+  // ... (normalizeString, calculateLevenshteinDistance, getFuzzyMatchScore, etc.)
   const normalizeString = (str: string) => {
     if (!str) return '';
     return str
@@ -98,7 +153,6 @@ export function ProductList({ onAddToCart }: ProductListProps) {
     return (matchCount / words.length) * 100;
   };
 
-  // Global keydown handler for search
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -127,32 +181,6 @@ export function ProductList({ onAddToCart }: ProductListProps) {
     return variant ? `${productId}-${variant}` : productId;
   };
 
-  const handleAddToCart = (product: any, specificVariant?: string) => {
-    const productId = product.id || product.name;
-    let selectedVariant = specificVariant;
-    if (!selectedVariant && product.variants?.length > 0) {
-      selectedVariant = selectedVariants[productId] || product.variants[0].name;
-    }
-    const variantDetails = product.variants?.find(v => v.name === selectedVariant);
-    const productKey = getProductKey(productId, selectedVariant);
-    const quantity = quantities[productKey] || 1;
-
-    const cartItem: CartItem = {
-      id: getProductKey(productId, selectedVariant),
-      name: product.name,
-      price: variantDetails?.price || product.variants?.[0]?.price || '0',
-      quantity: quantity,
-      variant: selectedVariant || '',
-      image: product.image,
-    };
-
-    onAddToCart(cartItem);
-    setQuantities({
-      ...quantities,
-      [productKey]: 0,
-    });
-  };
-
   const updateQuantity = (productId: string, variant: string | undefined, delta: number) => {
     const productKey = getProductKey(productId, variant);
     const currentQty = quantities[productKey] || 0;
@@ -171,11 +199,13 @@ export function ProductList({ onAddToCart }: ProductListProps) {
     });
   };
 
+  //eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getSelectedVariant = (product: any) => {
     const productId = product.id || product.name;
     return selectedVariants[productId] || (product.variants?.length > 0 ? product.variants[0].name : '');
   };
 
+  //eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getCurrentQuantity = (product: any) => {
     const productId = product.id || product.name;
     const selectedVariant = getSelectedVariant(product);
@@ -232,7 +262,7 @@ export function ProductList({ onAddToCart }: ProductListProps) {
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
             <Input
-              placeholder="Search products, variants, or scan a barcode..."
+              placeholder="Search products or scan a barcode..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="pl-9 w-[300px] h-9"
@@ -249,24 +279,7 @@ export function ProductList({ onAddToCart }: ProductListProps) {
             )}
           </div>
 
-          <Dialog open={isScanModalOpen} onOpenChange={setIsScanModalOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9">
-                <Barcode className="h-4 w-4 mr-2" />
-                Scan
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle className="text-center">Scan Product Barcode</DialogTitle>
-                <DialogDescription className="text-center pt-4">
-                  <Barcode className="h-20 w-20 mx-auto mb-4 text-primary" />
-                  Point the scanner at a barcode. The modal will close automatically upon successful scan.
-                </DialogDescription>
-              </DialogHeader>
-            </DialogContent>
-          </Dialog>
-
+          {/* The Scan button and its dialog are no longer needed as scanning is now automatic */}
           <Button variant="outline" size="sm" onClick={handleRefetch} disabled={isLoading} className="h-9">
             <RefreshCw className={cn('h-4 w-4 mr-2', isLoading && 'animate-spin')} />
             Refresh
@@ -295,6 +308,7 @@ export function ProductList({ onAddToCart }: ProductListProps) {
       {isLoading ? (
         <ProductSkeleton />
       ) : (
+        // SCROLLING AREA: This structure correctly makes the product grid scrollable.
         <ScrollArea className="flex-1 w-full">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredProducts.map(product => {

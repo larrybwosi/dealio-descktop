@@ -4,54 +4,7 @@ import { Button } from '../ui/button';
 import { Skeleton } from '../ui/skeleton';
 import { useOrderQueues } from '@/hooks/use-query-hooks';
 import { cn } from '@/lib/utils';
-
-
-// OrderDetailsModal component (simplified)
-const OrderDetailsModal = ({ isOpen, onOpenChange, selectedOrder, onUpdateStatus }) => {
-  if (!isOpen || !selectedOrder) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">Order Details</h3>
-          <button onClick={() => onOpenChange(false)} className="text-gray-500 hover:text-gray-700">
-            ×
-          </button>
-        </div>
-        <div className="space-y-2">
-          <p>
-            <strong>Order:</strong> {selectedOrder.orderNumber}
-          </p>
-          <p>
-            <strong>Customer:</strong> {selectedOrder.customerName}
-          </p>
-          <p>
-            <strong>Table:</strong> {selectedOrder.tableNumber}
-          </p>
-          <p>
-            <strong>Items:</strong> {selectedOrder.items}
-          </p>
-          <p>
-            <strong>Status:</strong> {selectedOrder.status}
-          </p>
-          <p>
-            <strong>Time:</strong> {selectedOrder.datetime}
-          </p>
-        </div>
-        <div className="mt-4 flex gap-2">
-          <Button size="sm" onClick={() => onUpdateStatus('ready-to-serve')}>
-            Mark Ready
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
+import OrderDetailsModal from './OrderDetailsModal';
 
 export default function OrderQueues() {
   const { data: orderQueues, isLoading } = useOrderQueues();

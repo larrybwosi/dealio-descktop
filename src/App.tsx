@@ -11,6 +11,8 @@ import { toast, Toaster } from "sonner";
 import { OrgProvider } from "./providers/org-context";
 import { useBetterAuthTauri } from '@daveyplate/better-auth-tauri/react';
 import { authClient } from "./lib/authClient";
+import { ConfigurablePOSSystem } from "./pages/pos";
+import { SettingsPage } from "./pages/settings";
 
 
 export type ToastType =
@@ -103,14 +105,14 @@ const App = () => {
         <BrowserRouter>
           <SessionProvider redirectTo="/login">
             <OrgProvider>
-            {/* <AppProvider> */}
+              {/* <AppProvider> */}
               <Toaster
                 richColors
                 position="top-right"
                 visibleToasts={3}
                 toastOptions={{
                   classNames: {
-                    toast: "flex items-center gap-2 p-4 rounded-md shadow-lg",
+                    toast: 'flex items-center gap-2 p-4 rounded-md shadow-lg',
                     success: toastConfigs.success.className,
                     error: toastConfigs.error.className,
                     info: toastConfigs.info.className,
@@ -123,9 +125,10 @@ const App = () => {
                 <Route path="/" element={<Index />} />
                 <Route path="/home" element={<Index />} />
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/pos" element={<SettingsPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            {/* </AppProvider> */}
+              {/* </AppProvider> */}
             </OrgProvider>
           </SessionProvider>
         </BrowserRouter>
