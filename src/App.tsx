@@ -125,7 +125,7 @@ const App = () => {
                 <Route path="/" element={<Index />} />
                 <Route path="/home" element={<Index />} />
                 <Route path="/login" element={<LoginPage />} />
-                <Route path="/pos" element={<SettingsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               {/* </AppProvider> */}

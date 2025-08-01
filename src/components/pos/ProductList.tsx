@@ -27,12 +27,15 @@ export function ProductList({ onAddToCart }: ProductListProps) {
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const { data: products = [], isLoading, refetch } = useListProducts();
   const [searchQuery, setSearchQuery] = useState('');
+  // console.log('Products loaded:', products);
 
   // The handleAddToCart function is now wrapped in useCallback to stabilize its reference
   const handleAddToCart = useCallback(
     //eslint-disable-next-line @typescript-eslint/no-explicit-any
     (product: any, specificVariant?: string) => {
+      console.log('Adding product to cart:', product, 'with variant:', specificVariant);
       const productId = product.id || product.name;
+      console.log('Product ID:', productId);
       let selectedVariant = specificVariant;
       if (!selectedVariant && product.variants?.length > 0) {
         selectedVariant = selectedVariants[productId] || product.variants[0].name;
@@ -46,8 +49,11 @@ export function ProductList({ onAddToCart }: ProductListProps) {
         name: product.name,
         price: variantDetails?.price || product.variants?.[0]?.price || '0',
         quantity: quantity,
+        productId: productId,
         variant: selectedVariant || '',
         image: product.image,
+        variantId: variantDetails?.id || '',
+        sellingUnitId: variantDetails.sellingUnits[0].id || '',
       };
 
       onAddToCart(cartItem);
@@ -96,8 +102,6 @@ export function ProductList({ onAddToCart }: ProductListProps) {
     };
   }, [products, handleAddToCart]); // Rerun if products or the handler function changes
 
-  // The fuzzy search logic and other handlers remain unchanged.
-  // ... (normalizeString, calculateLevenshteinDistance, getFuzzyMatchScore, etc.)
   const normalizeString = (str: string) => {
     if (!str) return '';
     return str
@@ -308,7 +312,6 @@ export function ProductList({ onAddToCart }: ProductListProps) {
       {isLoading ? (
         <ProductSkeleton />
       ) : (
-        // SCROLLING AREA: This structure correctly makes the product grid scrollable.
         <ScrollArea className="flex-1 w-full">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredProducts.map(product => {

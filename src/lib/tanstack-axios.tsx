@@ -230,9 +230,9 @@ class ApiClient {
         return response;
       },
       error => {
-        const message = error.response?.data?.error || error.response?.data?.message || 'An unexpected error occurred';
+        // const message = error.response?.data?.error || error.response?.data?.message || 'An unexpected error occurred';
         console.log(error);
-        toast.error(message);
+        // toast.error(message);
         return Promise.reject(error);
       }
     );

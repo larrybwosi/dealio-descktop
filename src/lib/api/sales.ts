@@ -25,7 +25,7 @@ export const useCreateSale = () => {
   const queryClient = useQueryClient();
   const organizationId = useOrgStore(state => state.organizationId);
 
-  return useMutation<ApiResponse<Sale>, Error, Partial<Sale>>({
+  return useMutation<ApiResponse<Sale>, Error, unknown>({
     mutationFn: data => apiClient.sales.create(organizationId!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', organizationId] });

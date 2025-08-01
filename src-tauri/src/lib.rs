@@ -99,7 +99,6 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_upload::init())
         .plugin(tauri_plugin_clipboard_manager::init());
-        // .invoke_handler(tauri::generate_handler![detect_barcode_scanner]);
 
 
     #[cfg(desktop)]

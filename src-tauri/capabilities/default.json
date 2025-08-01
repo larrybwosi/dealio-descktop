@@ -24,6 +24,13 @@
     "upload:default",
     "dialog:allow-message",
     "dialog:allow-open",
+    "notification:default",
+    "notification:allow-check-permissions",
+    "notification:allow-cancel",
+    "notification:allow-permission-state",
+    "notification:allow-request-permission",
+    "notification:allow-notify",
+    "clipboard-manager:allow-write-text",
     {
       "identifier": "opener:allow-open-path",
       "allow": [

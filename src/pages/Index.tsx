@@ -24,7 +24,7 @@ function PosSystem() {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
   const { taxRate } = useOrgStore()
-    const businessConfig = useBusinessConfig();
+  const businessConfig = useBusinessConfig();
 
   // Memoized cart calculations
   const { subtotal, discount, tax, total } = useMemo(() => {
