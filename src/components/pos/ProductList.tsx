@@ -1,16 +1,30 @@
 import { useState, useEffect, useCallback } from 'react';
-import { listen } from '@tauri-apps/api/event'; // Import Tauri's event listener
-import { toast } from 'sonner'; // Using a toast library for user feedback is recommended
+import { listen } from '@tauri-apps/api/event';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Barcode, Search, RefreshCw, MinusIcon, PlusIcon, ShoppingCart } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Barcode,
+  Search,
+  RefreshCw,
+  MinusIcon,
+  PlusIcon,
+  ShoppingCart,
+  AlertTriangle,
+  Wifi,
+  WifiOff,
+} from 'lucide-react';
 import { CartItem, Product } from '@/types';
 import { cn } from '@/lib/utils';
 import { useProductState } from '@/store';
 import { ProductSkeleton } from '@/components/ui/skeletons/ProductSkeleton';
 import { ScrollArea } from '../ui/scroll-area';
 import { useListProducts } from '@/lib/api/products';
+import { ProductCard } from './product-card';
+import { ProductListError } from './product-list-error';
 
 interface ProductListProps {
   onAddToCart: (product: CartItem) => void;
@@ -25,9 +39,9 @@ export function ProductList({ onAddToCart }: ProductListProps) {
   const { selectedCategory, setSelectedCategory } = useProductState();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
-  const { data: products = [], isLoading, refetch } = useListProducts();
+  const { data: products = [], isLoading, error, refetch } = useListProducts();
   const [searchQuery, setSearchQuery] = useState('');
-  // console.log('Products loaded:', products);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // The handleAddToCart function is now wrapped in useCallback to stabilize its reference
   const handleAddToCart = useCallback(
@@ -62,7 +76,6 @@ export function ProductList({ onAddToCart }: ProductListProps) {
     [quantities, selectedVariants, onAddToCart]
   );
 
-  // New hook to listen for barcode scans from the Tauri backend
   useEffect(() => {
     if (products.length === 0) return; // Don't listen until products are loaded
 
@@ -175,9 +188,12 @@ export function ProductList({ onAddToCart }: ProductListProps) {
 
   const handleRefetch = useCallback(async () => {
     try {
+      setIsRetrying(true);
       await refetch();
     } catch (error) {
       console.error('Failed to refetch products:', error);
+    } finally {
+      setIsRetrying(false);
     }
   }, [refetch]);
 
@@ -270,6 +286,7 @@ export function ProductList({ onAddToCart }: ProductListProps) {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="pl-9 w-[300px] h-9"
+              disabled={isLoading || !!error}
             />
             {searchQuery && (
               <Button
@@ -277,153 +294,71 @@ export function ProductList({ onAddToCart }: ProductListProps) {
                 size="sm"
                 className="absolute right-1 top-1 h-7 w-7 p-0"
                 onClick={() => setSearchQuery('')}
+                disabled={isLoading || !!error}
               >
                 ×
               </Button>
             )}
           </div>
 
-          {/* The Scan button and its dialog are no longer needed as scanning is now automatic */}
-          <Button variant="outline" size="sm" onClick={handleRefetch} disabled={isLoading} className="h-9">
-            <RefreshCw className={cn('h-4 w-4 mr-2', isLoading && 'animate-spin')} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefetch}
+            disabled={isLoading || isRetrying}
+            className="h-9"
+          >
+            <RefreshCw className={cn('h-4 w-4 mr-2', (isLoading || isRetrying) && 'animate-spin')} />
             Refresh
           </Button>
         </div>
       </div>
 
-      <Tabs value={selectedCategory} className="mb-6">
-        <TabsList className="flex overflow-x-auto space-x-1 pb-1">
-          {availableCategories.map(category => (
-            <TabsTrigger
-              key={category}
-              value={category}
-              onClick={() => setSelectedCategory(category)}
-              className={cn(
-                'rounded-md px-3 py-1.5 text-sm',
-                selectedCategory === category ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground'
-              )}
-            >
-              {category}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      {/* Only show tabs if not in error state */}
+      {!error && (
+        <Tabs value={selectedCategory} className="mb-6">
+          <TabsList className="flex overflow-x-auto space-x-1 pb-1">
+            {availableCategories.map(category => (
+              <TabsTrigger
+                key={category}
+                value={category}
+                onClick={() => setSelectedCategory(category)}
+                className={cn(
+                  'rounded-md px-3 py-1.5 text-sm',
+                  selectedCategory === category ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground'
+                )}
+                disabled={isLoading}
+              >
+                {category}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      )}
 
-      {isLoading ? (
+      {/* Content area with scrollable products */}
+      {error ? (
+        <ProductListError error={error} onRetry={handleRefetch} isRetrying={isRetrying} />
+      ) : isLoading ? (
         <ProductSkeleton />
       ) : (
         <ScrollArea className="flex-1 w-full">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-4">
             {filteredProducts.map(product => {
               const productId = product.id || product.name;
               const selectedVariant = getSelectedVariant(product);
-              const selectedVariantDetails = product.variants?.find(v => v.name === selectedVariant);
               const currentQuantity = getCurrentQuantity(product);
 
               return (
-                <div key={productId} className="border rounded-md overflow-hidden">
-                  <div className="h-48 w-full overflow-hidden bg-gray-100">
-                    {product.image ? (
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                        onError={e => {
-                          (e.target as HTMLImageElement).src =
-                            'https://placehold.co/400x300/e2e8f0/64748b?text=No+Image';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                        <span className="text-gray-500">No image available</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-medium">{product.name}</h3>
-                      {product.category && (
-                        <span
-                          className="text-xs px-2 py-1 rounded-full text-gray-100"
-                          style={{
-                            backgroundColor: product.category.color || '#e2e8f0',
-                          }}
-                        >
-                          {product.category.name}
-                        </span>
-                      )}
-                    </div>
-
-                    {selectedVariantDetails && (
-                      <div className="text-sm text-gray-700 mt-1 font-medium">{selectedVariantDetails.price}</div>
-                    )}
-
-                    {product.variants?.length > 1 && (
-                      <div className="mt-3">
-                        <div className="text-xs text-gray-600 mb-2">Select variant:</div>
-                        <div className="flex flex-wrap gap-1">
-                          {product.variants.map(variant => (
-                            <Button
-                              key={variant.name}
-                              variant={selectedVariant === variant.name ? 'default' : 'outline'}
-                              size="sm"
-                              className="text-xs h-7 px-2 rounded-sm"
-                              onClick={() => handleVariantSelect(productId, variant.name)}
-                            >
-                              {variant.name}
-                            </Button>
-                          ))}
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1">
-                          Price: {selectedVariantDetails?.price || 'N/A'}
-                        </div>
-                      </div>
-                    )}
-
-                    {product.variants?.length === 1 && (
-                      <div className="mt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-7 px-2 rounded-sm"
-                          onClick={() => handleAddToCart(product, product.variants[0].name)}
-                        >
-                          Add {product.variants[0].name} ({product.variants[0].price})
-                        </Button>
-                      </div>
-                    )}
-
-                    <div className="mt-4 flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => updateQuantity(productId, selectedVariant, -1)}
-                        >
-                          <MinusIcon className="h-3 w-3" />
-                        </Button>
-                        <span className="text-sm w-6 text-center">{currentQuantity}</span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => updateQuantity(productId, selectedVariant, 1)}
-                        >
-                          <PlusIcon className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <Button
-                        onClick={() => handleAddToCart(product)}
-                        className="h-8 text-xs"
-                        disabled={currentQuantity === 0}
-                      >
-                        <ShoppingCart className="mr-1 h-3 w-3" />
-                        Add to cart
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                <ProductCard
+                  key={productId}
+                  product={product}
+                  selectedVariant={selectedVariant}
+                  currentQuantity={currentQuantity}
+                  onVariantSelect={variantName => handleVariantSelect(productId, variantName)}
+                  onQuantityChange={delta => updateQuantity(productId, selectedVariant, delta)}
+                  onAddToCart={() => handleAddToCart(product)}
+                />
               );
             })}
           </div>

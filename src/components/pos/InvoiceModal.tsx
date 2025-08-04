@@ -134,13 +134,16 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
 
       // Convert Uint8Array to a Base64 string to send to Rust
       const base64String = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
+      const fileName = isPaid ? `Receipt_${order.orderNumber}.pdf` : `Invoice_${order.orderNumber}.pdf`;
+      const documentDirPath = await documentDir();
+      const filePath = `${documentDirPath}/${fileName}`;
+      await writeFile(filePath, uint8Array, { baseDir: BaseDirectory.Download });
 
-      // const printers = await getPrinters();
-      // console.log('可用打印机:', printers);
+      const printers = await getPrinters();
 
       const printResult = await printPdf({
-        path: base64String,
-        printer: null, // Use default printer
+        path: filePath,
+        printer: 'XP-80C',
         id: order.id,
         remove_after_print: true,
         print_settings: '',
@@ -148,13 +151,6 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
       
       
       console.log('Print result:', printResult);
-      // Invoke the Rust command for silent printing.
-      // You can optionally pass a specific printer name. If null, it will use the default.
-      // await invoke('silent_print', {
-      //   base64Data: base64String,
-      //   printerName: null, // Example: "POS-80" or null to use default
-      // });
-
       toast.success('Successfully sent to printer!');
     } catch (error) {
       console.error('Error during silent print:', error);
@@ -245,15 +241,10 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
             Close
           </Button>
 
-          {isTauri() ? (
+          {isTauri() && (
             <Button variant="default" onClick={handleSilentPrint} disabled={isPrinting}>
               <Printer className="mr-2 h-4 w-4" />
               {isPrinting ? 'Printing...' : 'Silent Print'}
-            </Button>
-          ) : (
-            <Button variant="outline" onClick={handlePrint}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print
             </Button>
           )}
 

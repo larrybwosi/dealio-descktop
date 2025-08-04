@@ -1,4 +1,5 @@
 import { BusinessType, BusinessConfig, businessConfigs, OrderType } from '@/types/business-config';
+import { useState, useEffect } from 'react';
 
 export class BusinessConfigManager {
   private static instance: BusinessConfigManager;
@@ -90,8 +91,6 @@ export class BusinessConfigManager {
   }
 }
 
-// React hook for using business configuration
-import { useState, useEffect } from 'react';
 
 export function useBusinessConfig() {
   const [configManager] = useState(() => BusinessConfigManager.getInstance());

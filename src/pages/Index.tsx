@@ -10,6 +10,7 @@ import { CartItem, Customer, Order, OrderType, OrderQueue } from "@/types";
 import { withAuth } from "@/providers/session";
 import { useOrgStore } from "@/lib/tanstack-axios";
 import { useBusinessConfig } from "@/lib/business-config-manager";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 function PosSystem() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -184,43 +185,43 @@ function PosSystem() {
   );
 
   return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
+    <div className="flex flex-1 h-screen bg-gray-50">
+      <Sidebar />
 
-        <div className="flex-1 overflow-auto p-4">
-          <div className="grid grid-cols-3 gap-4 h-screen">
-            <div className="col-span-2">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold">Orders & Products</h2>
-                </div>
-                <OrderQueues />
-                <ProductList onAddToCart={handleAddToCart} />
+      <div className="flex-1 overflow-hidden p-4">
+        <div className="grid grid-cols-3 gap-4 h-screen">
+          <div className="col-span-2">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold">Orders & Products</h2>
               </div>
-            </div>
-
-            <div className="col-span-1 h-full">
-              <CartDetails {...cartDetailsProps} />
+              <OrderQueues config={businessConfig.config} />
+              <ScrollArea className="h-[calc(100vh-200px)]">
+                <ProductList
+                  onAddToCart={handleAddToCart}
+                />
+              </ScrollArea>
             </div>
           </div>
+
+          <div className="col-span-1 h-full">
+            <CartDetails {...cartDetailsProps} />
+          </div>
         </div>
-
-        <CustomerManagement
-          isOpen={isCustomerModalOpen}
-          onClose={() => setIsCustomerModalOpen(false)}
-          onSelectCustomer={handleSelectCustomer}
-        />
-
-        <PaymentModal {...paymentModalProps} />
-
-        {currentOrder && (
-          <InvoiceModal
-            isOpen={isInvoiceModalOpen}
-            onClose={() => setIsInvoiceModalOpen(false)}
-            order={currentOrder}
-          />
-        )}
       </div>
+
+      <CustomerManagement
+        isOpen={isCustomerModalOpen}
+        onClose={() => setIsCustomerModalOpen(false)}
+        onSelectCustomer={handleSelectCustomer}
+      />
+
+      <PaymentModal {...paymentModalProps} />
+
+      {currentOrder && (
+        <InvoiceModal isOpen={isInvoiceModalOpen} onClose={() => setIsInvoiceModalOpen(false)} order={currentOrder} />
+      )}
+    </div>
   );
 }
 

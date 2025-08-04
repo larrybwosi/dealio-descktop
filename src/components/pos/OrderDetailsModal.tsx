@@ -12,32 +12,30 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileCheck, FileEdit } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BusinessConfig } from "@/types/business-config";
 
 interface OrderDetailsModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   selectedOrder: OrderQueue | null;
-  onUpdateStatus: (status: OrderQueue["status"]) => void;
+  onUpdateStatus: (status: OrderQueue['status']) => void;
+  config: BusinessConfig; 
 }
 
-export default  function OrderDetailsModal({
-  isOpen,
-  onOpenChange,
-  selectedOrder,
-  onUpdateStatus,
-}: OrderDetailsModalProps) {
+
+export default  function OrderDetailsModal({ isOpen, onOpenChange, selectedOrder, onUpdateStatus, config }: OrderDetailsModalProps) {
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case "ready-to-serve":
-        return "Ready to serve";
-      case "on-cooking":
-        return "On cooking";
-      case "cancelled":
-        return "Cancelled";
-      case "completed":
-        return "Completed";
-      case "pending-payment":
-        return "Pending payment";
+      case 'ready-to-serve':
+        return 'Ready to serve';
+      case 'on-cooking':
+        return 'On cooking';
+      case 'cancelled':
+        return 'Cancelled';
+      case 'completed':
+        return 'Completed';
+      case 'pending-payment':
+        return 'Pending payment';
       default:
         return status;
     }
@@ -59,58 +57,48 @@ export default  function OrderDetailsModal({
               <TabsContent value="details" className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-500">
-                      Customer
-                    </h4>
+                    <h4 className="text-sm font-semibold text-gray-500">Customer</h4>
                     <p className="text-sm">{selectedOrder.customerName}</p>
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-500">
-                      Date & Time
-                    </h4>
+                    <h4 className="text-sm font-semibold text-gray-500">Date & Time</h4>
                     <p className="text-sm">{selectedOrder.datetime}</p>
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-500">
-                      Table/Delivery
-                    </h4>
+                    <h4 className="text-sm font-semibold text-gray-500">Table/Delivery</h4>
                     <p className="text-sm">{selectedOrder.tableNumber}</p>
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-500">
-                      Items
-                    </h4>
+                    <h4 className="text-sm font-semibold text-gray-500">Items</h4>
                     <p className="text-sm">{selectedOrder.items} items</p>
                   </div>
                 </div>
 
                 <div className="border-t pt-4">
-                  <h4 className="text-sm font-semibold text-gray-500 mb-2">
-                    Order Status
-                  </h4>
+                  <h4 className="text-sm font-semibold text-gray-500 mb-2">Order Status</h4>
                   <div
                     className="inline-block px-3 py-1 text-sm rounded-full font-medium bg-opacity-10"
                     style={{
                       backgroundColor:
-                        selectedOrder.status === "ready-to-serve"
-                          ? "rgba(22, 163, 74, 0.2)"
-                          : selectedOrder.status === "on-cooking"
-                          ? "rgba(245, 158, 11, 0.2)"
-                          : selectedOrder.status === "completed"
-                          ? "rgba(59, 130, 246, 0.2)"
-                          : selectedOrder.status === "cancelled"
-                          ? "rgba(220, 38, 38, 0.2)"
-                          : "rgba(147, 51, 234, 0.2)",
+                        selectedOrder.status === 'ready-to-serve'
+                          ? 'rgba(22, 163, 74, 0.2)'
+                          : selectedOrder.status === 'on-cooking'
+                          ? 'rgba(245, 158, 11, 0.2)'
+                          : selectedOrder.status === 'completed'
+                          ? 'rgba(59, 130, 246, 0.2)'
+                          : selectedOrder.status === 'cancelled'
+                          ? 'rgba(220, 38, 38, 0.2)'
+                          : 'rgba(147, 51, 234, 0.2)',
                       color:
-                        selectedOrder.status === "ready-to-serve"
-                          ? "rgb(22, 163, 74)"
-                          : selectedOrder.status === "on-cooking"
-                          ? "rgb(245, 158, 11)"
-                          : selectedOrder.status === "completed"
-                          ? "rgb(59, 130, 246)"
-                          : selectedOrder.status === "cancelled"
-                          ? "rgb(220, 38, 38)"
-                          : "rgb(147, 51, 234)",
+                        selectedOrder.status === 'ready-to-serve'
+                          ? 'rgb(22, 163, 74)'
+                          : selectedOrder.status === 'on-cooking'
+                          ? 'rgb(245, 158, 11)'
+                          : selectedOrder.status === 'completed'
+                          ? 'rgb(59, 130, 246)'
+                          : selectedOrder.status === 'cancelled'
+                          ? 'rgb(220, 38, 38)'
+                          : 'rgb(147, 51, 234)',
                     }}
                   >
                     {getStatusLabel(selectedOrder.status)}
@@ -119,9 +107,7 @@ export default  function OrderDetailsModal({
 
                 <div className="flex justify-between items-center border-t pt-4">
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-500">
-                      Total Amount
-                    </h4>
+                    <h4 className="text-sm font-semibold text-gray-500">Total Amount</h4>
                     <p className="text-lg font-semibold">{299}</p>
                   </div>
                   <div className="flex space-x-2">
@@ -139,15 +125,11 @@ export default  function OrderDetailsModal({
 
               <TabsContent value="status">
                 <div className="pt-2">
-                  <h4 className="text-sm font-semibold text-gray-500 mb-3">
-                    Update Order Status
-                  </h4>
+                  <h4 className="text-sm font-semibold text-gray-500 mb-3">Update Order Status</h4>
                   <RadioGroup
                     defaultValue={selectedOrder.status}
                     className="grid grid-cols-2 gap-2"
-                    onValueChange={(value: OrderQueue["status"]) =>
-                      onUpdateStatus(value)
-                    }
+                    onValueChange={(value: OrderQueue['status']) => onUpdateStatus(value)}
                   >
                     <div className="flex items-center space-x-2 border rounded-md p-2">
                       <RadioGroupItem value="on-cooking" id="on-cooking" />
@@ -157,14 +139,8 @@ export default  function OrderDetailsModal({
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2 border rounded-md p-2">
-                      <RadioGroupItem
-                        value="ready-to-serve"
-                        id="ready-to-serve"
-                      />
-                      <Label
-                        htmlFor="ready-to-serve"
-                        className="flex items-center"
-                      >
+                      <RadioGroupItem value="ready-to-serve" id="ready-to-serve" />
+                      <Label htmlFor="ready-to-serve" className="flex items-center">
                         <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
                         Ready to Serve
                       </Label>
@@ -184,24 +160,15 @@ export default  function OrderDetailsModal({
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2 border rounded-md p-2">
-                      <RadioGroupItem
-                        value="pending-payment"
-                        id="pending-payment"
-                      />
-                      <Label
-                        htmlFor="pending-payment"
-                        className="flex items-center"
-                      >
+                      <RadioGroupItem value="pending-payment" id="pending-payment" />
+                      <Label htmlFor="pending-payment" className="flex items-center">
                         <div className="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
                         Pending Payment
                       </Label>
                     </div>
                   </RadioGroup>
                   <div className="mt-4">
-                    <Button
-                      className="w-full"
-                      onClick={() => onOpenChange(false)}
-                    >
+                    <Button className="w-full" onClick={() => onOpenChange(false)}>
                       Save Changes
                     </Button>
                   </div>

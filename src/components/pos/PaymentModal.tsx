@@ -36,6 +36,7 @@ import { useCreateSale } from '@/lib/api/sales';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { PaymentMethod } from '@/prisma/client';
 import { initiateMpesaPayment, subscribeToPusher } from '@/lib/mpesa-client';
+import { useOrderStore } from '@/store/orders';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -96,46 +97,6 @@ const normalizePhoneNumber = (phone: string, config: PhoneConfig): string => {
   return cleaned; // Return as is if no pattern matches
 };
 
-// Local storage utility functions for pending orders
-const PENDING_ORDERS_KEY = 'pending_orders';
-
-const savePendingOrderToLocal = (order: Order) => {
-  try {
-    const existingOrders = JSON.parse(localStorage.getItem(PENDING_ORDERS_KEY) || '[]');
-    existingOrders.push(order);
-    localStorage.setItem(PENDING_ORDERS_KEY, JSON.stringify(existingOrders));
-  } catch (error) {
-    console.error('Failed to save pending order to local storage:', error);
-  }
-};
-
-export const getPendingOrdersFromLocal = (): Order[] => {
-  try {
-    return JSON.parse(localStorage.getItem(PENDING_ORDERS_KEY) || '[]');
-  } catch (error) {
-    console.error('Failed to get pending orders from local storage:', error);
-    return [];
-  }
-};
-
-export const removePendingOrderFromLocal = (orderId: string) => {
-  try {
-    const existingOrders = getPendingOrdersFromLocal();
-    const filteredOrders = existingOrders.filter(order => order.id !== orderId);
-    localStorage.setItem(PENDING_ORDERS_KEY, JSON.stringify(filteredOrders));
-  } catch (error) {
-    console.error('Failed to remove pending order from local storage:', error);
-  }
-};
-
-export const clearAllPendingOrders = () => {
-  try {
-    localStorage.removeItem(PENDING_ORDERS_KEY);
-  } catch (error) {
-    console.error('Failed to clear pending orders from local storage:', error);
-  }
-};
-
 export function PaymentModal({
   isOpen,
   onClose,
@@ -152,6 +113,7 @@ export function PaymentModal({
   const [cashReceived, setCashReceived] = useState<string>('');
   const [notes, setNotes] = useState('');
   const { mutate: createSale, isPending: isProcessing } = useCreateSale();
+  const { addPendingOrder } = useOrderStore();
 
   // Mobile payment states
   const [phoneNumber, setPhoneNumber] = useState<string>('');
@@ -162,6 +124,10 @@ export function PaymentModal({
 
   // Generate a unique order ID for QR code
   const orderId = useMemo(() => uuidv4(), [isOpen]);
+  const saleNumber = useMemo(
+    () => `SALE-${Date.now().toString().slice(-6)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+    [isOpen]
+  );
 
     useEffect(() => {
       if (!checkoutRequestId || !stkPushSent) return;
@@ -249,7 +215,7 @@ export function PaymentModal({
       await initiateMpesaPayment({
         phoneNumber: normalizedPhone,
         amount: calculatedTotal,
-        orderId,
+        orderId: saleNumber,
       });
       setStkPushStatus('sent');
       setStkPushSent(true);
@@ -296,11 +262,6 @@ export function PaymentModal({
     }
 
     const received = parseFloat(cashReceived) || 0;
-        const saleNumber = `SALE-${Date.now().toString().slice(-6)}-${Math.random()
-          .toString(36)
-          .substring(2, 6)
-          .toUpperCase()}`;
-
     // Create order object
     const newOrder: Order = {
       id: orderId,
@@ -327,7 +288,7 @@ export function PaymentModal({
       }), 
     };
     console.log('Creating order:', cashReceived, 'change:', calculateChange());
-    const res = createSale({
+    createSale({
       ...newOrder,
       paymentStatus: 'COMPLETED',
       amountReceived: paymentMethod === 'CASH' ? parseFloat(cashReceived) : calculatedTotal,
@@ -343,7 +304,6 @@ export function PaymentModal({
     });
       onPaymentComplete(newOrder);
       onClose();
-      // Reset mobile payment state
       resetMobilePayment();
   };
 
@@ -367,8 +327,7 @@ export function PaymentModal({
     };
 
     // Save to local storage
-    savePendingOrderToLocal(newOrder);
-
+    addPendingOrder(newOrder);
     onPaymentComplete(newOrder);
     onClose();
   };

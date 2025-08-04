@@ -5,8 +5,14 @@ import { Skeleton } from '../ui/skeleton';
 import { useOrderQueues } from '@/hooks/use-query-hooks';
 import { cn } from '@/lib/utils';
 import OrderDetailsModal from './OrderDetailsModal';
+import { BusinessConfig } from '@/types/business-config';
+import { OrderQueueCard } from './OrderQueueCard';
 
-export default function OrderQueues() {
+interface OrderQueuesProps {
+  config: BusinessConfig; // Receive business config as a prop
+}
+
+export default function OrderQueues({ config }: OrderQueuesProps) {
   const { data: orderQueues, isLoading } = useOrderQueues();
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -183,46 +189,15 @@ export default function OrderQueues() {
                     width: `${(orderQueues?.length || 0) * 20}%`,
                   }}
                 >
-                  {orderQueues?.map((queue, index) => (
-                    <div
+                  {orderQueues?.map(queue => (
+                    <OrderQueueCard
                       key={queue.id}
-                      ref={index === 0 ? cardRef : undefined}
-                      className="border rounded-lg p-3 space-y-2 shrink-0 hover:shadow-md transition-shadow"
-                      style={{ width: '20%' }}
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">{queue.orderNumber}</span>
-                        <span
-                          className={cn('px-2 py-1 text-xs font-medium rounded-md', getStatusBadgeClass(queue.status))}
-                        >
-                          {getStatusLabel(queue.status)}
-                        </span>
-                      </div>
-
-                      <div className="font-medium">{queue.customerName}</div>
-                      <div className="text-sm text-gray-500">{queue.datetime}</div>
-
-                      <div className="flex items-center justify-between pt-2">
-                        <div className="flex items-center text-sm">
-                          <div className="flex items-center mr-4">
-                            <Utensils className="h-3 w-3 mr-1" />
-                            <span>{queue.items} items</span>
-                          </div>
-                          <div className="flex items-center">
-                            <Armchair className="h-3 w-3 mr-1" />
-                            <span>{queue.tableNumber}</span>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewOrder(queue)}
-                          className="text-xs hover:bg-gray-100"
-                        >
-                          <Eye className="h-3 w-3 mr-1" /> View
-                        </Button>
-                      </div>
-                    </div>
+                      queue={queue}
+                      config={config}
+                      onViewOrder={handleViewOrder}
+                      getStatusBadgeClass={getStatusBadgeClass}
+                      getStatusLabel={getStatusLabel}
+                    />
                   ))}
                 </div>
               </div>
@@ -251,6 +226,7 @@ export default function OrderQueues() {
         onOpenChange={setIsViewModalOpen}
         selectedOrder={selectedOrder}
         onUpdateStatus={handleUpdateStatus}
+        config={config} // Pass config to the modal
       />
     </div>
   );

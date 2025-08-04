@@ -99,8 +99,8 @@ pub fn run() {
         .plugin(tauri_plugin_hid::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_upload::init())
-        .plugin(tauri_plugin_clipboard_manager::init());
-
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(init());
 
     #[cfg(desktop)]
     {
