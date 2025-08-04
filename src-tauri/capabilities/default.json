@@ -31,6 +31,16 @@
     "notification:allow-request-permission",
     "notification:allow-notify",
     "clipboard-manager:allow-write-text",
+    "printer:allow-get-printers",
+    "printer:allow-print-pdf",
+    "printer:allow-print-html",
+    "printer:allow-ping",
+    "printer:allow-get-printers-by-name",
+    "printer:allow-get-jobs",
+    "printer:allow-restart-job",
+    "printer:allow-pause-job",
+    "printer:allow-resume-job",
+    "printer:allow-remove-job",
     {
       "identifier": "opener:allow-open-path",
       "allow": [

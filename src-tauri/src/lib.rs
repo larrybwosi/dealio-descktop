@@ -1,6 +1,7 @@
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 use tauri::{AppHandle, Emitter};
 use hidapi::HidApi;
+use tauri_plugin_printer_v2::init;
 
 
 #[derive(Clone, serde::Serialize)]

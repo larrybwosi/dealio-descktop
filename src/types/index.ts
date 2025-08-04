@@ -58,6 +58,7 @@ export interface Product {
 export interface CartItem extends OrderItem {
   productId: string;
   variantId: string;
+  sellingUnitId: string;
   variant?: string;
   addition?: string;
 }

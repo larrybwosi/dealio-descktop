@@ -6,8 +6,10 @@ import { PDFViewer, pdf } from '@react-pdf/renderer';
 import { useReactToPrint } from 'react-to-print';
 import { Printer, Download, Mail, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
+
+import { getPrinters, ping, printPdf } from 'tauri-plugin-printer-v2';
 import { BaseDirectory, writeFile } from '@tauri-apps/plugin-fs';
-import { isTauri } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { documentDir } from '@tauri-apps/api/path';
 import QRCode from 'qrcode';
 import { InvoicePDF } from '@/components/pos/InvoicePDF';
@@ -33,18 +35,19 @@ interface InvoiceModalProps {
 export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   const pdfRef = useRef<HTMLDivElement>(null);
   // --- ✨ Assuming useOrgStore provides all necessary fields ---
-  const { orgName, address,} = useOrgStore();
+  const { orgName, address } = useOrgStore();
 
   const orgInfo = {
     phone: '+62 812 3456 7890',
     email: 'dealio@gealio.co',
     website: 'www.dealio.co',
     tagline: 'Your favorite spot',
-  }
+  };
   const { phone, email, website, tagline } = orgInfo;
   const isPaid = order.status === 'completed';
   const [qrCodeImage, setQrCodeImage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isPrinting, setIsPrinting] = useState<boolean>(false);
 
   const handlePrint = useReactToPrint({
     contentRef: pdfRef,
@@ -106,6 +109,59 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
     restaurantPhone: phone || '+62 812 3456 7890',
     restaurantEmail: 'info@dealio.co',
     qrCodeImage: qrCodeImage,
+  };
+
+  // ✨ --- TAURI: SILENT PRINT FUNCTION ---
+  const handleSilentPrint = async () => {
+    if (isLoading || isPrinting) return toast.info('Please wait...');
+
+    setIsPrinting(true);
+    toast.info('Sending to printer...');
+
+    try {
+      const pdfDoc = isPaid
+        ? ThermalReceiptPDF({
+            items: order.items,
+            paymentData: paymentData,
+            qrCodeImage: qrCodeImage,
+            organization: organizationData,
+          })
+        : InvoicePDF({ data: invoiceData });
+
+      const blob = await pdf(pdfDoc).toBlob();
+      const arrayBuffer = await blob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      // Convert Uint8Array to a Base64 string to send to Rust
+      const base64String = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
+
+      // const printers = await getPrinters();
+      // console.log('可用打印机:', printers);
+
+      const printResult = await printPdf({
+        path: base64String,
+        printer: null, // Use default printer
+        id: order.id,
+        remove_after_print: true,
+        print_settings: '',
+      });
+      
+      
+      console.log('Print result:', printResult);
+      // Invoke the Rust command for silent printing.
+      // You can optionally pass a specific printer name. If null, it will use the default.
+      // await invoke('silent_print', {
+      //   base64Data: base64String,
+      //   printerName: null, // Example: "POS-80" or null to use default
+      // });
+
+      toast.success('Successfully sent to printer!');
+    } catch (error) {
+      console.error('Error during silent print:', error);
+      toast.error(`Failed to print: ${error}`);
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   const handleDownload = async () => {
@@ -188,10 +244,19 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button variant="outline" onClick={handlePrint}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print
-          </Button>
+
+          {isTauri() ? (
+            <Button variant="default" onClick={handleSilentPrint} disabled={isPrinting}>
+              <Printer className="mr-2 h-4 w-4" />
+              {isPrinting ? 'Printing...' : 'Silent Print'}
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print
+            </Button>
+          )}
+
           <Button onClick={handleDownload}>
             <Download className="mr-2 h-4 w-4" />
             Download

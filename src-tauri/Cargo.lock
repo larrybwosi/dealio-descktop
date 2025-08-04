@@ -94,6 +94,7 @@ checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 name = "app"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "hidapi",
  "log",
  "serde",
@@ -110,9 +111,11 @@ dependencies = [
  "tauri-plugin-log",
  "tauri-plugin-notification",
  "tauri-plugin-opener",
+ "tauri-plugin-printer-v2",
  "tauri-plugin-single-instance",
  "tauri-plugin-store",
  "tauri-plugin-upload",
+ "tempfile",
 ]
 
 [[package]]
@@ -4807,6 +4810,20 @@ dependencies = [
  "url",
  "windows",
  "zbus",
+]
+
+[[package]]
+name = "tauri-plugin-printer-v2"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d7390d2a37bfe17331b2f5f775f204f304657804819a6b96579fd567d5712be"
+dependencies = [
+ "base64 0.22.1",
+ "serde",
+ "tauri",
+ "tauri-plugin",
+ "tempfile",
+ "thiserror 2.0.12",
 ]
 
 [[package]]

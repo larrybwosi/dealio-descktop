@@ -151,7 +151,7 @@ export function PaymentModal({
   const [paymentMethod, setPaymentMethod] = useState<Omit<PaymentMethod, ''>>('MOBILE_PAYMENT');
   const [cashReceived, setCashReceived] = useState<string>('');
   const [notes, setNotes] = useState('');
-  const { mutateAsync: createSale, isPending: isProcessing } = useCreateSale();
+  const { mutate: createSale, isPending: isProcessing } = useCreateSale();
 
   // Mobile payment states
   const [phoneNumber, setPhoneNumber] = useState<string>('');
@@ -327,7 +327,7 @@ export function PaymentModal({
       }), 
     };
     console.log('Creating order:', cashReceived, 'change:', calculateChange());
-    const res = await createSale({
+    const res = createSale({
       ...newOrder,
       paymentStatus: 'COMPLETED',
       amountReceived: paymentMethod === 'CASH' ? parseFloat(cashReceived) : calculatedTotal,
