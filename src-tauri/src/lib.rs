@@ -1,7 +1,12 @@
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-use tauri::{AppHandle, Emitter};
-use hidapi::HidApi;
 use tauri_plugin_printer_v2::init;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+use tauri::{AppHandle, Manager, State, Emitter};
+use hidapi::HidApi;
+
+use tokio::time::{sleep, Duration};
+use std::sync::Mutex;
+use tauri::async_runtime::spawn;
 
 
 #[derive(Clone, serde::Serialize)]
@@ -9,7 +14,7 @@ struct Payload {
     message: String,
 }
 
-// This new function will run in the background to listen for scanner input.
+// This new function will run in the background to listen for scanner input. emit
 fn start_scanner_listener(app_handle: AppHandle) {
     // We run the scanner detection in a separate asynchronous task.
     tauri::async_runtime::spawn(async move {
@@ -87,6 +92,57 @@ fn start_scanner_listener(app_handle: AppHandle) {
     });
 }
 
+// Create a struct we'll use to track the completion of
+// setup related tasks
+struct SetupState {
+    frontend_task: bool,
+    backend_task: bool,
+}
+
+// A custom task for setting the state of a setup task
+#[tauri::command]
+async fn set_complete(
+    app: AppHandle,
+    state: State<'_, Mutex<SetupState>>,
+    task: String,
+) -> Result<(), ()> {
+    // Lock the state without write access
+    let mut state_lock = state.lock().unwrap();
+    match task.as_str() {
+        "frontend" => state_lock.frontend_task = true,
+        "backend" => state_lock.backend_task = true,
+        _ => panic!("invalid task completed!"),
+    }
+    // Check if both tasks are completed
+    if state_lock.backend_task && state_lock.frontend_task {
+        // Setup is complete, we can close the splashscreen
+        // and unhide the main window!
+        let splash_window = app.get_webview_window("splashscreen").unwrap();
+        let main_window = app.get_webview_window("main").unwrap();
+        splash_window.close().unwrap();
+        main_window.show().unwrap();
+    }
+    Ok(())
+}
+
+// An async function that does some heavy setup task
+async fn setup(app: AppHandle) -> Result<(), ()> {
+    // Fake performing some heavy action for 3 seconds
+    println!("Performing really heavy backend setup task...");
+    sleep(Duration::from_secs(3)).await;
+    println!("Backend setup task completed!");
+    // Set the backend task as being completed
+    // Commands can be ran as regular functions as long as you take
+    // care of the input arguments yourself
+    set_complete(
+        app.clone(),
+        app.state::<Mutex<SetupState>>(),
+        "backend".to_string(),
+    )
+    .await?;
+    Ok(())
+}
+
 pub fn run() {
 
     let mut builder = tauri::Builder::default()
@@ -100,7 +156,12 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_upload::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(init());
+        .plugin(init())
+        .manage(Mutex::new(SetupState {
+            frontend_task: false,
+            backend_task: false,
+        }))
+        .invoke_handler(tauri::generate_handler![set_complete]);
 
     #[cfg(desktop)]
     {
@@ -120,6 +181,7 @@ pub fn run() {
             ));
 
         builder = builder.setup(|app| {
+            spawn(setup(app.handle().clone()));
             let handle = app.handle().clone();
             start_scanner_listener(handle);
             
@@ -136,5 +198,5 @@ pub fn run() {
 
     builder
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .expect("error while running Dealio");
 }

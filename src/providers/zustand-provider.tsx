@@ -1,7 +1,12 @@
-"use client";
+'use client';
 
-import { useOrgStore } from "@/lib/tanstack-axios";
-import { useEffect, useState } from "react";
+import { useMemo } from 'react';
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { Order } from '@/types';
+import { useOrgStore } from '@/lib/tanstack-axios';
+import { useEffect, useState } from 'react';
+import { useOrderStore } from '@/store/orders';
 
 const Loader = () => (
   <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-background via-background/95 to-background/90 backdrop-blur-md z-50">
@@ -16,7 +21,7 @@ const Loader = () => (
         {/* Middle ring */}
         <div
           className="absolute inset-2 w-16 h-16 border-2 border-primary/40 rounded-full animate-spin"
-          style={{ animationDirection: "reverse", animationDuration: "2s" }}
+          style={{ animationDirection: 'reverse', animationDuration: '2s' }}
         >
           <div className="absolute top-0 left-1/2 w-1.5 h-1.5 bg-primary/80 rounded-full transform -translate-x-1/2 -translate-y-1/2"></div>
         </div>
@@ -24,7 +29,7 @@ const Loader = () => (
         {/* Inner core */}
         <div
           className="absolute inset-4 w-12 h-12 border-3 border-primary/60 rounded-full animate-spin"
-          style={{ animationDuration: "1.5s" }}
+          style={{ animationDuration: '1.5s' }}
         >
           <div className="absolute top-0 left-1/2 w-2 h-2 bg-primary rounded-full transform -translate-x-1/2 -translate-y-1/2"></div>
         </div>
@@ -45,29 +50,18 @@ const Loader = () => (
             Loading
           </h3>
           <div className="absolute -right-6 top-0 flex space-x-0.5">
-            <span
-              className="animate-bounce text-primary"
-              style={{ animationDelay: "0ms" }}
-            >
+            <span className="animate-bounce text-primary" style={{ animationDelay: '0ms' }}>
               .
             </span>
-            <span
-              className="animate-bounce text-primary"
-              style={{ animationDelay: "150ms" }}
-            >
+            <span className="animate-bounce text-primary" style={{ animationDelay: '150ms' }}>
               .
             </span>
-            <span
-              className="animate-bounce text-primary"
-              style={{ animationDelay: "300ms" }}
-            >
+            <span className="animate-bounce text-primary" style={{ animationDelay: '300ms' }}>
               .
             </span>
           </div>
         </div>
-        <p className="text-sm text-muted-foreground/80 animate-fade-in">
-          Initializing your workspace
-        </p>
+        <p className="text-sm text-muted-foreground/80 animate-fade-in">Initializing your workspace</p>
       </div>
 
       {/* Enhanced progress indicator */}
@@ -76,8 +70,8 @@ const Loader = () => (
         <div
           className="absolute top-0 left-0 h-full bg-gradient-to-r from-transparent via-primary to-transparent rounded-full animate-slide"
           style={{
-            width: "30%",
-            animation: "slide 2s ease-in-out infinite",
+            width: '30%',
+            animation: 'slide 2s ease-in-out infinite',
           }}
         ></div>
       </div>
@@ -86,19 +80,19 @@ const Loader = () => (
       <div className="absolute inset-0 pointer-events-none">
         <div
           className="absolute top-1/4 left-1/4 w-2 h-2 bg-primary/30 rounded-full animate-float"
-          style={{ animationDelay: "0s" }}
+          style={{ animationDelay: '0s' }}
         ></div>
         <div
           className="absolute top-1/3 right-1/4 w-1.5 h-1.5 bg-primary/20 rounded-full animate-float"
-          style={{ animationDelay: "1s" }}
+          style={{ animationDelay: '1s' }}
         ></div>
         <div
           className="absolute bottom-1/3 left-1/3 w-1 h-1 bg-primary/40 rounded-full animate-float"
-          style={{ animationDelay: "2s" }}
+          style={{ animationDelay: '2s' }}
         ></div>
         <div
           className="absolute bottom-1/4 right-1/3 w-2.5 h-2.5 bg-primary/25 rounded-full animate-float"
-          style={{ animationDelay: "0.5s" }}
+          style={{ animationDelay: '0.5s' }}
         ></div>
       </div>
     </div>
@@ -114,9 +108,10 @@ export const ZustandHydration = ({ children }: ZustandHydrationProps) => {
 
   useEffect(() => {
     let orgHydrated = false;
+    let orderHydrated = false;
 
     const checkHydration = () => {
-      if (orgHydrated) {
+      if (orgHydrated && orderHydrated) {
         // Add a small delay for smoother transition
         setTimeout(() => setIsHydrated(true), 300);
       }
@@ -128,8 +123,18 @@ export const ZustandHydration = ({ children }: ZustandHydrationProps) => {
       checkHydration();
     });
 
+    // Set up Order store hydration listener
+    const orderUnsub = useOrderStore.persist.onFinishHydration(() => {
+      orderHydrated = true;
+      checkHydration();
+    });
+
+    // Check initial hydration state
     if (useOrgStore.persist.hasHydrated()) {
       orgHydrated = true;
+    }
+    if (useOrderStore.persist.hasHydrated()) {
+      orderHydrated = true;
     }
 
     // Initial check in case both are already hydrated
@@ -137,23 +142,14 @@ export const ZustandHydration = ({ children }: ZustandHydrationProps) => {
 
     return () => {
       orgUnsub?.();
+      orderUnsub?.();
     };
   }, []);
 
   return (
-    <div
-      className={`transition-opacity duration-500 ${
-        isHydrated ? "opacity-0 pointer-events-none" : "opacity-100"
-      }`}
-    >
+    <div className={`transition-opacity duration-500 ${isHydrated ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
       {!isHydrated && <Loader />}
-      <div
-        className={`transition-opacity duration-500 ${
-          isHydrated ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        {children}
-      </div>
+      <div className={`transition-opacity duration-500 ${isHydrated ? 'opacity-100' : 'opacity-0'}`}>{children}</div>
     </div>
   );
 };

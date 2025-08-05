@@ -133,13 +133,14 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
       const uint8Array = new Uint8Array(arrayBuffer);
 
       // Convert Uint8Array to a Base64 string to send to Rust
-      const base64String = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
+      // const base64String = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
       const fileName = isPaid ? `Receipt_${order.orderNumber}.pdf` : `Invoice_${order.orderNumber}.pdf`;
       const documentDirPath = await documentDir();
       const filePath = `${documentDirPath}/${fileName}`;
       await writeFile(filePath, uint8Array, { baseDir: BaseDirectory.Download });
 
       const printers = await getPrinters();
+      console.log('Available printers:', printers);
 
       const printResult = await printPdf({
         path: filePath,
@@ -244,7 +245,7 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
           {isTauri() && (
             <Button variant="default" onClick={handleSilentPrint} disabled={isPrinting}>
               <Printer className="mr-2 h-4 w-4" />
-              {isPrinting ? 'Printing...' : 'Silent Print'}
+              {isPrinting ? 'Printing...' : 'Print'}
             </Button>
           )}
 

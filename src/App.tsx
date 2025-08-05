@@ -13,6 +13,8 @@ import { useBetterAuthTauri } from '@daveyplate/better-auth-tauri/react';
 import { authClient } from "./lib/authClient";
 import { ConfigurablePOSSystem } from "./pages/pos";
 import { SettingsPage } from "./pages/settings";
+import DealioSplashScreen from "./pages/splash";
+import PosConfigManagerPage from "./pages/PosConfigManagerPage";
 
 
 export type ToastType =
@@ -125,7 +127,9 @@ const App = () => {
                 <Route path="/" element={<Index />} />
                 <Route path="/home" element={<Index />} />
                 <Route path="/login" element={<LoginPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
+                {/* <Route path="/settings" element={<SettingsPage />} /> */}
+                <Route path="/splashscreen" element={<DealioSplashScreen />} />
+                <Route path="/settings" element={<PosConfigManagerPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               {/* </AppProvider> */}

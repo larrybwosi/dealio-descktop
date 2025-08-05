@@ -47,6 +47,7 @@ import { useSession } from '@/providers/session';
 import { signOut } from '@/lib/authClient';
 import { toast } from 'sonner';
 import { LazyStore } from '@tauri-apps/plugin-store';
+import { useNavigate } from 'react-router';
 
 const sidebarItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -57,7 +58,7 @@ const sidebarItems = [
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'orderLists', label: 'Order lists', icon: FileText },
   { id: 'analysis', label: 'Analysis', icon: BarChart2 },
-  { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'settings', label: 'Settings', icon: Settings ,path: '/settings'},
   { id: 'helpCenter', label: 'Help center', icon: HelpCircle },
 ];
 
@@ -66,6 +67,7 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const navigate = useNavigate()
 
   const { session, isLoading, logout } = useSession();
   const currentUser = session?.user;
@@ -133,7 +135,10 @@ export function Sidebar() {
               key={item.id}
               variant={activeItem === item.id ? 'secondary' : 'ghost'}
               className={cn('w-full justify-start mb-1 relative', collapsed ? 'px-0' : '')}
-              onClick={() => setActiveItem(item.id)}
+              onClick={() => {
+                setActiveItem(item.id)
+                navigate(`${item.path}`)
+              }}
             >
               <Icon className={cn('h-4 w-4', collapsed ? 'mx-auto' : 'mr-2')} />
               {!collapsed && <span>{item.label}</span>}

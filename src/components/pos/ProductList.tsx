@@ -47,14 +47,17 @@ export function ProductList({ onAddToCart }: ProductListProps) {
   const handleAddToCart = useCallback(
     //eslint-disable-next-line @typescript-eslint/no-explicit-any
     (product: any, specificVariant?: string) => {
-      console.log('Adding product to cart:', product, 'with variant:', specificVariant);
+      // console.log('Adding product to cart:', product, 'with variant:', specificVariant);
       const productId = product.id || product.name;
-      console.log('Product ID:', productId);
       let selectedVariant = specificVariant;
       if (!selectedVariant && product.variants?.length > 0) {
         selectedVariant = selectedVariants[productId] || product.variants[0].name;
       }
       const variantDetails = product.variants?.find(v => v.name === selectedVariant);
+      if (!variantDetails) {
+        toast.error(`No variant found for product ${productId} with variant ${selectedVariant}`);
+        return;
+      }
       const productKey = getProductKey(productId, selectedVariant);
       const quantity = quantities[productKey] || 1;
 

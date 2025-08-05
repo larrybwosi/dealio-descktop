@@ -41,6 +41,7 @@
     "printer:allow-pause-job",
     "printer:allow-resume-job",
     "printer:allow-remove-job",
+    "printer:default",
     {
       "identifier": "opener:allow-open-path",
       "allow": [

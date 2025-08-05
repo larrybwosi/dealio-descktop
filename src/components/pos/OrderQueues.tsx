@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Eye, Utensils, Armchair, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Eye, Utensils, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Skeleton } from '../ui/skeleton';
 import { useOrderQueues } from '@/hooks/use-query-hooks';
@@ -9,7 +9,7 @@ import { BusinessConfig } from '@/types/business-config';
 import { OrderQueueCard } from './OrderQueueCard';
 
 interface OrderQueuesProps {
-  config: BusinessConfig; // Receive business config as a prop
+  config: BusinessConfig;
 }
 
 export default function OrderQueues({ config }: OrderQueuesProps) {
@@ -19,11 +19,16 @@ export default function OrderQueues({ config }: OrderQueuesProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const containerRef = useRef(null);
-  const cardRef = useRef(null);
 
   const maxIndex = Math.max(0, (orderQueues?.length || 0) - 5);
   const canScrollLeft = currentIndex > 0;
   const canScrollRight = currentIndex < maxIndex;
+
+  useEffect(() => {
+    if (!isLoading && (!orderQueues || orderQueues.length === 0)) {
+      setIsCollapsed(true);
+    }
+  }, [isLoading, orderQueues]);
 
   const handleScrollLeft = () => {
     setCurrentIndex(Math.max(0, currentIndex - 5));
@@ -129,7 +134,6 @@ export default function OrderQueues({ config }: OrderQueuesProps) {
         </div>
       </div>
 
-      {/* Collapsible Content */}
       <div
         className={`transition-all duration-300 ease-in-out overflow-hidden ${
           isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[500px] opacity-100'
@@ -138,25 +142,25 @@ export default function OrderQueues({ config }: OrderQueuesProps) {
         <div className="px-4 pb-4">
           {isLoading ? (
             <div className="space-y-4">
-              {/* Navigation skeleton */}
               <div className="flex justify-between items-center">
                 <Skeleton className="h-9 w-20" />
                 <Skeleton className="h-9 w-16" />
               </div>
-
-              {/* Cards skeleton */}
               <LoadingSkeleton />
-
-              {/* Pagination skeleton */}
               <div className="flex justify-center mt-3 space-x-1">
                 {Array.from({ length: 3 }).map((_, index) => (
                   <Skeleton key={index} className="w-2 h-2 rounded-full" />
                 ))}
               </div>
             </div>
+          ) : orderQueues && orderQueues.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-gray-500">
+              <Utensils className="w-10 h-10 mb-4 text-gray-400" />
+              <p className="text-md font-medium">No orders in the queue</p>
+              <p className="text-sm text-gray-400">Orders will appear here as they come in.</p>
+            </div>
           ) : (
             <div className="relative">
-              {/* Navigation buttons */}
               <div className="flex justify-between items-center mb-4">
                 <Button
                   variant="outline"
@@ -180,7 +184,6 @@ export default function OrderQueues({ config }: OrderQueuesProps) {
                 </Button>
               </div>
 
-              {/* Cards container */}
               <div ref={containerRef} className="overflow-hidden">
                 <div
                   className="flex gap-2 transition-transform duration-300 ease-in-out"
@@ -202,8 +205,7 @@ export default function OrderQueues({ config }: OrderQueuesProps) {
                 </div>
               </div>
 
-              {/* Page indicator */}
-              {orderQueues && orderQueues.length > 5 && (
+              {orderQueues.length > 5 && (
                 <div className="flex justify-center mt-3 space-x-1">
                   {Array.from({ length: Math.ceil(orderQueues.length / 5) }).map((_, index) => (
                     <div
@@ -226,7 +228,7 @@ export default function OrderQueues({ config }: OrderQueuesProps) {
         onOpenChange={setIsViewModalOpen}
         selectedOrder={selectedOrder}
         onUpdateStatus={handleUpdateStatus}
-        config={config} // Pass config to the modal
+        config={config}
       />
     </div>
   );
