@@ -70,6 +70,11 @@ import { useBusinessConfig } from '@/lib/business-config-manager';
 import { BusinessConfig, BusinessType, LocationOption, OrderType } from '@/types/business-config';
 import { useNavigate } from 'react-router';
 
+interface CustomFieldType {
+  name: string;
+  type: string;
+}
+
 // --- Enhanced Visual Components ---
 const businessTypeVisuals: Record<BusinessType, { icon: LucideIcon; className: string; description: string }> = {
   restaurant: {
@@ -140,58 +145,88 @@ const FeatureBadge = ({ enabled }: { enabled: boolean }) => {
   );
 };
 
-const orderTypeVisuals: Record<OrderType, { icon: LucideIcon; className: string; description: string }> = {
-  'Dine in': {
-    icon: UtensilsCrossed,
-    className:
-      'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700/80',
-    description: 'Customers eat on premises',
-  },
-  Takeaway: {
-    icon: ShoppingBag,
-    className: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300 border-sky-200 dark:border-sky-700/80',
-    description: 'Customers order and take food to go',
-  },
-  Delivery: {
-    icon: Truck,
-    className:
-      'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border-blue-200 dark:border-blue-700/80',
-    description: 'Orders are delivered to customer addresses',
-  },
-  Pickup: {
-    icon: Package,
-    className:
-      'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-700/80',
-    description: 'Customers collect orders at a designated location',
-  },
-  'In-store': {
-    icon: Store,
-    className:
-      'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 border-purple-200 dark:border-purple-700/80',
-    description: 'Traditional retail shopping experience',
-  },
-  Online: {
-    icon: Tv,
-    className:
-      'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300 border-rose-200 dark:border-rose-700/80',
-    description: 'E-commerce and digital orders',
-  },
-  Curbside: {
-    icon: Car,
-    className:
-      'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border-amber-200 dark:border-amber-700/80',
-    description: 'Customers receive orders at their vehicle',
-  },
-  'Ship to home': {
-    icon: Home,
-    className:
-      'bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/50 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-700/80',
-    description: 'Products shipped directly to customers',
-  },
+const getOrderTypeVisuals = (businessType: BusinessType): Record<OrderType, { icon: LucideIcon; className: string; description: string }> => {
+  const baseVisuals = {
+    'Dine in': {
+      icon: UtensilsCrossed,
+      className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700/80',
+      description: businessType === 'restaurant' 
+        ? 'Customers eat in the restaurant' 
+        : businessType === 'cafe'
+        ? 'Customers enjoy their drinks and snacks in the cafe'
+        : 'Customers eat on premises',
+    },
+    Takeaway: {
+      icon: ShoppingBag,
+      className: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300 border-sky-200 dark:border-sky-700/80',
+      description: businessType === 'restaurant' || businessType === 'cafe'
+        ? 'Order and take food/drinks to go'
+        : 'Take purchases to go',
+    },
+    Delivery: {
+      icon: Truck,
+      className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border-blue-200 dark:border-blue-700/80',
+      description: businessType === 'restaurant'
+        ? 'Food delivered to customer address'
+        : businessType === 'hardware'
+        ? 'Materials delivered to job site'
+        : businessType === 'supermarket'
+        ? 'Groceries delivered to home'
+        : 'Orders delivered to customer address',
+    },
+    Pickup: {
+      icon: Package,
+      className: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-700/80',
+      description: businessType === 'restaurant' || businessType === 'cafe'
+        ? 'Ready for pickup at designated time'
+        : businessType === 'hardware'
+        ? 'Materials ready for pickup at selected location'
+        : businessType === 'pharmacy'
+        ? 'Prescription ready for pickup'
+        : 'Order ready for collection',
+    },
+    'In-store': {
+      icon: Store,
+      className: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 border-purple-200 dark:border-purple-700/80',
+      description: businessType === 'retail'
+        ? 'Traditional retail shopping experience'
+        : businessType === 'pharmacy'
+        ? 'Purchase and consultation in pharmacy'
+        : businessType === 'hardware'
+        ? 'Shop and checkout in store'
+        : 'In-store purchase',
+    },
+    Online: {
+      icon: Tv,
+      className: 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300 border-rose-200 dark:border-rose-700/80',
+      description: 'E-commerce and digital orders',
+    },
+    Curbside: {
+      icon: Car,
+      className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border-amber-200 dark:border-amber-700/80',
+      description: businessType === 'supermarket'
+        ? 'Groceries brought to your vehicle'
+        : businessType === 'hardware'
+        ? 'Materials loaded into your vehicle'
+        : 'Order brought to your vehicle',
+    },
+    'Ship to home': {
+      icon: Home,
+      className: 'bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/50 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-700/80',
+      description: businessType === 'electronics'
+        ? 'Products shipped with tracking'
+        : businessType === 'clothing'
+        ? 'Apparel shipped to your address'
+        : 'Items shipped to your address',
+    },
+  };
+
+  return baseVisuals;
 };
 
-const OrderTypeBadge = ({ type }: { type: OrderType }) => {
-  const visual = orderTypeVisuals[type] || { icon: Info, className: 'bg-gray-100 text-gray-800', description: '' };
+const OrderTypeBadge = ({ type, businessType }: { type: OrderType; businessType: BusinessType }) => {
+  const visuals = getOrderTypeVisuals(businessType);
+  const visual = visuals[type] || { icon: Info, className: 'bg-gray-100 text-gray-800', description: '' };
   const Icon = visual.icon;
   return (
     <Tooltip>
@@ -253,7 +288,7 @@ export default function PosConfigManagerPageV2() {
     resetToDefaults,
   } = useBusinessConfig();
 
-  const [editableConfig, setEditableConfig] = useState<BusinessConfig | null>(null);
+  const [editableConfig, setEditableConfig] = useState<any>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isImportDialogOpen, setImportDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -283,7 +318,7 @@ export default function PosConfigManagerPageV2() {
     }
   }, [editableConfig, config]);
 
-  const handleConfigChange = (key: keyof BusinessConfig, value: any) => {
+  const handleConfigChange = (key: any, value: any) => {
     setEditableConfig(prev => (prev ? { ...prev, [key]: value } : null));
   };
 
@@ -566,7 +601,7 @@ export default function PosConfigManagerPageV2() {
             <ConfigSectionCard
               icon={CreditCard}
               title="Payment Methods"
-              description="Configure accepted payment options."
+              description="Configure accepted payment methods and their display in the payment interface. These methods will appear as options during checkout."
               badge={<Badge variant="outline">{editableConfig.paymentMethods?.length || 0} methods</Badge>}
             >
               <div className="space-y-3">
@@ -592,22 +627,99 @@ export default function PosConfigManagerPageV2() {
               </div>
             </ConfigSectionCard>
 
+            {/* Component Display */}
+            <ConfigSectionCard
+              icon={Tv}
+              title="Component Display"
+              description="Configure which components and cards are visible in your POS interface."
+              badge={<Badge variant="outline">Display Settings</Badge>}
+            >
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <Label htmlFor="show-order-queue" className="font-normal text-sm flex items-center gap-2">
+                        <ListTodo className="h-4 w-4" />
+                        Order Queue Card
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">Shows pending orders and their status</p>
+                    </div>
+                    <Switch
+                      id="show-order-queue"
+                      checked={editableConfig.showOrderQueue}
+                      onCheckedChange={v => handleConfigChange('showOrderQueue', v)}
+                      className="h-5 w-9"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <Label htmlFor="show-categories" className="font-normal text-sm flex items-center gap-2">
+                        <Package className="h-4 w-4" />
+                        Category Navigation
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">Display product categories for quick navigation</p>
+                    </div>
+                    <Switch
+                      id="show-categories"
+                      checked={editableConfig.showCategories}
+                      onCheckedChange={v => handleConfigChange('showCategories', v)}
+                      className="h-5 w-9"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <Label htmlFor="show-quick-actions" className="font-normal text-sm flex items-center gap-2">
+                        <Wand2 className="h-4 w-4" />
+                        Quick Action Buttons
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">Display shortcuts for common actions</p>
+                    </div>
+                    <Switch
+                      id="show-quick-actions"
+                      checked={editableConfig.showQuickActions}
+                      onCheckedChange={v => handleConfigChange('showQuickActions', v)}
+                      className="h-5 w-9"
+                    />
+                  </div>
+                </div>
+              </div>
+            </ConfigSectionCard>
+
             {/* Order Types */}
             <ConfigSectionCard
               icon={ListTodo}
               title="Order Types"
-              description="Enable or disable order types for your business."
+              description="Enable or disable order types for your business. Each type affects the order flow and required information."
               badge={<Badge variant="outline">{editableConfig.orderTypes.length} active</Badge>}
             >
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  {ALL_ORDER_TYPES.map(ot => (
-                    <OrderTypeBadge key={ot} type={ot} />
+                  {editableConfig.orderTypes.map(ot => (
+                    <OrderTypeBadge key={ot} type={ot} businessType={businessType} />
                   ))}
                 </div>
                 <Separator className="my-2" />
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                  {ALL_ORDER_TYPES.map(ot => (
+                  {ALL_ORDER_TYPES.filter(ot => {
+                    // Filter order types based on business type
+                    switch (businessType) {
+                      case 'restaurant':
+                      case 'cafe':
+                        return ['Dine in', 'Takeaway', 'Delivery', 'Pickup'].includes(ot);
+                      case 'retail':
+                      case 'clothing':
+                      case 'electronics':
+                        return ['In-store', 'Pickup', 'Ship to home', 'Online'].includes(ot);
+                      case 'hardware':
+                        return ['In-store', 'Pickup', 'Delivery', 'Curbside'].includes(ot);
+                      case 'supermarket':
+                        return ['In-store', 'Pickup', 'Delivery', 'Curbside', 'Online'].includes(ot);
+                      case 'pharmacy':
+                        return ['In-store', 'Pickup'].includes(ot);
+                      default:
+                        return true;
+                    }
+                  }).map(ot => (
                     <div
                       key={ot}
                       className="flex items-center justify-between rounded-lg border p-2 hover:bg-muted/50 transition-colors"
@@ -623,7 +735,7 @@ export default function PosConfigManagerPageV2() {
                           {ot}
                         </Label>
                       </div>
-                      <span className="text-xs text-muted-foreground">{orderTypeVisuals[ot]?.description}</span>
+                      <span className="text-xs text-muted-foreground">{getOrderTypeVisuals(businessType)[ot]?.description}</span>
                     </div>
                   ))}
                 </div>
@@ -839,13 +951,23 @@ export default function PosConfigManagerPageV2() {
             <ConfigSectionCard
               icon={Clock}
               title="Advanced Settings"
-              description="Configure timeouts and system behaviors."
+              description="Configure system behaviors, timeouts, and performance settings that affect the POS interface and operations."
               badge={<Badge variant="destructive">Advanced</Badge>}
             >
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="order-timeout" className="text-sm">
+                  <Label htmlFor="order-timeout" className="text-sm flex items-center gap-2">
                     Order Timeout (minutes)
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>After this time, incomplete orders will be automatically cancelled</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </Label>
                   <Input
                     id="order-timeout"

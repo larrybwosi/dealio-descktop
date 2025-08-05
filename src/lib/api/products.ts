@@ -11,8 +11,6 @@ interface CachedData {
   timestamp: number;
 }
 
-// In-memory cache for demonstration (replace with localStorage in your environment)
-const cache = new Map<string, CachedData>();
 
 export const useListProducts = (inLocation: boolean = true) => {
   const organizationId = useOrgStore(state => state.organizationId);

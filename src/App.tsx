@@ -15,6 +15,7 @@ import { ConfigurablePOSSystem } from "./pages/pos";
 import { SettingsPage } from "./pages/settings";
 import DealioSplashScreen from "./pages/splash";
 import PosConfigManagerPage from "./pages/PosConfigManagerPage";
+import ErrorHandlerProvider from "./providers/error";
 
 
 export type ToastType =
@@ -102,42 +103,49 @@ const App = () => {
   });
 
   return (
-    <QueryProvider>
-      <TooltipProvider>
-        <BrowserRouter>
-          <SessionProvider redirectTo="/login">
-            <OrgProvider>
-              {/* <AppProvider> */}
-              <Toaster
-                richColors
-                position="top-right"
-                visibleToasts={3}
-                toastOptions={{
-                  classNames: {
-                    toast: 'flex items-center gap-2 p-4 rounded-md shadow-lg',
-                    success: toastConfigs.success.className,
-                    error: toastConfigs.error.className,
-                    info: toastConfigs.info.className,
-                    warning: toastConfigs.warning.className,
-                    default: toastConfigs.default.className,
-                  },
-                }}
-              />
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/home" element={<Index />} />
-                <Route path="/login" element={<LoginPage />} />
-                {/* <Route path="/settings" element={<SettingsPage />} /> */}
-                <Route path="/splashscreen" element={<DealioSplashScreen />} />
-                <Route path="/settings" element={<PosConfigManagerPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              {/* </AppProvider> */}
-            </OrgProvider>
-          </SessionProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryProvider>
+    <ErrorHandlerProvider
+      onError={(error, errorInfo) => {
+        // Optional: Send to logging service
+        console.log('Error logged:', error);
+      }}
+    >
+      <QueryProvider>
+        <TooltipProvider>
+          <BrowserRouter>
+            <SessionProvider redirectTo="/login">
+              <OrgProvider>
+                {/* <AppProvider> */}
+                <Toaster
+                  richColors
+                  position="top-right"
+                  visibleToasts={3}
+                  toastOptions={{
+                    classNames: {
+                      toast: 'flex items-center gap-2 p-4 rounded-md shadow-lg',
+                      success: toastConfigs.success.className,
+                      error: toastConfigs.error.className,
+                      info: toastConfigs.info.className,
+                      warning: toastConfigs.warning.className,
+                      default: toastConfigs.default.className,
+                    },
+                  }}
+                />
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/home" element={<Index />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  {/* <Route path="/settings" element={<SettingsPage />} /> */}
+                  <Route path="/splashscreen" element={<DealioSplashScreen />} />
+                  <Route path="/settings" element={<PosConfigManagerPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                {/* </AppProvider> */}
+              </OrgProvider>
+            </SessionProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryProvider>
+    </ErrorHandlerProvider>
   );
 };
 

@@ -32,11 +32,11 @@ import { useFormattedCurrency } from '@/lib/utils';
 import { useOrgStore } from '@/lib/tanstack-axios';
 import { getCurrentPhoneConfig, PHONE_CONFIGS } from '@/lib/phone.config';
 import { writeText, readText } from '@tauri-apps/plugin-clipboard-manager';
-import { useCreateSale } from '@/lib/api/sales';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { PaymentMethod } from '@/prisma/client';
 import { initiateMpesaPayment, subscribeToPusher } from '@/lib/mpesa-client';
 import { useOrderStore } from '@/store/orders';
+import { useCreateSale } from '@/lib/services/sales';
 
 interface PaymentModalProps {
   isOpen: boolean;
