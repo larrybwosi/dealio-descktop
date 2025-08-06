@@ -34,7 +34,7 @@ import { getCurrentPhoneConfig, PHONE_CONFIGS } from '@/lib/phone.config';
 import { writeText, readText } from '@tauri-apps/plugin-clipboard-manager';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { PaymentMethod } from '@/prisma/client';
-import { initiateMpesaPayment, subscribeToPusher } from '@/lib/mpesa-client';
+import { initiateMpesaPayment, subscribeToAbly } from '@/lib/mpesa-client';
 import { useOrderStore } from '@/store/orders';
 import { useCreateSale } from '@/lib/services/sales';
 
@@ -132,7 +132,7 @@ export function PaymentModal({
     useEffect(() => {
       if (!checkoutRequestId || !stkPushSent) return;
 
-      const unsubscribe = subscribeToPusher(checkoutRequestId, {
+      const unsubscribe = subscribeToAbly(checkoutRequestId, {
         onSuccess: () => {
           setStkPushStatus('confirmed');
         },

@@ -11,7 +11,6 @@ interface Session {
     //eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   };
-  token: string;
   expiresAt: number;
 }
 
@@ -28,23 +27,6 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 const SESSION_STORAGE_KEY = 'dealio-app_session';
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
-
-// Alternative minimal skeleton for in-app loading
-const MinimalLoadingSkeleton = () => {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="text-center space-y-4">
-        <div className="relative">
-          <div className="w-12 h-12 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-        </div>
-        <div className="space-y-2">
-          <div className="h-4 bg-gray-200 rounded animate-pulse w-32 mx-auto"></div>
-          <div className="h-3 bg-gray-200 rounded animate-pulse w-48 mx-auto"></div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 interface SessionProviderProps {
   children: ReactNode;
@@ -126,8 +108,7 @@ export function SessionProvider({
       // For now, we'll rely on the auth client to handle this
       if (authSession) {
         const newSession: Session = {
-          user: authSession.user!,
-          token: authSession.session?.token,
+          user: authSession?.user,
           expiresAt: Date.now() + SESSION_DURATION,
         };
         setSession(newSession);
@@ -166,8 +147,7 @@ export function SessionProvider({
       // Only create new session if we don't already have a valid persisted one
       if (!session) {
         const newSession: Session = {
-          user: authSession.user!,
-          token: authSession.session.token,
+          user: authSession?.user,
           expiresAt: Date.now() + SESSION_DURATION,
         };
         setSession(newSession);
@@ -261,7 +241,7 @@ export function withAuth<P extends object>(Component: React.ComponentType<P>, re
     }, [isAuthenticated, isLoading, router]);
 
     if (isLoading) {
-      return <MinimalLoadingSkeleton />;
+      return <LoadingSkeleton />;
     }
 
     if (!isAuthenticated) {

@@ -133,17 +133,17 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
       const uint8Array = new Uint8Array(arrayBuffer);
 
       // Convert Uint8Array to a Base64 string to send to Rust
-      // const base64String = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
-      const fileName = isPaid ? `Receipt_${order.orderNumber}.pdf` : `Invoice_${order.orderNumber}.pdf`;
-      const documentDirPath = await documentDir();
-      const filePath = `${documentDirPath}/${fileName}`;
-      await writeFile(filePath, uint8Array, { baseDir: BaseDirectory.Download });
+      const base64String = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
+      // const fileName = isPaid ? `Receipt_${order.orderNumber}.pdf` : `Invoice_${order.orderNumber}.pdf`;
+      // const documentDirPath = await documentDir();
+      // const filePath = `${documentDirPath}/${fileName}`;
+      // await writeFile(filePath, uint8Array, { baseDir: BaseDirectory.Download });
 
-      const printers = await getPrinters();
-      console.log('Available printers:', printers);
+      // const printers = await getPrinters();
+      // console.log('Available printers:', printers);
 
       const printResult = await printPdf({
-        path: filePath,
+        path: base64String,
         printer: 'XP-80C',
         id: order.id,
         remove_after_print: true,
@@ -151,7 +151,6 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
       });
       
       
-      console.log('Print result:', printResult);
       toast.success('Successfully sent to printer!');
     } catch (error) {
       console.error('Error during silent print:', error);

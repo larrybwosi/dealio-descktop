@@ -1,13 +1,13 @@
-import Pusher from 'pusher-js';
+import Ably, { Message } from 'ably';
 
+// Note: You need to install the Ably JS SDK: `npm install ably`
 
-const KEY = import.meta.env.VITE_PUBLIC_PUSHER_KEY;
-const CLUSTER = import.meta.env.VITE_PUBLIC_PUSHER_CLUSTER;
+// Ensure you have your Ably public API key in your .env file
+// For Next.js/Vite, it should be prefixed with NEXT_PUBLIC_ or VITE_PUBLIC_
+const ABLY_KEY = import.meta.env.VITE_PUBLIC_ABLY_API_KEY;
 
-// Initialize Pusher client
-const pusher = new Pusher(KEY!, {
-  cluster: CLUSTER!,
-});
+// Initialize Ably client. It's good practice to do this once.
+const ably = new Ably.Realtime(ABLY_KEY!);
 
 interface InitiateMpesaPaymentParams {
   phoneNumber: string;
@@ -23,33 +23,50 @@ interface MpesaResponse {
   message?: string;
 }
 
-export function subscribeToPusher(checkoutRequestId: string, callbacks: {
-  onSuccess?: () => void;
-  onFailed?: (message: string) => void;
-}) {
-  const channel = pusher.subscribe('mpesa-payments');
-  
-  channel.bind('payment-status', (data: {
-    status: string;
-    checkoutRequestId: string;
-    responseDescription: string;
-    customerMessage: string;
-  }) => {
+/**
+ * Subscribes to an Ably channel to listen for M-Pesa payment status updates.
+ * @param checkoutRequestId The unique ID for the checkout request to listen for.
+ * @param callbacks Object with onSuccess and onFailed callback functions.
+ * @returns A function to unsubscribe and clean up the listener.
+ */
+export function subscribeToAbly(
+  checkoutRequestId: string,
+  callbacks: {
+    onSuccess?: () => void;
+    onFailed?: (message: string) => void;
+  }
+) {
+  // Get the Ably channel for M-Pesa payments
+  const channel = ably.channels.get('mpesa-payments');
+
+  // Define the subscription callback
+  const subscriptionCallback = (message: Message) => {
+    const data = message.data; // The data payload from the server
+
+    // Check if the message is for the current transaction
     if (data.checkoutRequestId === checkoutRequestId) {
       if (data.status === 'SUCCESS' && callbacks.onSuccess) {
         callbacks.onSuccess();
       } else if (data.status === 'FAILED' && callbacks.onFailed) {
+        // Use the customer message or the more technical response description as a fallback
         callbacks.onFailed(data.customerMessage || data.responseDescription);
       }
     }
-  });
+  };
 
+  // Subscribe to the 'payment-status' event
+  channel.subscribe('payment-status', subscriptionCallback);
+
+  // Return a cleanup function to be called when the component unmounts
   return () => {
-    channel.unbind_all();
-    pusher.unsubscribe('mpesa-payments');
+    channel.unsubscribe('payment-status', subscriptionCallback);
   };
 }
 
+/**
+ * Initiates an M-Pesa STK push payment request to your backend.
+ * This function does not change as it only communicates with your API.
+ */
 export async function initiateMpesaPayment({
   phoneNumber,
   amount,
@@ -64,12 +81,12 @@ export async function initiateMpesaPayment({
       body: JSON.stringify({
         phoneNumber,
         amount,
-        saleNumber:orderId,
+        saleNumber: orderId,
       }),
     });
 
     const data = await response.json();
-
+ 
     if (!response.ok) {
       throw new Error(data.message || 'Failed to initiate payment');
     }
