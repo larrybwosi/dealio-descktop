@@ -15,6 +15,7 @@ import ErrorHandlerProvider from "./providers/error";
 import { QueryProvider } from "./lib/tanstack-axios";
 import PendingOrdersPage from "./pages/PendingOrders";
 import { SessionProvider } from "./providers/session";
+import PrintersPage from "./pages/printers";
 
 
 const App = () => {
@@ -124,6 +125,7 @@ const App = () => {
                   <Route path="/splashscreen" element={<DealioSplashScreen />} />
                   <Route path="/settings" element={<PosConfigManagerPage />} />
                   <Route path="/order-lists" element={<PendingOrdersPage />} />
+                  <Route path="/printers" element={<PrintersPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </OrgProvider>

@@ -6,7 +6,7 @@ import { PDFViewer, pdf } from '@react-pdf/renderer';
 import { Printer, Download, Mail, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { getPrinters, printPdf } from 'tauri-plugin-printer-v2';
+import { printPdf } from 'tauri-plugin-printer-v2';
 import { BaseDirectory, writeFile } from '@tauri-apps/plugin-fs';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { documentDir } from '@tauri-apps/api/path';
@@ -14,6 +14,7 @@ import QRCode from 'qrcode';
 import { InvoicePDF } from '@/components/pos/InvoicePDF';
 import { useOrgStore } from '@/lib/tanstack-axios';
 import { ThermalReceiptPDF, OrganizationData } from './ThermalReceiptPDF';
+import { usePrinterStore } from '@/store/printer-store';
 
 export interface PaymentData {
   paymentMethod: 'cash' | 'mobile' | 'card';
@@ -35,6 +36,7 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   const pdfRef = useRef<HTMLDivElement>(null);
   // --- ✨ Assuming useOrgStore provides all necessary fields ---
   const { orgName, address } = useOrgStore();
+  const { printers, isLoading: loadingPrinters, error, defaultPrinter } = usePrinterStore();
 
   const orgInfo = {
     phone: '+62 812 3456 7890',
@@ -42,6 +44,7 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
     website: 'www.dealio.co',
     tagline: 'Your favorite spot',
   };
+
   const { phone, email, website, tagline } = orgInfo;
   const isPaid = order.status === 'completed';
   const [qrCodeImage, setQrCodeImage] = useState<string>('');
@@ -139,7 +142,7 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
 
       const printResult = await printPdf({
         path: base64String,
-        printer: 'XP-80C',
+        printer: defaultPrinter ||printers[0].Name ||'XP-80C',
         id: order.id,
         remove_after_print: true,
         print_settings: '',

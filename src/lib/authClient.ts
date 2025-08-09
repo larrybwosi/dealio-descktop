@@ -23,6 +23,7 @@ export const authClient = createAuthClient({
   disableDefaultFetchPlugins: true,
 });
 export const { signIn, signUp, changePassword, organization, apiKey } = authClient;
+
 // 1. ========= TYPE DEFINITIONS =========
 
 /**
@@ -104,10 +105,6 @@ const getSession = async (): Promise<SessionData> => {
   const response = await fetch(`${API_ENDPOINT}/api/auth/get-session`, {
     // Add credentials to ensure cookies are sent
     credentials: 'include',
-    // Add cache control headers
-    headers: {
-      'Cache-Control': 'no-cache',
-    },
   });
 
   if (!response.ok) {
@@ -140,21 +137,55 @@ const getSession = async (): Promise<SessionData> => {
   };
 };
 
+const SESSION_STORAGE_KEY = 'session_data';
+const TWENTY_FOUR_HOURS_IN_MS = 1000 * 60 * 60 * 24;
+
 export function useSession(options?: UseSessionOptions): UseSessionReturn {
   const ONE_HOUR_IN_MS = 1000 * 60 * 60;
   const FIVE_MINUTES_IN_MS = 1000 * 60 * 5;
 
   const queryResult = useQuery<SessionData, BetterFetchError>({
     queryKey: ['session'],
-    queryFn: getSession,
+    queryFn: async () => {
+      // First try to get from localStorage if within 24 hours
+      const storedSession = localStorage.getItem(SESSION_STORAGE_KEY);
+      if (storedSession) {
+        const { data, timestamp } = JSON.parse(storedSession);
+        if (Date.now() - timestamp < TWENTY_FOUR_HOURS_IN_MS) {
+          return {
+            ...data,
+            user: {
+              ...data.user,
+              createdAt: new Date(data.user.createdAt),
+              updatedAt: new Date(data.user.updatedAt),
+            },
+            session: {
+              ...data.session,
+              expiresAt: new Date(data.session.expiresAt),
+              createdAt: new Date(data.session.createdAt),
+              updatedAt: new Date(data.session.updatedAt),
+            },
+          };
+        }
+      }
+
+      // If no valid localStorage data, fetch from API
+      const freshData = await getSession();
+      
+      // Store in localStorage with timestamp
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+        data: freshData,
+        timestamp: Date.now()
+      }));
+      
+      return freshData;
+    },
     staleTime: options?.persistFor ?? ONE_HOUR_IN_MS,
-    gcTime: 1000 * 60 * 60 * 24, // 24 hours
-    
+    gcTime: TWENTY_FOUR_HOURS_IN_MS,
+
     // CRITICAL FIX: Prevent excessive refetching
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    refetchOnMount: true, // Only refetch on mount, not on every render
-    
     // Add retry configuration to prevent rapid retries
     retry: (failureCount, error) => {
       // Don't retry on 401/403 (authentication errors)
@@ -165,20 +196,10 @@ export function useSession(options?: UseSessionOptions): UseSessionReturn {
       return failureCount < 2;
     },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff, max 30s
-    
-    // Add network mode to prevent requests when offline
     networkMode: 'online',
-    
-    // Set a reasonable refetch interval (optional)
-    refetchInterval: false, // Disable automatic refetching
-    
-    // Enable/disable the query based on options
+    refetchInterval: false, 
     enabled: options?.enabled !== false,
-    
-    // Add error retry configuration
     retryOnMount: true,
-    
-    // Prevent background refetching unless explicitly needed
     refetchIntervalInBackground: false,
   });
 
@@ -189,7 +210,6 @@ export function useSession(options?: UseSessionOptions): UseSessionReturn {
     error: queryResult.error,
   };
 }
-
 /**
  * Signs out the user by calling the sign-out API endpoint.
  */

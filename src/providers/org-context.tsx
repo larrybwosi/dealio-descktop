@@ -45,10 +45,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
           // 3. Session is authenticated, fetch org details from the API
           const response = await axios.get(`${API_ENDPOINT}/api/org-details`, {
             adapter: axiosTauriApiAdapter,
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': API_KEY,
-            },
+            headers: { 'Content-Type': 'application/json'},
           });
           console.log(response)
           if (!response.data) {

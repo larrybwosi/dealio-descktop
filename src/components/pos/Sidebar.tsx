@@ -42,6 +42,8 @@ import {
   Phone,
   MapPin,
   Calendar,
+  Printer,
+  PrinterCheck,
 } from 'lucide-react';
 import { signOut, useSession } from '@/lib/authClient';
 import { toast } from 'sonner';
@@ -57,7 +59,7 @@ const sidebarItems = [
   { id: 'orderingTable', label: 'Ordering table', icon: Utensils },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'orderLists', label: 'Order lists', icon: FileText, path: '/order-lists' },
-  { id: 'analysis', label: 'Analysis', icon: BarChart2 },
+  { id: 'printers', label: 'Printers', icon: PrinterCheck, path: '/printers' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
   { id: 'helpCenter', label: 'Help center', icon: HelpCircle },
 ];

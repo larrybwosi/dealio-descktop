@@ -5,10 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Printer, Check, AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { Loader2, Printer, Check, AlertCircle, Wifi, WifiOff, ArrowLeft } from 'lucide-react';
 import { Printer as PrinterType } from '@/types/printer';
 import { usePrinterStore } from '@/store/printer-store';
 import { getPrinters } from 'tauri-plugin-printer-v2';
+import { useNavigate } from 'react-router';
 
 
 const getPrinterStatusText = (status: number): string => {
@@ -131,13 +132,15 @@ const PrinterCard = ({ printer }: { printer: PrinterType }) => {
 export default function PrintersPage() {
   const { printers, isLoading, error, defaultPrinter, setPrinters, setLoading, setError, clearError } =
     usePrinterStore();
+    const navigate = useNavigate()
 
   const loadPrinters = async () => {
     try {
       setLoading(true);
       clearError();
       const printerList = await getPrinters();
-      setPrinters(printerList);
+      console.log('Printer list: ', JSON.parse(printerList))
+      setPrinters(JSON.parse(printerList));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load printers');
     } finally {
@@ -152,7 +155,10 @@ export default function PrintersPage() {
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Printer Settings</h1>
+        <div className="flex  items-center flex-row">
+          <ArrowLeft onClick={() => navigate('/')} className='text-5xl'/>
+          <h1 className="text-3xl font-bold tracking-tight mb-2"> Printer Settings</h1>
+        </div>
         <p className="text-muted-foreground">
           Manage your printers and set your default printer for printing documents.
         </p>
