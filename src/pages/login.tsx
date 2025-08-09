@@ -28,7 +28,7 @@ import { useForm } from 'react-hook-form';
 import { fetch } from '@tauri-apps/plugin-http';
 import axiosTauriApiAdapter from 'axios-tauri-api-adapter';
 import axios, { AxiosInstance } from 'axios';
-import { getApiKey, saveApiKey } from '@/lib/axios';
+import { API_ENDPOINT, getApiKey, saveApiKey } from '@/lib/axios';
 
 // Define Zod schemas for validation
 const emailLoginSchema = z.object({
@@ -124,34 +124,21 @@ export default function LoginPage() {
 
   const loginOptions: LoginOptions = {
     loginWithEmail: async (email, password, callbackUrl) => {
-      const { error, data } = await signIn.email({
-        email,
-        password,
-        callbackURL: callbackUrl || '/',
-      });
-
-      // const res = await fetch(`http://localhost:3000/api/auth/sign-in/email`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({ email, password }),
+      // const { error, data } = await signIn.email({
+      //   email,
+      //   password,
+      //   callbackURL: callbackUrl || '/',
       // });
-      // const res2 = await axios.post(`http://localhost:3000/api/auth/sign-in/email`, { email, password },{adapter: axiosTauriApiAdapter});
+      const res = await axios.post(`${API_ENDPOINT}/api/auth/sign-in/email`, { email, password },{adapter: axiosTauriApiAdapter});
 
-      // const response = await res.json();
-      // console.log('Res2: ', res2.data)
-      // console.log('Response' ,response)
+      console.log('Res2: ', res.data)
 
-      // if (res.status !== 200) {
-      //   return { error: { code: res.status.toString(), message: ' Failed', status: res.status, statusText: res.statusText } };
-      // }
-      // const token = response.token || data.token;
-      // if (token) {
-      //   toast.success(token)
-      //   localStorage.setItem('bearer_token', token);
-      // }
-      return { error, data };
+      const token = res.data.token;
+      if (token) {
+        toast.success(token)
+        localStorage.setItem('bearer_token', token);
+      }
+      return { error: undefined, data: res.data };
     },
     loginWithUsername: async (username, password) => {
       const { error, data } = await signIn.username({
@@ -258,7 +245,7 @@ export default function LoginPage() {
   const onApiKeySubmit = async (data: ApiKeyFormData) => {
     setIsLoading(true);
     try {
-      saveApiKey(data.apiKey); // Call the utility function to save the key
+      await saveApiKey(data.apiKey); // Call the utility function to save the key
       toast.success('API Key saved securely!');
       window.location.href = '/';
     } catch (error) {

@@ -1,17 +1,20 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
 import { useSession as useAuthSession } from '@/lib/authClient';
 import { useNavigate } from 'react-router';
 import LoadingSkeleton from '@/components/session-loader';
 
+interface User {
+  id: string;
+  email?: string;
+  name?: string;
+  //eslint-disable-next-line
+  [key: string]: any;
+}
+
 interface Session {
-  user?: {
-    id: string;
-    email?: string;
-    name?: string;
-    //eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [key: string]: any;
-  };
+  user: User;
   expiresAt: number;
+  refreshToken?: string;
 }
 
 interface SessionContextType {
@@ -19,20 +22,14 @@ interface SessionContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   logout: () => void;
-  refreshSession: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
-
-const SESSION_STORAGE_KEY = 'dealio-app_session';
-const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-
 
 interface SessionProviderProps {
   children: ReactNode;
   redirectTo?: string;
   loadingComponent?: ReactNode;
-  useMinimalSkeleton?: boolean;
 }
 
 export function SessionProvider({
@@ -40,186 +37,149 @@ export function SessionProvider({
   redirectTo = '/login',
   loadingComponent,
 }: SessionProviderProps) {
+  // Call useAuthSession at the top level
+  const { data: authSession, isPending: authLoading, error: authError } = useAuthSession();
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useNavigate();
-
-  // Use ref to track if we've already processed the auth session
-  const authSessionProcessed = useRef(false);
-  const persistedSessionLoaded = useRef(false);
-
-  // Call useAuthSession only once
-  const { data: authSession, isPending: authLoading, error } = useAuthSession();
-
-  // Load persisted session from localStorage
-  const loadPersistedSession = (): Session | null => {
-    if (typeof window === 'undefined') return null;
-
-    try {
-      const stored = localStorage.getItem(SESSION_STORAGE_KEY);
-      if (!stored) return null;
-
-      const parsedSession: Session = JSON.parse(stored);
-
-      // Check if session has expired
-      if (Date.now() > parsedSession.expiresAt) {
-        localStorage.removeItem(SESSION_STORAGE_KEY);
-        return null;
-      }
-
-      return parsedSession;
-    } catch (error) {
-      console.error('Error loading persisted session:', error);
-      localStorage.removeItem(SESSION_STORAGE_KEY);
-      return null;
+  const navigate = useNavigate();
+  
+  // Add loading timeout to prevent infinite loading
+  useEffect(() => {
+    if (authLoading) {
+      const timeoutId = setTimeout(() => {
+        if (authLoading) {
+          console.log('Auth loading timed out, redirecting to login');
+          navigate(redirectTo);
+        }
+      }, 10000); // 10 seconds timeout
+      return () => clearTimeout(timeoutId);
     }
-  };
+  }, [authLoading, navigate, redirectTo]);
 
-  // Persist session to localStorage
-  const persistSession = (sessionData: Session) => {
-    if (typeof window === 'undefined') return;
+  const isAuthenticated = useMemo(() => !!session, [session]);
 
-    try {
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
-    } catch (error) {
-      console.error('Error persisting session:', error);
-    }
-  };
-
-  // Clear persisted session
-  const clearPersistedSession = () => {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem(SESSION_STORAGE_KEY);
-  };
-
-  // Logout function
-  const logout = () => {
+  const logout = useCallback(() => {
     setSession(null);
-    clearPersistedSession();
-    authSessionProcessed.current = false; // Reset flag for potential re-login
-    router(redirectTo);
-  };
+    navigate(redirectTo);
+  }, [navigate, redirectTo]);
 
-  // Refresh session function
-  const refreshSession = async () => {
-    try {
-      setIsLoading(true);
-      // This would typically make an API call to refresh the session
-      // For now, we'll rely on the auth client to handle this
-      if (authSession) {
-        const newSession: Session = {
-          user: authSession?.user,
-          expiresAt: Date.now() + SESSION_DURATION,
-        };
-        setSession(newSession);
-        persistSession(newSession);
-      }
-    } catch (error) {
-      console.error('Error refreshing session:', error);
-      logout();
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const createSession = useCallback(
+    //eslint-disable-next-line
+    (authData: any): Session => ({
+      user: authData.user,
+      expiresAt: authData.expiresAt || Date.now() + 24 * 60 * 60 * 1000, // 24 hours default
+      refreshToken: authData.refreshToken,
+    }),
+    []
+  );
 
-  // Load persisted session on mount (only once)
   useEffect(() => {
-    if (persistedSessionLoaded.current) return;
-
-    persistedSessionLoaded.current = true;
-    const persistedSession = loadPersistedSession();
-
-    if (persistedSession) {
-      setSession(persistedSession);
-      setIsLoading(false);
-      authSessionProcessed.current = true; // Mark as processed to avoid overriding
+    if (authLoading) {
+      console.log('Auth is loading...');
+      return;
     }
-  }, []);
 
-  // Handle auth session only once when it's available and not processed yet
-  useEffect(() => {
-    // Skip if we've already processed auth session or if it's still loading
-    if (authSessionProcessed.current || authLoading) return;
+    console.log('Auth state:', { authSession, authError, isPending: authLoading });
 
-    authSessionProcessed.current = true;
+    if (authSession?.user) {
+      console.log('User found in session:', authSession.user);
+      const currentUserId = session?.user?.id;
+      const newUserId = authSession.user.id;
 
-    if (authSession) {
-      // Only create new session if we don't already have a valid persisted one
-      if (!session) {
-        const newSession: Session = {
-          user: authSession?.user,
-          expiresAt: Date.now() + SESSION_DURATION,
-        };
+      if (!session || currentUserId !== newUserId) {
+        const newSession = createSession(authSession);
+        console.log('Creating new session:', newSession);
         setSession(newSession);
-        persistSession(newSession);
       }
-    } else if (error || !authSession) {
-      // No valid session and no persisted session, redirect to login
-      console.log(session);
-      if (!session) {
-        // router(redirectTo);
-      }
+    } else if (authError) {
+      console.log('Auth error detected:', authError);
+      setSession(null);
+      navigate(redirectTo);
+    } else if (!authSession) {
+      console.log('No auth session found, redirecting to login');
+      setSession(null);
+      navigate(redirectTo);
     }
+  }, [authSession, authLoading, authError, session, navigate, redirectTo, createSession]);
 
-    setIsLoading(false);
-  }, [authSession, authLoading, error, session, router, redirectTo]);
-
-  // Set up session expiry check
   useEffect(() => {
     if (!session) return;
 
     const checkExpiry = () => {
-      if (session && Date.now() > session.expiresAt) {
+      if (Date.now() >= session.expiresAt) {
         logout();
       }
     };
 
-    // Check every minute
-    const interval = setInterval(checkExpiry, 60 * 1000);
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        checkExpiry();
+      }
+    };
 
-    return () => clearInterval(interval);
-  }, [session]);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    const interval = setInterval(checkExpiry, 5 * 60 * 1000);
 
-  const contextValue: SessionContextType = {
-    session,
-    isLoading: isLoading || authLoading,
-    isAuthenticated: !!session,
-    logout,
-    refreshSession,
-  };
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(interval);
+    };
+  }, [session, logout]);
 
-  // Show loading skeleton while session is being established
-  if (isLoading || authLoading) {
-    if (loadingComponent) {
-      return <>{loadingComponent}</>;
-    }
+  const contextValue = useMemo<SessionContextType>(
+    () => ({
+      session,
+      isLoading: authLoading,
+      isAuthenticated,
+      logout,
+    }),
+    [session, authLoading, isAuthenticated, logout]
+  );
 
-    return <LoadingSkeleton />;
+  // Only show loading state for initial authentication
+  if (authLoading && !session) {
+    console.log('Showing loading state - authenticating...');
+    return loadingComponent ? <>{loadingComponent}</> : <LoadingSkeleton />;
   }
 
+  // If we have a session or we're not loading, show the children
+  console.log('Rendering provider with session:', !!session);
   return <SessionContext.Provider value={contextValue}>{children}</SessionContext.Provider>;
 }
 
-// Custom hook to use session context
-export function useSession() {
+// Custom hook with better error handling
+export function useSession(): SessionContextType {
   const context = useContext(SessionContext);
 
-  if (context === undefined) {
-    throw new Error('useSession must be used within a SessionProvider');
+  if (!context) {
+    throw new Error(
+      'useSession must be used within a SessionProvider. ' +
+        'Make sure to wrap your component tree with <SessionProvider>.'
+    );
   }
 
   return context;
 }
 
-function NotAuthenticated() {
+// Optimized NotAuthenticated component
+function NotAuthenticated({ onRetry }: { onRetry?: () => void }) {
+  const handleLoginClick = useCallback(() => {
+    if (onRetry) {
+      onRetry();
+    } else {
+      window.location.href = '/login';
+    }
+  }, [onRetry]);
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="text-center space-y-4">
-        <div className="text-lg font-semibold">You are not authenticated</div>
-        <div className="text-gray-500">Please log in to continue.</div>
+      <div className="text-center space-y-4 p-6">
+        <div className="text-xl font-semibold text-gray-900">Authentication Required</div>
+        <div className="text-gray-600 max-w-md">
+          Your session has expired or you need to log in to access this content.
+        </div>
         <button
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          onClick={() => window.location.href = '/login'}
+          className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+          onClick={handleLoginClick}
         >
           Go to Login
         </button>
@@ -228,26 +188,41 @@ function NotAuthenticated() {
   );
 }
 
-// Higher-order component for protecting routes
-export function withAuth<P extends object>(Component: React.ComponentType<P>, redirectTo: string = '/login') {
-  return function AuthenticatedComponent(props: P) {
+// Optimized HOC with better TypeScript support
+  //eslint-disable-next-line
+export function withAuth<P extends Record<string, any>>(
+  Component: React.ComponentType<P>,
+  options: {
+    redirectTo?: string;
+    loadingComponent?: ReactNode;
+    fallbackComponent?: ReactNode;
+  } = {}
+) {
+  const { redirectTo = '/login', loadingComponent, fallbackComponent } = options;
+
+  const AuthenticatedComponent = (props: P) => {
     const { isAuthenticated, isLoading } = useSession();
-    const router = useNavigate();
+    const navigate = useNavigate();
 
     useEffect(() => {
       if (!isLoading && !isAuthenticated) {
-        router(redirectTo);
+        navigate(redirectTo);
       }
-    }, [isAuthenticated, isLoading, router]);
+    }, [isAuthenticated, isLoading, navigate]);
 
     if (isLoading) {
-      return <LoadingSkeleton />;
+      return loadingComponent ? <>{loadingComponent}</> : <LoadingSkeleton />;
     }
 
     if (!isAuthenticated) {
-      return <NotAuthenticated />;
+      return fallbackComponent ? <>{fallbackComponent}</> : <NotAuthenticated onRetry={() => navigate(redirectTo)} />;
     }
 
     return <Component {...props} />;
   };
+
+  // Set display name for better debugging
+  AuthenticatedComponent.displayName = `withAuth(${Component.displayName || Component.name})`;
+
+  return AuthenticatedComponent;
 }

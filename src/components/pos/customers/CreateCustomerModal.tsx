@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Customer } from "@/types";
-import { useCreateCustomer } from "@/lib/api/customers";
+import { useCreateCustomer } from "@/lib/services/customers";
 
 interface CreateCustomerModalProps {
   isOpen: boolean;

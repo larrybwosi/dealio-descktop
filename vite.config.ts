@@ -20,13 +20,6 @@ export default defineConfig(async () => ({
     port: 5173,
     strictPort: true,
     host: host || false,
-    proxy: {
-      '/api': {
-        target: 'https://dealioerp.vercel.app',
-        changeOrigin: true,
-        secure: false,
-      },
-    },
     hmr: host
       ? {
           protocol: 'ws',

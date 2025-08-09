@@ -43,11 +43,11 @@ import {
   MapPin,
   Calendar,
 } from 'lucide-react';
-import { useSession } from '@/providers/session';
-import { signOut } from '@/lib/authClient';
+import { signOut, useSession } from '@/lib/authClient';
 import { toast } from 'sonner';
 import { LazyStore } from '@tauri-apps/plugin-store';
 import { useNavigate } from 'react-router';
+import { SidebarSkeletonEnhanced } from '../sidebar-skeleton';
 
 const sidebarItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -56,9 +56,9 @@ const sidebarItems = [
   { id: 'discounts', label: 'Discounts', icon: Tag, badge: 8 },
   { id: 'orderingTable', label: 'Ordering table', icon: Utensils },
   { id: 'customers', label: 'Customers', icon: Users },
-  { id: 'orderLists', label: 'Order lists', icon: FileText },
+  { id: 'orderLists', label: 'Order lists', icon: FileText, path: '/order-lists' },
   { id: 'analysis', label: 'Analysis', icon: BarChart2 },
-  { id: 'settings', label: 'Settings', icon: Settings ,path: '/settings'},
+  { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
   { id: 'helpCenter', label: 'Help center', icon: HelpCircle },
 ];
 
@@ -67,30 +67,49 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
-  const { session, isLoading, logout } = useSession();
+  const { data:session, isLoading } = useSession();
   const currentUser = session?.user;
 
   const handleLogout = async () => {
     try {
       await signOut();
-      logout(); 
-      const store =  new LazyStore('.org-storage.dat') 
-      await store.reset(); // Clear the Zustand store
-      await store.save()
+
+      try {
+        const store = new LazyStore('.org-storage.dat');
+        await store.reset();
+        await store.save();
+      } catch (storeError) {
+        console.warn('Failed to clear local storage:', storeError);
+        // Continue with logout even if store cleanup fails
+      }
+
+      navigate('/login');
       toast.success('Logged out successfully');
       setLogoutDialogOpen(false);
       setUserDialogOpen(false);
     } catch (error) {
       console.error('Logout failed:', error);
       toast.error('Logout Failed');
+      setLogoutDialogOpen(false);
     }
   };
-  
 
-  if (isLoading || !currentUser) {
-    return null;
+  const handleNavigation = item => {
+    try {
+      setActiveItem(item.id);
+      if (item.path) {
+        navigate(item.path);
+      }
+    } catch (error) {
+      console.error('Navigation failed:', error);
+      toast.error('Navigation failed');
+    }
+  };
+
+  if (isLoading) {
+    return <SidebarSkeletonEnhanced collapsed={collapsed} />;
   }
 
   return (
@@ -136,10 +155,7 @@ export function Sidebar() {
               key={item.id}
               variant={activeItem === item.id ? 'secondary' : 'ghost'}
               className={cn('w-full justify-start mb-1 relative', collapsed ? 'px-0' : '')}
-              onClick={() => {
-                setActiveItem(item.id)
-                navigate(`${item.path}`)
-              }}
+              onClick={() => handleNavigation(item)}
             >
               <Icon className={cn('h-4 w-4', collapsed ? 'mx-auto' : 'mr-2')} />
               {!collapsed && <span>{item.label}</span>}
@@ -156,141 +172,156 @@ export function Sidebar() {
         })}
       </div>
 
-      {/* User account section */}
-      <div className="border-t p-3">
-        <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" className="w-full p-0 h-auto">
-              {!collapsed ? (
-                <div className="flex items-center w-full p-2 rounded hover:bg-gray-50">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={currentUser.avatar} />
-                    <AvatarFallback className="bg-gray-200">{currentUser.name.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div className="ml-2 flex-1 text-left">
-                    <div className="text-sm font-medium">{currentUser.name}</div>
-                    <div className="text-xs text-gray-500 truncate">{currentUser.email}</div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-gray-400" />
-                </div>
-              ) : (
-                <div className="flex justify-center p-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={currentUser.avatar} />
-                    <AvatarFallback className="bg-gray-200">{currentUser.name.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                </div>
-              )}
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                User Profile
-              </DialogTitle>
-              <DialogDescription>View and manage your account information</DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-6 py-4">
-              {/* User Avatar and Basic Info */}
-              <div className="flex items-center space-x-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage src={currentUser.avatar} />
-                  <AvatarFallback className="bg-teal-100 text-teal-700 text-xl">
-                    {currentUser.name.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="text-lg font-semibold">{currentUser.name}</h3>
-                  <p className="text-sm text-gray-500">{currentUser.role || 'Manager'}</p>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Contact Information */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium text-gray-900">Contact Information</h4>
-
-                <div className="flex items-center space-x-3">
-                  <Mail className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm">{currentUser.email}</span>
-                </div>
-
-                {currentUser.phone && (
-                  <div className="flex items-center space-x-3">
-                    <Phone className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm">{currentUser.phone}</span>
-                  </div>
-                )}
-
-                {currentUser.location && (
-                  <div className="flex items-center space-x-3">
-                    <MapPin className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm">{currentUser.location}</span>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* Account Details */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium text-gray-900">Account Details</h4>
-
-                {currentUser.joinedAt && (
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-4 w-4 text-gray-400" />
-                    <div>
-                      <span className="text-sm text-gray-500">Joined on </span>
-                      <span className="text-sm">{formatDate(currentUser.joinedAt)}</span>
+      {/* User account section - only show if currentUser exists */}
+      {currentUser && (
+        <div className="border-t p-3">
+          <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" className="w-full p-0 h-auto">
+                {!collapsed ? (
+                  <div className="flex items-center w-full p-2 rounded hover:bg-gray-50">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={currentUser.avatar} />
+                      <AvatarFallback className="bg-gray-200">
+                        {currentUser.name?.charAt(0)?.toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="ml-2 flex-1 text-left">
+                      <div className="text-sm font-medium">{currentUser.name || 'Unknown User'}</div>
+                      <div className="text-xs text-gray-500 truncate">{currentUser.email || 'No email'}</div>
                     </div>
+                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                  </div>
+                ) : (
+                  <div className="flex justify-center p-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={currentUser.avatar} />
+                      <AvatarFallback className="bg-gray-200">
+                        {currentUser.name?.charAt(0)?.toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
                   </div>
                 )}
+              </Button>
+            </DialogTrigger>
 
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm">Account Verified</span>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  User Profile
+                </DialogTitle>
+                <DialogDescription>View and manage your account information</DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6 py-4">
+                {/* User Avatar and Basic Info */}
+                <div className="flex items-center space-x-4">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={currentUser.avatar} />
+                    <AvatarFallback className="bg-teal-100 text-teal-700 text-xl">
+                      {currentUser.name?.charAt(0)?.toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="text-lg font-semibold">{currentUser.name || 'Unknown User'}</h3>
+                    <p className="text-sm text-gray-500">{currentUser.role || 'Manager'}</p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Contact Information */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-gray-900">Contact Information</h4>
+
+                  <div className="flex items-center space-x-3">
+                    <Mail className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm">{currentUser.email || 'No email provided'}</span>
+                  </div>
+
+                  {currentUser.phone && (
+                    <div className="flex items-center space-x-3">
+                      <Phone className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm">{currentUser.phone}</span>
+                    </div>
+                  )}
+
+                  {currentUser.location && (
+                    <div className="flex items-center space-x-3">
+                      <MapPin className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm">{currentUser.location}</span>
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Account Details */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-gray-900">Account Details</h4>
+
+                  {currentUser.joinedAt && (
+                    <div className="flex items-center space-x-3">
+                      <Calendar className="h-4 w-4 text-gray-400" />
+                      <div>
+                        <span className="text-sm text-gray-500">Joined on </span>
+                        <span className="text-sm">
+                          {(() => {
+                            try {
+                              return formatDate(currentUser.joinedAt);
+                            } catch (error) {
+                              console.warn('Date formatting failed:', error);
+                              return 'Invalid date';
+                            }
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span className="text-sm">Account Verified</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <DialogFooter className="flex justify-between">
-              <Button variant="outline" onClick={() => setUserDialogOpen(false)}>
-                Close
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => setLogoutDialogOpen(true)}
-                className="flex items-center gap-2"
-              >
-                <LogOut className="h-4 w-4" />
-                Sign Out
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter className="flex justify-between">
+                <Button variant="outline" onClick={() => setUserDialogOpen(false)}>
+                  Close
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => setLogoutDialogOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign Out
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-        {/* Logout Confirmation Dialog */}
-        <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Sign Out Confirmation</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to sign out? You'll need to sign in again to access your account.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleLogout} className="bg-red-600 hover:bg-red-700">
-                Sign Out
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
+          {/* Logout Confirmation Dialog */}
+          <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Sign Out Confirmation</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to sign out? You'll need to sign in again to access your account.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleLogout} className="bg-red-600 hover:bg-red-700">
+                  Sign Out
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
     </div>
   );
 }

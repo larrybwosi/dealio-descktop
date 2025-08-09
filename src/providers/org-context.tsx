@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, Building2 } from 'lucide-react';
 import { useOrgStore } from '@/lib/tanstack-axios';
-import { useSession } from '@/lib/authClient';
+import { useSession } from './session';  // Use the context-based session hook
 import { useNavigate } from 'react-router';
 import { fetch } from '@tauri-apps/plugin-http';
 import axios from 'axios';
@@ -12,11 +12,13 @@ import api, { API_ENDPOINT, API_KEY, apiClient, createApiClient } from '@/lib/ax
 import { Button } from '@/components/ui/button';
 
 export function OrgProvider({ children }: { children: React.ReactNode }) {
-  const { data: session, isPending } = useSession();
+  const { session, isLoading: isSessionLoading, isAuthenticated } = useSession();
   const router = useNavigate();
   const { organizationId, set: setOrgDetails } = useOrgStore();
 
-// console.log(use$(apiKey$));
+  // Debug logging
+  console.log('OrgProvider state:', { session, isSessionLoading, isAuthenticated });
+
   const [isLoading, setIsLoading] = useState(true);
   const [loadingStage, setLoadingStage] = useState<'session' | 'organization' | 'complete'>('session');
   const [error, setError] = useState<string | null>(null);
@@ -32,12 +34,12 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
         }
 
         // 2. If not in store, check the user's session status
-        if (isPending) {
+        if (isSessionLoading) {
           setLoadingStage('session');
           return;
         }
 
-        if (session?.user?.id) {
+        if (session?.user?.id && isAuthenticated) {
           setLoadingStage('organization');
 
           // 3. Session is authenticated, fetch org details from the API
@@ -48,7 +50,6 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
               'x-api-key': API_KEY,
             },
           });
-          // const response = await apiClient.get(`${API_ENDPOINT}/api/org-details`);
           console.log(response)
           if (!response.data) {
             if (response.status === 404) {
@@ -96,7 +97,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
     };
 
     initializeOrg();
-  }, [organizationId, session, isPending, router, setOrgDetails]);
+  }, [organizationId, router, setOrgDetails, session?.user?.id, isAuthenticated, isSessionLoading]);
 
   if (isLoading || error) {
     return (

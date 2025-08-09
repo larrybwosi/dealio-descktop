@@ -59,6 +59,7 @@ export const apiClient = axios.create({
  */
 export const saveApiKey = async (apiKey: string): Promise<void> => {
   try {
+    localStorage.setItem('api_key',apiKey)
     await store.set(API_KEY_STORAGE_KEY, apiKey);
     await store.save(); // Persist the store to disk
     apiKey$.set(apiKey)

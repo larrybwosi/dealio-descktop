@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Customer } from "@/types";
-import { useDeleteCustomer } from "@/lib/api/customers";
+import { useDeleteCustomer } from "@/lib/services/customers";
 
 interface DeleteCustomerModalProps {
   customer: Customer | null;

@@ -3,20 +3,18 @@ import { BrowserRouter, Routes, Route } from "react-router";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/login";
-import { SessionProvider } from "./providers/session";
 import { useMemo } from "react";
 import { AlertTriangle, CheckCircle2, Info, XCircle } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { OrgProvider } from "./providers/org-context";
 import { useBetterAuthTauri } from '@daveyplate/better-auth-tauri/react';
-import { setupBetterAuthTauri } from '@daveyplate/better-auth-tauri';
 import { authClient } from "./lib/authClient";
-import { ConfigurablePOSSystem } from "./pages/pos";
-import { SettingsPage } from "./pages/settings";
 import DealioSplashScreen from "./pages/splash";
 import PosConfigManagerPage from "./pages/PosConfigManagerPage";
 import ErrorHandlerProvider from "./providers/error";
 import { QueryProvider } from "./lib/tanstack-axios";
+import PendingOrdersPage from "./pages/PendingOrders";
+import { SessionProvider } from "./providers/session";
 
 
 const App = () => {
@@ -92,9 +90,9 @@ const App = () => {
       onError={(error, errorInfo) => {
         // Optional: Send to logging service
         console.log('Error logged:', error);
-        toast.error(error.message,{
-          description:JSON.stringify(error)
-        })
+        toast.error(error.message, {
+          description: JSON.stringify(error),
+        });
       }}
     >
       <QueryProvider>
@@ -125,6 +123,7 @@ const App = () => {
                   {/* <Route path="/settings" element={<SettingsPage />} /> */}
                   <Route path="/splashscreen" element={<DealioSplashScreen />} />
                   <Route path="/settings" element={<PosConfigManagerPage />} />
+                  <Route path="/order-lists" element={<PendingOrdersPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </OrgProvider>

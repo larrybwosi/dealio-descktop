@@ -1,4 +1,3 @@
-// components/customers/UpdateCustomerModal.tsx
 import { useState } from "react";
 import {
   Dialog,
@@ -13,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Customer } from "@/types";
-import { useUpdateCustomer } from "@/lib/api/customers";
+import { useUpdateCustomer } from "@/lib/services/customers";
 import { History, X } from "lucide-react";
 
 interface UpdateCustomerModalProps {

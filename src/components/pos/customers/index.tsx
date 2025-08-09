@@ -29,7 +29,7 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import { useListCustomers } from "@/lib/api/customers";
+import { useListCustomers } from "@/lib/services/customers";
 import { CreateCustomerModal } from "./CreateCustomerModal";
 import { UpdateCustomerModal } from "./UpdateCustomerModal";
 import { DeleteCustomerModal } from "./DeleteCustomerModal";

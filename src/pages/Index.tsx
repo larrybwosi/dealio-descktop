@@ -7,10 +7,10 @@ import { CustomerManagement } from "@/components/pos/customers";
 import { PaymentModal } from "@/components/pos/PaymentModal";
 import { InvoiceModal } from "@/components/pos/InvoiceModal";
 import { CartItem, Customer, Order, OrderType, OrderQueue } from "@/types";
-import { withAuth } from "@/providers/session";
 import { useOrgStore } from "@/lib/tanstack-axios";
 import { useBusinessConfig } from "@/lib/business-config-manager";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { withAuth } from "@/providers/session";
 
 function PosSystem() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -229,5 +229,4 @@ function PosSystem() {
 // const IndexPage = withAuth(PosSystem);
 // export default IndexPage;
 
-// const IndexPage = withAuth(PosSystem);
 export default PosSystem;
