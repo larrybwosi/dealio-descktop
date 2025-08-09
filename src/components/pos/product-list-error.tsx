@@ -16,16 +16,16 @@ export function ProductListError({ error, onRetry, isRetrying }: ProductListErro
     if (!error) return 'An unexpected error occurred';
 
     // Common error patterns
-    if (error.message.toLowerCase().includes('network') || error.message.toLowerCase().includes('fetch')) {
+    if (error?.message?.toLowerCase().includes('network') || error?.message?.toLowerCase().includes('fetch')) {
       return 'Unable to connect to the server. Please check your internet connection.';
     }
-    if (error.message.toLowerCase().includes('timeout')) {
+    if (error?.message?.toLowerCase().includes('timeout')) {
       return 'Request timed out. The server might be busy.';
     }
-    if (error.message.toLowerCase().includes('404')) {
+    if (error?.message?.toLowerCase().includes('404')) {
       return 'Products service not found. Please contact support.';
     }
-    if (error.message.toLowerCase().includes('500')) {
+    if (error?.message?.toLowerCase().includes('500')) {
       return 'Server error occurred. Please try again later.';
     }
 
@@ -35,7 +35,7 @@ export function ProductListError({ error, onRetry, isRetrying }: ProductListErro
   const getErrorIcon = () => {
     if (!error) return <AlertTriangle className="h-5 w-5" />;
 
-    if (error.message.toLowerCase().includes('network') || error.message.toLowerCase().includes('fetch')) {
+    if (error?.message?.toLowerCase().includes('network') || error?.message?.toLowerCase().includes('fetch')) {
       return <WifiOff className="h-5 w-5" />;
     }
 

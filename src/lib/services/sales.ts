@@ -23,7 +23,7 @@ const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY = 2000; // 2 seconds
 
 // Utility functions for localStorage operations
-const getPendingSales = (): PendingSale[] => {
+export const getPendingSales = (): PendingSale[] => {
   try {
     const stored = localStorage.getItem(PENDING_SALES_KEY);
     return stored ? JSON.parse(stored) : [];
@@ -33,7 +33,7 @@ const getPendingSales = (): PendingSale[] => {
   }
 };
 
-const savePendingSale = (sale: PendingSale): void => {
+export const savePendingSale = (sale: PendingSale): void => {
   try {
     const pendingSales = getPendingSales();
     const existingIndex = pendingSales.findIndex(s => s.id === sale.id);
@@ -50,10 +50,10 @@ const savePendingSale = (sale: PendingSale): void => {
   }
 };
 
-const removePendingSale = (saleId: string): void => {
+export const removePendingSale = (saleId: string): void => {
   try {
     const pendingSales = getPendingSales();
-    const filtered = pendingSales.filter(sale => sale.id !== saleId);
+    const filtered = pendingSales?.filter(sale => sale.id !== saleId);
     localStorage.setItem(PENDING_SALES_KEY, JSON.stringify(filtered));
   } catch (error) {
     console.error('Error removing pending sale from localStorage:', error);
@@ -76,6 +76,7 @@ export const useRetryPendingSales = () => {
       queryClient.invalidateQueries({ queryKey: ['sales', pendingSale.organizationId] });
       toast.success('Pending sale successfully saved!');
       return true;
+      //eslint-disable-next-line
     } catch (error: any) {
       const updatedSale: PendingSale = {
         ...pendingSale,
@@ -131,7 +132,7 @@ export const useRetryPendingSales = () => {
 
   return {
     retryAllPendingSales,
-    getPendingSalesCount: () => getPendingSales().filter(s => s.organizationId === organizationId).length,
+    getPendingSalesCount: () => getPendingSales()?.filter(s => s.organizationId === organizationId).length,
   };
 };
 
@@ -146,6 +147,7 @@ export const useCreateSale = () => {
       queryClient.invalidateQueries({ queryKey: ['sales', organizationId] });
       toast.success('Sale created successfully!');
     },
+    //eslint-disable-next-line
     onError: (error: any, variables) => {
       const message = error.response?.data?.error || error.response?.data?.message || 'An unexpected error occurred';
 

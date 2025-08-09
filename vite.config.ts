@@ -24,7 +24,7 @@ export default defineConfig(async () => ({
       '/api': {
         target: 'https://dealioerp.vercel.app',
         changeOrigin: true,
-        secure: true,
+        secure: false,
       },
     },
     hmr: host

@@ -2,9 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "enables the default permissions",
-  "windows": [
-    "main"
-  ],
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "autostart:allow-enable",
@@ -42,6 +40,7 @@
     "printer:allow-resume-job",
     "printer:allow-remove-job",
     "printer:default",
+    "http:allow-fetch-read-body",
     {
       "identifier": "opener:allow-open-path",
       "allow": [
@@ -59,25 +58,12 @@
     {
       "identifier": "fs:scope",
       "allow": [
-        {
-          "path": "$DOWNLOAD"
-        },
-        {
-          "path": "$DOWNLOAD/*"
-        },
-        {
-          "path": "$DOCUMENT"
-        },
-        {
-          "path": "$DOCUMENT/*"
-        },
-        {
-          "path": "$APPDATA"
-        },
-        {
-          "path": "$APPDATA/*"
-        }
+        { "path": "$DOWNLOAD" }, { "path": "$DOWNLOAD/*" }, { "path": "$DOCUMENT" }, { "path": "$DOCUMENT/*" }, { "path": "$APPDATA" }, { "path": "$APPDATA/*" }
       ]
+    },
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://*.tauri.app" },{ "url": "https://*:*"}, { "url": "https://dealioerp.vercel.app"}, { "url": "http://localhost:3000" }]
     }
   ]
 }

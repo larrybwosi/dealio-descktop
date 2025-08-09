@@ -4,25 +4,16 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
-  Barcode,
   Search,
   RefreshCw,
-  MinusIcon,
-  PlusIcon,
-  ShoppingCart,
-  AlertTriangle,
-  Wifi,
-  WifiOff,
 } from 'lucide-react';
 import { CartItem, Product } from '@/types';
 import { cn } from '@/lib/utils';
 import { useProductState } from '@/store';
 import { ProductSkeleton } from '@/components/ui/skeletons/ProductSkeleton';
 import { ScrollArea } from '../ui/scroll-area';
-import { useListProducts } from '@/lib/api/products';
+import { useListProducts } from '@/lib/services/products';
 import { ProductCard } from './product-card';
 import { ProductListError } from './product-list-error';
 
@@ -42,6 +33,7 @@ export function ProductList({ onAddToCart }: ProductListProps) {
   const { data: products = [], isLoading, error, refetch } = useListProducts();
   const [searchQuery, setSearchQuery] = useState('');
   const [isRetrying, setIsRetrying] = useState(false);
+
 
   // The handleAddToCart function is now wrapped in useCallback to stabilize its reference
   const handleAddToCart = useCallback(
@@ -237,7 +229,7 @@ export function ProductList({ onAddToCart }: ProductListProps) {
   };
 
   const filteredProducts = products
-    .filter(product => {
+    ?.filter(product => {
       if (selectedCategory !== 'All' && product.category?.name !== selectedCategory) {
         return false;
       }
@@ -275,7 +267,7 @@ export function ProductList({ onAddToCart }: ProductListProps) {
       return bScore - aScore;
     });
 
-  const availableCategories: string[] = ['All', ...new Set(products.map(p => p.category?.name).filter(Boolean))];
+  const availableCategories: string[] = ['All', ...new Set(products.map(p => p.category?.name)?.filter(Boolean))];
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-xs border flex flex-col h-full">
@@ -342,12 +334,13 @@ export function ProductList({ onAddToCart }: ProductListProps) {
       {/* Content area with scrollable products */}
       {error ? (
         <ProductListError error={error} onRetry={handleRefetch} isRetrying={isRetrying} />
+        // <></>
       ) : isLoading ? (
         <ProductSkeleton />
       ) : (
         <ScrollArea className="flex-1 w-full">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-4">
-            {filteredProducts.map(product => {
+            {filteredProducts?.map(product => {
               const productId = product.id || product.name;
               const selectedVariant = getSelectedVariant(product);
               const currentQuantity = getCurrentQuantity(product);

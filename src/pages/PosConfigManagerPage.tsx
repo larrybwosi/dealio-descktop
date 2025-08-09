@@ -343,7 +343,7 @@ export default function PosConfigManagerPageV2() {
     if (!currentArray) return;
     handleConfigChange(
       arrayKey,
-      currentArray.filter((_, i) => i !== index)
+      currentArray?.filter((_, i) => i !== index)
     );
   };
 
@@ -351,7 +351,7 @@ export default function PosConfigManagerPageV2() {
     if (!editableConfig) return;
     const currentTypes = editableConfig.orderTypes;
     const newTypes = currentTypes.includes(orderType)
-      ? currentTypes.filter(ot => ot !== orderType)
+      ? currentTypes?.filter(ot => ot !== orderType)
       : [...currentTypes, orderType];
     handleConfigChange('orderTypes', newTypes);
   };
@@ -615,7 +615,7 @@ export default function PosConfigManagerPageV2() {
                       onClick={() => {
                         const current = editableConfig.paymentMethods || [];
                         const newMethods = current.includes(method)
-                          ? current.filter(m => m !== method)
+                          ? current?.filter(m => m !== method)
                           : [...current, method];
                         handleConfigChange('paymentMethods', newMethods);
                       }}
@@ -700,7 +700,7 @@ export default function PosConfigManagerPageV2() {
                 </div>
                 <Separator className="my-2" />
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                  {ALL_ORDER_TYPES.filter(ot => {
+                  {ALL_ORDER_TYPES?.filter(ot => {
                     // Filter order types based on business type
                     switch (businessType) {
                       case 'restaurant':

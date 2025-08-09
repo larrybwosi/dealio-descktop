@@ -63,7 +63,7 @@ function PosSystem() {
     (id: string, newQuantity: number) => {
       if (newQuantity <= 0) {
         setCartItems((currentItems) =>
-          currentItems.filter((item) => item.id !== id)
+          currentItems?.filter((item) => item.id !== id)
         );
         return;
       }
@@ -80,7 +80,7 @@ function PosSystem() {
   // Stable callback for removing item
   const handleRemoveItem = useCallback((id: string) => {
     setCartItems((currentItems) =>
-      currentItems.filter((item) => item.id !== id)
+      currentItems?.filter((item) => item.id !== id)
     );
   }, []);
 
@@ -150,6 +150,7 @@ function PosSystem() {
       selectedCustomer,
       selectedOrderType,
       tableNumber,
+      businessConfig.businessType,
     ]
   );
 
@@ -183,7 +184,7 @@ function PosSystem() {
       handlePaymentComplete,
     ]
   );
-
+  
   return (
     <div className="flex flex-1 h-screen bg-gray-50">
       <Sidebar />
@@ -227,5 +228,6 @@ function PosSystem() {
 
 // const IndexPage = withAuth(PosSystem);
 // export default IndexPage;
-const IndexPage = withAuth(PosSystem);
-export default IndexPage;
+
+// const IndexPage = withAuth(PosSystem);
+export default PosSystem;

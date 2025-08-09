@@ -1,6 +1,5 @@
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route } from "react-router";
-import { QueryProvider } from "@/providers/query-provider";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/login";
@@ -10,28 +9,15 @@ import { AlertTriangle, CheckCircle2, Info, XCircle } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { OrgProvider } from "./providers/org-context";
 import { useBetterAuthTauri } from '@daveyplate/better-auth-tauri/react';
+import { setupBetterAuthTauri } from '@daveyplate/better-auth-tauri';
 import { authClient } from "./lib/authClient";
 import { ConfigurablePOSSystem } from "./pages/pos";
 import { SettingsPage } from "./pages/settings";
 import DealioSplashScreen from "./pages/splash";
 import PosConfigManagerPage from "./pages/PosConfigManagerPage";
 import ErrorHandlerProvider from "./providers/error";
+import { QueryProvider } from "./lib/tanstack-axios";
 
-
-export type ToastType =
-  | "success"
-  | "error"
-  | "info"
-  | "warning"
-  | "default"
-  | "action"
-  | "promise";
-
-interface ToastConfig {
-  type: ToastType;
-  icon: React.ReactNode;
-  className: string;
-}
 
 const App = () => {
   const toastConfigs = useMemo(
@@ -74,7 +60,6 @@ const App = () => {
     }),
     []
   );
-
   
   useBetterAuthTauri({
     authClient,
@@ -107,6 +92,9 @@ const App = () => {
       onError={(error, errorInfo) => {
         // Optional: Send to logging service
         console.log('Error logged:', error);
+        toast.error(error.message,{
+          description:JSON.stringify(error)
+        })
       }}
     >
       <QueryProvider>
@@ -114,10 +102,10 @@ const App = () => {
           <BrowserRouter>
             <SessionProvider redirectTo="/login">
               <OrgProvider>
-                {/* <AppProvider> */}
                 <Toaster
                   richColors
                   position="top-right"
+                  theme="dark"
                   visibleToasts={3}
                   toastOptions={{
                     classNames: {
@@ -139,7 +127,6 @@ const App = () => {
                   <Route path="/settings" element={<PosConfigManagerPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
-                {/* </AppProvider> */}
               </OrgProvider>
             </SessionProvider>
           </BrowserRouter>

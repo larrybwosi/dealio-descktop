@@ -124,7 +124,7 @@ function EmptyState({
   );
 }
 
-// Error State Component
+// Error State Component filter
 function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -162,7 +162,7 @@ export function CustomerManagement({
     refetch,
   } = useListCustomers();
 
-  const filteredCustomers = customers.filter(
+  const filteredCustomers = customers?.filter(
     (customer) =>
       customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||

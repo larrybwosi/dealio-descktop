@@ -3,11 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { InvoiceData, Order } from '@/types';
 import { PDFViewer, pdf } from '@react-pdf/renderer';
-import { useReactToPrint } from 'react-to-print';
 import { Printer, Download, Mail, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { getPrinters, ping, printPdf } from 'tauri-plugin-printer-v2';
+import { getPrinters, printPdf } from 'tauri-plugin-printer-v2';
 import { BaseDirectory, writeFile } from '@tauri-apps/plugin-fs';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { documentDir } from '@tauri-apps/api/path';
@@ -48,10 +47,6 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   const [qrCodeImage, setQrCodeImage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
-
-  const handlePrint = useReactToPrint({
-    contentRef: pdfRef,
-  });
 
   useEffect(() => {
     const generateQrCode = async () => {

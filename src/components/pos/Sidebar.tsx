@@ -76,8 +76,9 @@ export function Sidebar() {
     try {
       await signOut();
       logout(); 
-      const store =  new LazyStore('.dealio-org-storage.dat') 
+      const store =  new LazyStore('.org-storage.dat') 
       await store.reset(); // Clear the Zustand store
+      await store.save()
       toast.success('Logged out successfully');
       setLogoutDialogOpen(false);
       setUserDialogOpen(false);
@@ -116,7 +117,7 @@ export function Sidebar() {
         <div className="flex items-center py-2">
           {!collapsed ? (
             <>
-              <div className="font-medium">Bounty Catch Branch 1</div>
+              <div className="font-medium">Main Branch </div>
               <div className="ml-auto">⋮</div>
             </>
           ) : (

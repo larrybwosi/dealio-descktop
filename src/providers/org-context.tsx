@@ -5,12 +5,18 @@ import { AlertCircle, Building2 } from 'lucide-react';
 import { useOrgStore } from '@/lib/tanstack-axios';
 import { useSession } from '@/lib/authClient';
 import { useNavigate } from 'react-router';
+import { fetch } from '@tauri-apps/plugin-http';
+import axios from 'axios';
+import axiosTauriApiAdapter from 'axios-tauri-api-adapter';
+import api, { API_ENDPOINT, API_KEY, apiClient, createApiClient } from '@/lib/axios';
+import { Button } from '@/components/ui/button';
 
 export function OrgProvider({ children }: { children: React.ReactNode }) {
   const { data: session, isPending } = useSession();
   const router = useNavigate();
   const { organizationId, set: setOrgDetails } = useOrgStore();
 
+// console.log(use$(apiKey$));
   const [isLoading, setIsLoading] = useState(true);
   const [loadingStage, setLoadingStage] = useState<'session' | 'organization' | 'complete'>('session');
   const [error, setError] = useState<string | null>(null);
@@ -35,8 +41,16 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
           setLoadingStage('organization');
 
           // 3. Session is authenticated, fetch org details from the API
-          const response = await fetch('/api/org-details');
-          if (!response.ok) {
+          const response = await axios.get(`${API_ENDPOINT}/api/org-details`, {
+            adapter: axiosTauriApiAdapter,
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': API_KEY,
+            },
+          });
+          // const response = await apiClient.get(`${API_ENDPOINT}/api/org-details`);
+          console.log(response)
+          if (!response.data) {
             if (response.status === 404) {
               // User exists but has no org details
               router('/login');
@@ -45,7 +59,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
             throw new Error('Failed to fetch organization details');
           }
 
-          const details = await response.json();
+          const details = await response.data;
 
           if (details.organizationId) {
             // 4. Set the fetched details in the Zustand store
@@ -103,6 +117,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
                 <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">Something went wrong</h2>
                 <p className="text-slate-600 dark:text-slate-400 mb-4">{error}</p>
                 <p className="text-sm text-slate-500 dark:text-slate-500">Redirecting to login...</p>
+                <Button onClick={() => router('/login')}>Login Page</Button>
               </>
             ) : (
               <>
@@ -124,16 +139,16 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
                   {loadingStage === 'session'
                     ? 'Authenticating...'
                     : loadingStage === 'organization'
-                      ? 'Loading Organization...'
-                      : 'Initializing...'}
+                    ? 'Loading Organization...'
+                    : 'Initializing...'}
                 </h2>
 
                 <p className="text-slate-600 dark:text-slate-400 mb-6">
                   {loadingStage === 'session'
                     ? 'Verifying your session'
                     : loadingStage === 'organization'
-                      ? 'Fetching organization details'
-                      : 'Setting up your workspace'}
+                    ? 'Fetching organization details'
+                    : 'Setting up your workspace'}
                 </p>
 
                 {/* Progress indicators */}
@@ -143,8 +158,8 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
                       loadingStage === 'session'
                         ? 'bg-blue-600 dark:bg-blue-400 animate-pulse'
                         : loadingStage === 'organization' || loadingStage === 'complete'
-                          ? 'bg-blue-600 dark:bg-blue-400'
-                          : 'bg-slate-300 dark:bg-slate-600'
+                        ? 'bg-blue-600 dark:bg-blue-400'
+                        : 'bg-slate-300 dark:bg-slate-600'
                     }`}
                   />
                   <div
@@ -152,8 +167,8 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
                       loadingStage === 'organization'
                         ? 'bg-blue-600 dark:bg-blue-400 animate-pulse'
                         : loadingStage === 'complete'
-                          ? 'bg-blue-600 dark:bg-blue-400'
-                          : 'bg-slate-300 dark:bg-slate-600'
+                        ? 'bg-blue-600 dark:bg-blue-400'
+                        : 'bg-slate-300 dark:bg-slate-600'
                     }`}
                   />
                   <div

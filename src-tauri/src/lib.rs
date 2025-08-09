@@ -1,13 +1,12 @@
 use tauri_plugin_printer_v2::init;
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-use tauri::{AppHandle, Manager, State, Emitter};
 use hidapi::HidApi;
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+use tauri::{AppHandle, Emitter, Manager, State};
 
-use tokio::time::{sleep, Duration};
 use std::sync::Mutex;
 use tauri::async_runtime::spawn;
-
+use tokio::time::{sleep, Duration};
 
 #[derive(Clone, serde::Serialize)]
 struct Payload {
@@ -28,13 +27,16 @@ fn start_scanner_listener(app_handle: AppHandle) {
 
         // IMPORTANT: Replace with your actual Vendor and Product IDs
         // You can find these in your system's device manager.
-        let vid = 0x1234; 
+        let vid = 0x1234;
         let pid = 0x5678;
 
         for device_info in api.device_list() {
             if device_info.vendor_id() == vid && device_info.product_id() == pid {
-                println!("[Scanner] Found a matching device: {:?}", device_info.product_string());
-                
+                println!(
+                    "[Scanner] Found a matching device: {:?}",
+                    device_info.product_string()
+                );
+
                 let device = match device_info.open_device(&api) {
                     Ok(d) => d,
                     Err(e) => {
@@ -42,7 +44,7 @@ fn start_scanner_listener(app_handle: AppHandle) {
                         continue; // Skip to the next device
                     }
                 };
-                
+
                 let app_handle_clone = app_handle.clone();
 
                 // Spawn a new task for each detected scanner to handle them concurrently.
@@ -57,19 +59,27 @@ fn start_scanner_listener(app_handle: AppHandle) {
                             Ok(bytes_read) => {
                                 if bytes_read > 0 {
                                     let data_str = String::from_utf8_lossy(&buf[..bytes_read]);
-                                    
+
                                     if data_str.contains('\n') {
                                         let parts: Vec<&str> = data_str.split('\n').collect();
                                         barcode.push_str(parts[0]);
 
                                         let final_barcode = barcode.trim().to_string();
                                         if !final_barcode.is_empty() {
-                                            println!("[Scanner] Scanned barcode: {}", &final_barcode);
-                                            if let Err(e) = app_handle_clone.emit("scanner-data", Payload { message: final_barcode }) {
+                                            println!(
+                                                "[Scanner] Scanned barcode: {}",
+                                                &final_barcode
+                                            );
+                                            if let Err(e) = app_handle_clone.emit(
+                                                "scanner-data",
+                                                Payload {
+                                                    message: final_barcode,
+                                                },
+                                            ) {
                                                 eprintln!("[Scanner] Failed to emit event: {}", e);
                                             }
                                         }
-                                        
+
                                         // Reset for the next scan.
                                         barcode.clear();
                                         if parts.len() > 1 {
@@ -144,8 +154,8 @@ async fn setup(app: AppHandle) -> Result<(), ()> {
 }
 
 pub fn run() {
-
     let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
@@ -171,9 +181,12 @@ pub fn run() {
         builder = builder
             .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
                 println!("New app instance opened with args: {:?}", argv);
-                let _ = app.emit("new-instance", Payload {
-                    message: format!("New instance with args: {:?}", argv),
-                });
+                let _ = app.emit(
+                    "new-instance",
+                    Payload {
+                        message: format!("New instance with args: {:?}", argv),
+                    },
+                );
             }))
             .plugin(tauri_plugin_autostart::init(
                 MacosLauncher::LaunchAgent,
@@ -184,13 +197,16 @@ pub fn run() {
             spawn(setup(app.handle().clone()));
             let handle = app.handle().clone();
             start_scanner_listener(handle);
-            
+
             let autostart_manager = app.autolaunch();
             if let Err(e) = autostart_manager.enable() {
                 eprintln!("Failed to enable autostart: {}", e);
-                let _ = app.emit("autostart-error", Payload {
-                    message: format!("Failed to enable autostart: {}", e),
-                });
+                let _ = app.emit(
+                    "autostart-error",
+                    Payload {
+                        message: format!("Failed to enable autostart: {}", e),
+                    },
+                );
             }
             Ok(())
         });

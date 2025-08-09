@@ -36,7 +36,7 @@ export function ConfigurablePOSSystem() {
   };
 
   const removeItem = (id: string) => {
-    setCartItems(items => items.filter(item => item.id !== id));
+    setCartItems(items => items?.filter(item => item.id !== id));
   };
 
   const clearCart = () => {

@@ -75,7 +75,9 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
         return this.props.fallback;
       }
 
-      const isDev = import.meta.env.DEV;
+      // const isDev = import.meta.env.DEV;
+      const isDev = true;
+
       const { error, errorInfo, errorId } = this.state;
 
       return (

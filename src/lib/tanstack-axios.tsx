@@ -6,35 +6,20 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ReactNode } from 'react';
 import {
-  Assistant,
-  AssistantMessage,
-  Budget,
-  Channel,
   Customer,
-  CustomRole,
-  Expense,
   InventoryLocation,
-  Invitation,
   MeasurementUnit,
-  Member,
-  MemberRole,
-  Message,
   Order,
-  OrganizationSettings,
   Product,
   ProductVariant,
   ProductVariantStock,
   Sale,
-  Supplier,
 } from '@/prisma/client';
-import { Category, GeneratedCategory } from './api/categories';
-import { SalesSummary } from './api/sales';
-import { InventoryAdjustment, InventoryItem, InventoryMovement } from './types/inventory';
-import { UnitOfMeasure } from './api/units';
-import { ExtendedOrder } from './api/orders';
-import { Notification } from './api/notifications';
+
 import { isTauri } from "@tauri-apps/api/core";
 import { LazyStore } from '@tauri-apps/plugin-store';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import api from './axios';
 
 
 interface OrgState {
@@ -52,7 +37,7 @@ interface OrgState {
   clear: () => void;
 }
 
-const tauriStore = isTauri() ? new LazyStore('.dealio-org-storage.dat') : null;
+const tauriStore = isTauri() ? new LazyStore('.org-storage.dat') : null;
 export const useOrgStore = create<OrgState>()(
   persist(
     (set) => ({
@@ -82,7 +67,7 @@ export const useOrgStore = create<OrgState>()(
         }),
     }),
     {
-      name: "dealio-org-storage",
+      name: "org-storage",
       storage:
         isTauri() && tauriStore
           ? {
@@ -134,12 +119,12 @@ type ExtendedProduct = {
   sku: string; // Unique stock-keeping unit identifier
   barcode: string; // Unique barcode for the product
   categoryId: string; // ID of the associated category
-  category: Category; // Related Category object
+  category: unknown; // Related Category object
   isActive: boolean; // Whether the product is active (default: true)
   imageUrls: string[]; // Array of image URLs for the product
   createdAt: Date; // Creation timestamp
   updatedAt: Date; // Last updated timestamp
-  image?:string
+  image?: string;
 
   // Physical dimensions
   width: number; // Width of the product
@@ -163,7 +148,7 @@ type ExtendedProduct = {
   defaultLocation: InventoryLocation; // Related InventoryLocation object
 
   // Relations
-  variants: ProductVariant[] & { stockingUnit: UnitOfMeasure} // Array of related ProductVariant objects
+  variants: ProductVariant[] & { stockingUnit: unknown }; // Array of related ProductVariant objects
   variantStock: ProductVariantStock[]; // Array of related ProductVariantStock objects
   suppliers: ProductSupplier[]; // Array of related ProductSupplier objects
 };
@@ -217,151 +202,14 @@ export interface InvoiceResponse {
 class ApiClient {
   private axiosInstance: AxiosInstance;
   constructor(baseURL: string) {
-    this.axiosInstance = axios.create({
-      baseURL,
-    });
-
-    // Response interceptor for error handling
-    this.axiosInstance.interceptors.response.use(
-      response => {
-        if (response.data.meta?.message && response.data.meta.success) {
-          toast.success(response.data.meta.message);
-        }
-        return response;
-      },
-      error => {
-        // const message = error.response?.data?.error || error.response?.data?.message || 'An unexpected error occurred';
-        console.log(error);
-        // toast.error(message);
-        return Promise.reject(error);
-      }
-    );
+    this.axiosInstance = api;
   }
-
-  // Members Service
-  members = {
-    list: async (organizationId: string): Promise<ApiResponse<Member[]>> =>
-      this.axiosInstance.get(`/${organizationId}/members`).then(res => res),
-    create: async (organizationId: string, data: Partial<Member>): Promise<ApiResponse<Member>> =>
-      this.axiosInstance.post(`/${organizationId}/members`, data).then(res => res.data),
-    get: async (organizationId: string, memberId: string): Promise<ApiResponse<Member>> =>
-      this.axiosInstance.get(`/${organizationId}/members/${memberId}`).then(res => res.data),
-    update: async (organizationId: string, memberId: string, data: Partial<Member>): Promise<ApiResponse<Member>> =>
-      this.axiosInstance.patch(`/${organizationId}/members/${memberId}`, data).then(res => res.data),
-    delete: async (organizationId: string, memberId: string): Promise<ApiResponse<void>> =>
-      this.axiosInstance.delete(`/${organizationId}/members/${memberId}`).then(res => res.data),
-  };
-
-  // Categories Service
-  categories = {
-    list: async (organizationId: string): Promise<ApiResponse<Category[]>> =>
-      this.axiosInstance.get(`/${organizationId}/categories`).then(res => res),
-    create: async (organizationId: string, data: Partial<Category>): Promise<ApiResponse<Category>> =>
-      this.axiosInstance
-        .post(`/${organizationId}/categories`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
-        .then(res => res.data),
-    get: async (organizationId: string, categoryId: string): Promise<ApiResponse<Category>> =>
-      this.axiosInstance.get(`/${organizationId}/categories/${categoryId}`).then(res => res.data),
-    update: async (
-      organizationId: string,
-      categoryId: string,
-      data: Partial<Category>
-    ): Promise<ApiResponse<Category>> =>
-      this.axiosInstance.patch(`/${organizationId}/categories/${categoryId}`, data).then(res => res.data),
-    delete: async (organizationId: string, categoryId: string): Promise<ApiResponse<void>> =>
-      this.axiosInstance.delete(`/${organizationId}/categories/${categoryId}`).then(res => res.data),
-    // Add these to your API client class
-    generateAICategories: async (orgId: string, aiDescription: string): Promise<ApiResponse<GeneratedCategory[]>> =>
-      this.axiosInstance
-        .post(
-          `/${orgId}/categories/ai?type=product`,
-          {
-            prompt: aiDescription,
-            organizationId: orgId,
-          },
-          { timeout: 60000 }
-        )
-        .then(res => res.data),
-
-    saveGeneratedCategories: async (
-      orgId: string,
-      generatedCategories: GeneratedCategory[]
-    ): Promise<ApiResponse<Category[]>> =>
-      this.axiosInstance
-        .put(`/${orgId}/categories/ai?type=product`, {
-          categories: generatedCategories,
-          organizationId: orgId,
-        })
-        .then(res => res.data),
-  };
-
-  // Locations Service
-  locations = {
-    list: async (organizationId: string): Promise<ApiResponse<InventoryLocation[]>> =>
-      this.axiosInstance.get(`/${organizationId}/locations`).then(res => res.data),
-    create: async (organizationId: string, data: Partial<InventoryLocation>): Promise<ApiResponse<InventoryLocation>> =>
-      this.axiosInstance.post(`/${organizationId}/locations`, data).then(res => res.data),
-    get: async (organizationId: string, locationId: string): Promise<ApiResponse<InventoryLocation>> =>
-      this.axiosInstance.get(`/${organizationId}/locations/${locationId}`).then(res => res.data),
-    update: async (
-      organizationId: string,
-      locationId: string,
-      data: Partial<InventoryLocation>
-    ): Promise<ApiResponse<InventoryLocation>> =>
-      this.axiosInstance.patch(`/${organizationId}/locations/${locationId}`, data).then(res => res.data),
-    delete: async (organizationId: string, locationId: string): Promise<ApiResponse<void>> =>
-      this.axiosInstance.delete(`/${organizationId}/locations/${locationId}`).then(res => res.data),
-  };
-
-  // Suppliers Service
-  suppliers = {
-    list: async (organizationId: string): Promise<ApiResponse<Supplier[]>> =>
-      this.axiosInstance.get(`/${organizationId}/suppliers`).then(res => res.data),
-    create: async (organizationId: string, data: unknown): Promise<ApiResponse<Supplier>> =>
-      this.axiosInstance.post(`/${organizationId}/suppliers`, data).then(res => res.data),
-    get: async (organizationId: string, supplierId: string): Promise<ApiResponse<Supplier>> =>
-      this.axiosInstance.get(`/${organizationId}/suppliers/${supplierId}`).then(res => res.data),
-    update: async (
-      organizationId: string,
-      supplierId: string,
-      data: Partial<Supplier>
-    ): Promise<ApiResponse<Supplier>> =>
-      this.axiosInstance.patch(`/${organizationId}/suppliers/${supplierId}`, data).then(res => res.data),
-    delete: async (organizationId: string, supplierId: string): Promise<ApiResponse<void>> =>
-      this.axiosInstance.delete(`/${organizationId}/suppliers/${supplierId}`).then(res => res.data),
-    search: async (
-      organizationId: string,
-      query: string,
-      //eslint-disable-next-line
-      filters?: Record<string, any>
-    ): Promise<ApiResponse<Supplier[]>> =>
-      this.axiosInstance
-        .get(`/${organizationId}/suppliers/search`, {
-          params: { q: query, ...filters },
-        })
-        .then(res => res.data),
-    products: {
-      list: async (organizationId: string, supplierId: string): Promise<ApiResponse<ProductSupplier[]>> =>
-        this.axiosInstance.get(`/${organizationId}/suppliers/${supplierId}/products`).then(res => res.data),
-      create: async (
-        organizationId: string,
-        supplierId: string,
-        data: Partial<ProductSupplier>
-      ): Promise<ApiResponse<ProductSupplier>> =>
-        this.axiosInstance.post(`/${organizationId}/suppliers/${supplierId}/products`, data).then(res => res.data),
-      delete: async (organizationId: string, supplierId: string, productId: string): Promise<ApiResponse<void>> =>
-        this.axiosInstance
-          .delete(`/${organizationId}/suppliers/${supplierId}/products/${productId}`)
-          .then(res => res.data),
-    },
-  };
-
   // Customers Service
   customers = {
     list: async (organizationId: string): Promise<ApiResponse<Customer[]>> =>
       this.axiosInstance.get(`/${organizationId}/v2/customers`).then(res => res.data),
     create: async (organizationId: string, data: Partial<Customer>): Promise<ApiResponse<Customer>> =>
-      this.axiosInstance.post(`/${organizationId}/v2/customers`, data,).then(res => res.data),
+      this.axiosInstance.post(`/${organizationId}/v2/customers`, data).then(res => res.data),
     get: async (organizationId: string, customerId: string): Promise<ApiResponse<Customer>> =>
       this.axiosInstance.get(`/${organizationId}/customers/${customerId}`).then(res => res.data),
     update: async (
@@ -381,7 +229,7 @@ class ApiClient {
   };
   products = {
     list: async (organizationId: string, locationId?: string): Promise<ApiResponse<ExtendedProduct[]>> => {
-      return await this.axiosInstance.get(`/${organizationId}/v2/products?locationId=${locationId}`).then(res => res);
+      return await this.axiosInstance.get(`/${organizationId}/v2/products?locationId=${locationId}`);
     },
     create: (organizationId: string, data: Partial<Product>): Promise<ApiResponse<Product>> =>
       this.axiosInstance.post(`/${organizationId}/products`, data).then(res => res.data),
@@ -430,7 +278,7 @@ class ApiClient {
     create: async (organizationId: string, data: unknown): Promise<ApiResponse<Order>> =>
       this.axiosInstance.post(`/${organizationId}/orders`, data).then(res => res.data),
 
-    get: async (organizationId: string, orderId: string): Promise<ApiResponse<ExtendedOrder>> =>
+    get: async (organizationId: string, orderId: string): Promise<ApiResponse<unknown>> =>
       this.axiosInstance.get(`/${organizationId}/orders/${orderId}`).then(res => res),
     stats: async (organizationId: string, dateRange?: string): Promise<ApiResponse<Order>> =>
       this.axiosInstance
@@ -466,7 +314,7 @@ class ApiClient {
 
     get: async (organizationId: string, saleId: string): Promise<ApiResponse<Sale>> =>
       this.axiosInstance.get(`/${organizationId}/sales/${saleId}`).then(res => res.data),
-    summary: async (organizationId: string, params: string): Promise<ApiResponse<SalesSummary>> =>
+    summary: async (organizationId: string, params: string): Promise<ApiResponse<unknown>> =>
       this.axiosInstance.get(`/${organizationId}/sales/summary?${params}`).then(res => res),
 
     update: async (organizationId: string, saleId: string, data: Partial<Sale>): Promise<ApiResponse<Sale>> =>
@@ -501,326 +349,29 @@ class ApiClient {
       this.axiosInstance.post(`/${organizationId}/sales/${saleId}/refund`).then(res => res.data),
   };
 
-  inventory = {
-    list: (organizationId: string): Promise<ApiResponse<InventoryItem[]>> =>
-      this.axiosInstance.get(`/${organizationId}/inventory`).then(res => res.data),
-    create: (organizationId: string, data: Partial<InventoryItem>): Promise<ApiResponse<InventoryItem>> =>
-      this.axiosInstance.post(`/${organizationId}/inventory`, data).then(res => res.data),
-    restock: (organizationId: string, data: Partial<InventoryAdjustment>): Promise<ApiResponse<InventoryAdjustment>> =>
-      this.axiosInstance.post(`/${organizationId}/inventory/restock`, data).then(res => res.data),
-    get: (organizationId: string, inventoryId: string): Promise<ApiResponse<InventoryItem>> =>
-      this.axiosInstance.get(`/${organizationId}/inventory/${inventoryId}`).then(res => res.data),
-    update: (
-      organizationId: string,
-      inventoryId: string,
-      data: Partial<InventoryItem>
-    ): Promise<ApiResponse<InventoryItem>> =>
-      this.axiosInstance.patch(`/${organizationId}/inventory/${inventoryId}`, data).then(res => res.data),
-    delete: (organizationId: string, inventoryId: string): Promise<ApiResponse<void>> =>
-      this.axiosInstance.delete(`/${organizationId}/inventory/${inventoryId}`).then(res => res.data),
-    movements: {
-      list: (organizationId: string, inventoryId: string): Promise<ApiResponse<InventoryMovement[]>> =>
-        this.axiosInstance.get(`/${organizationId}/inventory/${inventoryId}/movements`).then(res => res.data),
-      create: (
-        organizationId: string,
-        inventoryId: string,
-        data: Partial<InventoryMovement>
-      ): Promise<ApiResponse<InventoryMovement>> =>
-        this.axiosInstance.post(`/${organizationId}/inventory/${inventoryId}/movements`, data).then(res => res.data),
-      get: (organizationId: string, inventoryId: string, movementId: string): Promise<ApiResponse<InventoryMovement>> =>
-        this.axiosInstance
-          .get(`/${organizationId}/inventory/${inventoryId}/movements/${movementId}`)
-          .then(res => res.data),
-      update: (
-        organizationId: string,
-        inventoryId: string,
-        movementId: string,
-        data: Partial<InventoryMovement>
-      ): Promise<ApiResponse<InventoryMovement>> =>
-        this.axiosInstance
-          .patch(`/${organizationId}/inventory/${inventoryId}/movements/${movementId}`, data)
-          .then(res => res.data),
-      delete: (organizationId: string, inventoryId: string, movementId: string): Promise<ApiResponse<void>> =>
-        this.axiosInstance
-          .delete(`/${organizationId}/inventory/${inventoryId}/movements/${movementId}`)
-          .then(res => res.data),
-    },
-    adjustments: {
-      list: (organizationId: string, inventoryId: string): Promise<ApiResponse<InventoryAdjustment[]>> =>
-        this.axiosInstance.get(`/${organizationId}/inventory/${inventoryId}/adjustments`).then(res => res.data),
-      create: (
-        organizationId: string,
-        inventoryId: string,
-        data: Partial<InventoryAdjustment>
-      ): Promise<ApiResponse<InventoryAdjustment>> =>
-        this.axiosInstance.post(`/${organizationId}/inventory/${inventoryId}/adjustments`, data).then(res => res.data),
-      get: (
-        organizationId: string,
-        inventoryId: string,
-        adjustmentId: string
-      ): Promise<ApiResponse<InventoryAdjustment>> =>
-        this.axiosInstance
-          .get(`/${organizationId}/inventory/${inventoryId}/adjustments/${adjustmentId}`)
-          .then(res => res.data),
-      approve: (
-        organizationId: string,
-        inventoryId: string,
-        adjustmentId: string
-      ): Promise<ApiResponse<InventoryAdjustment>> =>
-        this.axiosInstance
-          .post(`/${organizationId}/inventory/${inventoryId}/adjustments/${adjustmentId}/approve`)
-          .then(res => res.data),
-      restock: (
-        organizationId: string,
-        inventoryId: string,
-        adjustmentId: string
-      ): Promise<ApiResponse<InventoryAdjustment>> =>
-        this.axiosInstance
-          .post(`/${organizationId}/inventory/${inventoryId}/adjustments/${adjustmentId}/restock`)
-          .then(res => res.data),
-      reject: (
-        organizationId: string,
-        inventoryId: string,
-        adjustmentId: string
-      ): Promise<ApiResponse<InventoryAdjustment>> =>
-        this.axiosInstance
-          .post(`/${organizationId}/inventory/${inventoryId}/adjustments/${adjustmentId}/reject`)
-          .then(res => res.data),
-      delete: (organizationId: string, inventoryId: string, adjustmentId: string): Promise<ApiResponse<void>> =>
-        this.axiosInstance
-          .delete(`/${organizationId}/inventory/${inventoryId}/adjustments/${adjustmentId}`)
-          .then(res => res.data),
-    },
+  notifications = {
+    list: async (params?: { limit?: number; unreadOnly?: boolean }): Promise<ApiResponse<Notification[]>> =>
+      axios.get('/api/users/current/notifications', { params }).then(res => res),
+
+    markAsRead: async (notificationId: string): Promise<ApiResponse<Notification>> =>
+      axios.patch(`/api/users/current/notifications/${notificationId}/read`).then(res => res),
+
+    markAllAsRead: async (): Promise<ApiResponse<void>> =>
+      axios.patch('/api/users/current/notifications/read-all').then(res => res),
+
+    // Optional: Add more methods as needed
+    get: async (notificationId: string): Promise<ApiResponse<Notification>> =>
+      axios.get(`/api/users/current/notifications/${notificationId}`).then(res => res),
+
+    delete: async (notificationId: string): Promise<ApiResponse<void>> =>
+      axios.delete(`/api/users/current/notifications/${notificationId}`).then(res => res),
+
+    deleteAllRead: async (): Promise<ApiResponse<void>> =>
+      axios.delete('/api/users/current/notifications/read').then(res => res),
+
+    deleteAll: async (): Promise<ApiResponse<void>> =>
+      axios.delete('/api/users/current/notifications').then(res => res),
   };
-
-  // Chat Service
-  chat = {
-    channels: {
-      list: (organizationId: string): Promise<ApiResponse<Channel[]>> =>
-        this.axiosInstance.get(`/${organizationId}/channels`).then(res => res.data),
-      create: (organizationId: string, data: Partial<Channel>): Promise<ApiResponse<Channel>> =>
-        this.axiosInstance.post(`/${organizationId}/channels`, data).then(res => res.data),
-      get: (organizationId: string, channelId: string): Promise<ApiResponse<Channel>> =>
-        this.axiosInstance.get(`/${organizationId}/channels/${channelId}`).then(res => res.data),
-      update: (organizationId: string, channelId: string, data: Partial<Channel>): Promise<ApiResponse<Channel>> =>
-        this.axiosInstance.patch(`/${organizationId}/channels/${channelId}`, data).then(res => res.data),
-      delete: (organizationId: string, channelId: string): Promise<ApiResponse<void>> =>
-        this.axiosInstance.delete(`/${organizationId}/channels/${channelId}`).then(res => res.data),
-    },
-    messages: {
-      list: (organizationId: string, channelId: string): Promise<ApiResponse<Message[]>> =>
-        this.axiosInstance.get(`/${organizationId}/channels/${channelId}/messages`).then(res => res.data),
-      create: (organizationId: string, channelId: string, data: Partial<Message>): Promise<ApiResponse<Message>> =>
-        this.axiosInstance.post(`/${organizationId}/channels/${channelId}/messages`, data).then(res => res.data),
-      update: (
-        organizationId: string,
-        channelId: string,
-        messageId: string,
-        data: Partial<Message>
-      ): Promise<ApiResponse<Message>> =>
-        this.axiosInstance
-          .patch(`/${organizationId}/channels/${channelId}/messages/${messageId}`, data)
-          .then(res => res.data),
-      delete: (organizationId: string, channelId: string, messageId: string): Promise<ApiResponse<void>> =>
-        this.axiosInstance
-          .delete(`/${organizationId}/channels/${channelId}/messages/${messageId}`)
-          .then(res => res.data),
-    },
-    assistants: {
-      list: (organizationId: string): Promise<ApiResponse<Assistant[]>> =>
-        this.axiosInstance.get(`/${organizationId}/assistants`).then(res => res.data),
-      create: (organizationId: string, data: Partial<Assistant>): Promise<ApiResponse<Assistant>> =>
-        this.axiosInstance.post(`/${organizationId}/assistants`, data).then(res => res.data),
-      get: (organizationId: string, assistantId: string): Promise<ApiResponse<Assistant>> =>
-        this.axiosInstance.get(`/${organizationId}/assistants/${assistantId}`).then(res => res.data),
-      update: (
-        organizationId: string,
-        assistantId: string,
-        data: Partial<Assistant>
-      ): Promise<ApiResponse<Assistant>> =>
-        this.axiosInstance.patch(`/${organizationId}/assistants/${assistantId}`, data).then(res => res.data),
-      delete: (organizationId: string, assistantId: string): Promise<ApiResponse<void>> =>
-        this.axiosInstance.delete(`/${organizationId}/assistants/${assistantId}`).then(res => res.data),
-      chats: {
-        list: (organizationId: string, assistantId: string): Promise<ApiResponse<AssistantMessage[]>> =>
-          this.axiosInstance.get(`/${organizationId}/assistants/${assistantId}/chats`).then(res => res.data),
-        create: (
-          organizationId: string,
-          assistantId: string,
-          data: Partial<AssistantMessage>
-        ): Promise<ApiResponse<AssistantMessage>> =>
-          this.axiosInstance.post(`/${organizationId}/assistants/${assistantId}/chats`, data).then(res => res.data),
-      },
-    },
-  };
-
-  // Reports Service
-  reports = {
-    sales: (organizationId: string, params: string) =>
-      this.axiosInstance.post(`/${organizationId}/reports/sales?${params}`).then(res => res.data),
-    //eslint-disable-next-line
-    generateInventory: (organizationId: string, criteria: any): Promise<ApiResponse<any>> =>
-      this.axiosInstance.post(`/${organizationId}/reports/inventory`, criteria).then(res => res.data),
-  };
-
-  // Finance Service
-  finance = {
-    expenses: {
-      list: (organizationId: string): Promise<ApiResponse<Expense[]>> =>
-        this.axiosInstance.get(`/${organizationId}/expenses`).then(res => res.data),
-      create: (organizationId: string, data: Partial<Expense>): Promise<ApiResponse<Expense>> =>
-        this.axiosInstance.post(`/${organizationId}/expenses`, data).then(res => res.data),
-      get: (organizationId: string, expenseId: string): Promise<ApiResponse<Expense>> =>
-        this.axiosInstance.get(`/${organizationId}/expenses/${expenseId}`).then(res => res.data),
-      update: (organizationId: string, expenseId: string, data: Partial<Expense>): Promise<ApiResponse<Expense>> =>
-        this.axiosInstance.patch(`/${organizationId}/expenses/${expenseId}`, data).then(res => res.data),
-      delete: (organizationId: string, expenseId: string): Promise<ApiResponse<void>> =>
-        this.axiosInstance.delete(`/${organizationId}/expenses/${expenseId}`).then(res => res.data),
-    },
-    budgets: {
-      list: (organizationId: string): Promise<ApiResponse<Budget[]>> =>
-        this.axiosInstance.get(`/${organizationId}/budgets`).then(res => res.data),
-      create: (organizationId: string, data: Partial<Budget>): Promise<ApiResponse<Budget>> =>
-        this.axiosInstance.post(`/${organizationId}/budgets`, data).then(res => res.data),
-      get: (organizationId: string, budgetId: string): Promise<ApiResponse<Budget>> =>
-        this.axiosInstance.get(`/${organizationId}/budgets/${budgetId}`).then(res => res.data),
-      update: (organizationId: string, budgetId: string, data: Partial<Budget>): Promise<ApiResponse<Budget>> =>
-        this.axiosInstance.patch(`/${organizationId}/budgets/${budgetId}`, data).then(res => res.data),
-      delete: (organizationId: string, budgetId: string): Promise<ApiResponse<void>> =>
-        this.axiosInstance.delete(`/${organizationId}/budgets/${budgetId}`).then(res => res.data),
-    },
-  };
-
-  // Invitations Service
-  invitations = {
-    list: (organizationId: string): Promise<ApiResponse<Invitation[]>> =>
-      this.axiosInstance.get(`/${organizationId}/invitations`).then(res => res.data),
-    create: (
-      organizationId: string,
-      data: { email: string; role: MemberRole; channelId?: string }
-    ): Promise<ApiResponse<Invitation>> =>
-      this.axiosInstance.post(`/${organizationId}/invitations`, data).then(res => res.data),
-    delete: (organizationId: string, invitationId: string): Promise<ApiResponse<void>> =>
-      this.axiosInstance.delete(`/${organizationId}/invitations/${invitationId}`).then(res => res.data),
-  };
-
-  // Organization Service
-  organization = {
-    getSettings: (organizationId: string): Promise<ApiResponse<OrganizationSettings>> =>
-      this.axiosInstance.get(`/${organizationId}/settings`).then(res => res.data),
-    updateSettings: (
-      organizationId: string,
-      data: Partial<OrganizationSettings>
-    ): Promise<ApiResponse<OrganizationSettings>> =>
-      this.axiosInstance.patch(`/${organizationId}/settings`, data).then(res => res.data),
-    roles: {
-      list: (organizationId: string): Promise<ApiResponse<CustomRole[]>> =>
-        this.axiosInstance.get(`/${organizationId}/roles`).then(res => res),
-      create: (organizationId: string, data: Partial<CustomRole>): Promise<ApiResponse<CustomRole>> =>
-        this.axiosInstance.post(`/${organizationId}/roles`, data).then(res => res.data),
-      get: (organizationId: string, roleId: string): Promise<ApiResponse<CustomRole>> =>
-        this.axiosInstance.get(`/${organizationId}/roles/${roleId}`).then(res => res.data),
-      update: (organizationId: string, roleId: string, data: Partial<CustomRole>): Promise<ApiResponse<CustomRole>> =>
-        this.axiosInstance.patch(`/${organizationId}/roles/${roleId}`, data).then(res => res.data),
-      delete: (organizationId: string, roleId: string): Promise<ApiResponse<void>> =>
-        this.axiosInstance.delete(`/${organizationId}/roles/${roleId}`).then(res => res.data),
-    },
-    invitations: {
-      list: (organizationId: string): Promise<ApiResponse<Invitation[] & { url: string }>> =>
-        this.axiosInstance.get(`/${organizationId}/invitations`).then(res => res.data),
-      create: (
-        organizationId: string,
-        data: {
-          inviteeEmail: string;
-          role: MemberRole;
-        }
-      ): Promise<ApiResponse<Invitation>> =>
-        this.axiosInstance.post(`/${organizationId}/invitations/org`, data).then(res => res.data),
-      delete: (organizationId: string, invitationId: string): Promise<ApiResponse<void>> =>
-        this.axiosInstance.delete(`/${organizationId}/invitations/${invitationId}`).then(res => res.data),
-    },
-  };
-  roles = {
-    // List all custom roles for an organization
-    list: async (organizationId: string): Promise<ApiResponse<CustomRole[]>> =>
-      this.axiosInstance.get(`/${organizationId}/roles`).then(res => res.data),
-
-    // Create a new custom role
-    create: async (organizationId: string, data: Partial<CustomRole>): Promise<ApiResponse<CustomRole>> =>
-      this.axiosInstance.post(`/${organizationId}/roles`, data).then(res => res.data),
-
-    // Get a specific custom role
-    get: async (organizationId: string, roleId: string): Promise<ApiResponse<CustomRole>> =>
-      this.axiosInstance.get(`/${organizationId}/roles/${roleId}`).then(res => res.data),
-
-    // Update a custom role
-    update: async (
-      organizationId: string,
-      roleId: string,
-      data: Partial<CustomRole>
-    ): Promise<ApiResponse<CustomRole>> =>
-      this.axiosInstance.patch(`/${organizationId}/roles/${roleId}`, data).then(res => res.data),
-
-    // Delete a custom role
-    delete: async (organizationId: string, roleId: string): Promise<ApiResponse<void>> =>
-      this.axiosInstance.delete(`/${organizationId}/roles/${roleId}`).then(res => res.data),
-
-    // Assign a custom role to a member
-    assignToMember: async (organizationId: string, memberId: string, roleId: string): Promise<ApiResponse<void>> =>
-      this.axiosInstance.post(`/${organizationId}/members/${memberId}/roles/${roleId}`).then(res => res.data),
-
-    // Remove a custom role from a member
-    removeFromMember: async (organizationId: string, memberId: string, roleId: string): Promise<ApiResponse<void>> =>
-      this.axiosInstance.delete(`/${organizationId}/members/${memberId}/roles/${roleId}`).then(res => res.data),
-
-    // List all members with a specific custom role
-    listMembersWithRole: async (organizationId: string, roleId: string): Promise<ApiResponse<Member[]>> =>
-      this.axiosInstance.get(`/${organizationId}/roles/${roleId}/members`).then(res => res.data),
-
-    // Update permissions for a custom role
-    updatePermissions: async (
-      organizationId: string,
-      roleId: string,
-      permissions: unknown[]
-    ): Promise<ApiResponse<CustomRole>> =>
-      this.axiosInstance.put(`/${organizationId}/roles/${roleId}/permissions`, { permissions }).then(res => res.data),
-
-    // Toggle active status of a custom role
-    toggleActiveStatus: async (
-      organizationId: string,
-      roleId: string,
-      isActive: boolean
-    ): Promise<ApiResponse<CustomRole>> =>
-      this.axiosInstance.patch(`/${organizationId}/roles/${roleId}/status`, { isActive }).then(res => res.data),
-    addFromTemplate: async (organizationId: string, roleTemplateName: string): Promise<ApiResponse<CustomRole>> =>
-      this.axiosInstance.post(`/${organizationId}/roles/add-template`, { roleTemplateName }).then(res => res.data),
-  };
-    notifications= {
-      list: async (params?: { 
-        limit?: number;
-        unreadOnly?: boolean;
-      }): Promise<ApiResponse<Notification[]>> => 
-        axios.get('/api/users/current/notifications', { params }).then(res => res),
-      
-      markAsRead: async (notificationId: string): Promise<ApiResponse<Notification>> =>
-        axios.patch(`/api/users/current/notifications/${notificationId}/read`).then(res => res),
-      
-      markAllAsRead: async (): Promise<ApiResponse<void>> =>
-        axios.patch('/api/users/current/notifications/read-all').then(res => res),
-      
-      // Optional: Add more methods as needed
-      get: async (notificationId: string): Promise<ApiResponse<Notification>> =>
-        axios.get(`/api/users/current/notifications/${notificationId}`).then(res => res),
-      
-      delete: async (notificationId: string): Promise<ApiResponse<void>> =>
-        axios.delete(`/api/users/current/notifications/${notificationId}`).then(res => res),
-      
-      deleteAllRead: async (): Promise<ApiResponse<void>> =>
-        axios.delete('/api/users/current/notifications/read').then(res => res),
-      
-      deleteAll: async (): Promise<ApiResponse<void>> =>
-        axios.delete('/api/users/current/notifications').then(res => res),
-    }
 }
 
 // Singleton instance
@@ -836,12 +387,6 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       gcTime: 1000 * 60 * 60 * 12, // 12 hours
       staleTime: 1000 * 60 * 30, // 30 minutes
-      persister(queryFn, context, query) {
-        if (query.state.data) {
-          localStorage.setItem(query.queryKey.toString(), JSON.stringify(query.state.data));
-        }
-        return queryFn(context);
-      },
     },
     mutations: {
       //eslint-disable-next-line
@@ -896,5 +441,10 @@ const queryClient = new QueryClient({
 });
 
 export function QueryProvider({ children }: { children: ReactNode }) {
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
+  );
 }

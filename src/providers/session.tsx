@@ -157,7 +157,7 @@ export function SessionProvider({
       // No valid session and no persisted session, redirect to login
       console.log(session);
       if (!session) {
-        router(redirectTo);
+        // router(redirectTo);
       }
     }
 
