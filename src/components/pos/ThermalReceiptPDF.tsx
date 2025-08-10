@@ -1,19 +1,12 @@
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
-import { CartItem } from '@/types/pos';
 import { PaymentData } from './InvoiceModal';
-
-// Register fonts
-Font.register({
-  family: 'Roboto',
-  src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-light-webfont.ttf'
-});
+import { CartItem } from '@/types';
 
 const styles = StyleSheet.create({
     page: {
       flexDirection: 'column',
       backgroundColor: '#ffffff',
       padding: 8,
-      fontFamily: 'Roboto',
       width: 226.77, // 80mm thermal printer width in points
       minHeight: 'auto',
       fontSize: 8,
@@ -226,9 +219,34 @@ footer: {
 },
 footerText: {
   fontSize: 8,
-    color: '#000000',
-    marginBottom: 2,
-    textAlign: 'center',
+  color: '#000000',
+  marginBottom: 2,
+  textAlign: 'center',
+},
+orderNotes: {
+  marginTop: 6,
+  paddingTop: 4,
+  borderTopStyle: 'dashed',
+  borderTopWidth: 0.5,
+  borderTopColor: '#000000',
+},
+noteTitle: {
+  fontSize: 9,
+  fontWeight: 'bold',
+  color: '#000000',
+  marginBottom: 2,
+},
+noteText: {
+  fontSize: 8,
+  color: '#333333',
+  marginBottom: 4,
+},
+promoSection: {
+  marginTop: 4,
+  paddingTop: 4,
+  borderTopStyle: 'dashed',
+  borderTopWidth: 0.5,
+  borderTopColor: '#000000',
 },
 });
 
@@ -246,9 +264,22 @@ export interface ThermalReceiptPDFProps {
   paymentData: PaymentData;
   qrCodeImage: string;
   organization: OrganizationData;
+  orderType?: 'dine-in' | 'takeaway' | 'delivery';
+  notes?: string;
+  promoCode?: string;
+  specialInstructions?: string;
 }
 
-export const ThermalReceiptPDF = ({ items, paymentData, qrCodeImage, organization }: ThermalReceiptPDFProps) => {
+export const ThermalReceiptPDF = ({ 
+  items, 
+  paymentData, 
+  qrCodeImage, 
+  organization,
+  orderType,
+  notes,
+  promoCode,
+  specialInstructions
+}: ThermalReceiptPDFProps) => {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const discount = subtotal * 0.1; // 10% discount
   const tax = subtotal * 0.025; // 2.5% tax
@@ -283,6 +314,11 @@ export const ThermalReceiptPDF = ({ items, paymentData, qrCodeImage, organizatio
           <Text style={styles.invoiceDetails}>
             {currentDate} {currentTime}
           </Text>
+          {orderType && (
+            <Text style={styles.invoiceDetails}>
+              Order Type: {orderType.charAt(0).toUpperCase() + orderType.slice(1)}
+            </Text>
+          )}
         </View>
 
         {/* Customer Information */}
@@ -382,6 +418,32 @@ export const ThermalReceiptPDF = ({ items, paymentData, qrCodeImage, organizatio
             </View>
           )}
         </View>
+
+        {/* Notes Section */}
+        {(notes || specialInstructions) && (
+          <View style={styles.orderNotes}>
+            {notes && (
+              <>
+                <Text style={styles.noteTitle}>Order Notes</Text>
+                <Text style={styles.noteText}>{notes}</Text>
+              </>
+            )}
+            {specialInstructions && (
+              <>
+                <Text style={styles.noteTitle}>Special Instructions</Text>
+                <Text style={styles.noteText}>{specialInstructions}</Text>
+              </>
+            )}
+          </View>
+        )}
+
+        {/* Promo Code Section */}
+        {promoCode && (
+          <View style={styles.promoSection}>
+            <Text style={styles.noteTitle}>Promo Code Applied</Text>
+            <Text style={styles.noteText}>{promoCode}</Text>
+          </View>
+        )}
 
         {/* QR Code Section */}
         <View style={styles.qrSection}>

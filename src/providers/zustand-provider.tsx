@@ -142,10 +142,10 @@ export const ZustandHydration = ({ children }: ZustandHydrationProps) => {
     };
   }, []);
 
-  return (
-    <div className={`transition-opacity duration-500 ${isHydrated ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-      {!isHydrated && <Loader />}
-      <div className={`transition-opacity duration-500 ${isHydrated ? 'opacity-100' : 'opacity-0'}`}>{children}</div>
-    </div>
-  );
+  // Only return loader if not hydrated, otherwise return children
+  if (!isHydrated) {
+    return <Loader />;
+  }
+
+  return <>{children}</>;
 };

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient, useOrgStore } from "../tanstack-axios";
+import { apiClient, ApiResponse, useOrgStore } from "../tanstack-axios";
+import { Customer } from "@/types";
 
 const CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
 

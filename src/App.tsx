@@ -16,6 +16,7 @@ import { QueryProvider } from "./lib/tanstack-axios";
 import PendingOrdersPage from "./pages/PendingOrders";
 import { SessionProvider } from "./providers/session";
 import PrintersPage from "./pages/printers";
+import ReceiptCustomizer from "./pages/receipt";
 
 
 const App = () => {
@@ -100,35 +101,36 @@ const App = () => {
         <TooltipProvider>
           <BrowserRouter>
             <SessionProvider redirectTo="/login">
-              <OrgProvider>
-                <Toaster
-                  richColors
-                  position="top-right"
-                  theme="dark"
-                  visibleToasts={3}
-                  toastOptions={{
-                    classNames: {
-                      toast: 'flex items-center gap-2 p-4 rounded-md shadow-lg',
-                      success: toastConfigs.success.className,
-                      error: toastConfigs.error.className,
-                      info: toastConfigs.info.className,
-                      warning: toastConfigs.warning.className,
-                      default: toastConfigs.default.className,
-                    },
-                  }}
-                />
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/home" element={<Index />} />
-                  <Route path="/login" element={<LoginPage />} />
-                  {/* <Route path="/settings" element={<SettingsPage />} /> */}
-                  <Route path="/splashscreen" element={<DealioSplashScreen />} />
-                  <Route path="/settings" element={<PosConfigManagerPage />} />
-                  <Route path="/order-lists" element={<PendingOrdersPage />} />
-                  <Route path="/printers" element={<PrintersPage />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </OrgProvider>
+              {/* <OrgProvider> */}
+              <Toaster
+                richColors
+                position="top-right"
+                theme="dark"
+                visibleToasts={3}
+                toastOptions={{
+                  classNames: {
+                    toast: 'flex items-center gap-2 p-4 rounded-md shadow-lg',
+                    success: toastConfigs.success.className,
+                    error: toastConfigs.error.className,
+                    info: toastConfigs.info.className,
+                    warning: toastConfigs.warning.className,
+                    default: toastConfigs.default.className,
+                  },
+                }}
+              />
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/home" element={<Index />} />
+                <Route path="/login" element={<LoginPage />} />
+                {/* <Route path="/settings" element={<SettingsPage />} /> */}
+                <Route path="/splashscreen" element={<DealioSplashScreen />} />
+                <Route path="/settings" element={<PosConfigManagerPage />} />
+                <Route path="/order-lists" element={<PendingOrdersPage />} />
+                <Route path="/printers" element={<PrintersPage />} />
+                <Route path="/receipt" element={<ReceiptCustomizer />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              {/* </OrgProvider> */}
             </SessionProvider>
           </BrowserRouter>
         </TooltipProvider>

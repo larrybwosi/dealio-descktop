@@ -27,8 +27,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { fetch } from '@tauri-apps/plugin-http';
 import axiosTauriApiAdapter from 'axios-tauri-api-adapter';
-import axios, { AxiosInstance } from 'axios';
-import { API_ENDPOINT, getApiKey, saveApiKey } from '@/lib/axios';
+import axios from 'axios';
+import { API_ENDPOINT } from '@/lib/axios';
 
 // Define Zod schemas for validation
 const emailLoginSchema = z.object({
@@ -111,16 +111,6 @@ export default function LoginPage() {
     resolver: zodResolver(apiKeySchema),
   });
 
-  // On component mount, load the saved API key (if any) and populate the form
-  useEffect(() => {
-    const loadKey = async () => {
-      const savedKey = await getApiKey();
-      if (savedKey) {
-        setApiKeyFormValue('apiKey', savedKey);
-      }
-    };
-    loadKey();
-  }, [setApiKeyFormValue]);
 
   const loginOptions: LoginOptions = {
     loginWithEmail: async (email, password, callbackUrl) => {
@@ -132,7 +122,6 @@ export default function LoginPage() {
       const res = await axios.post(`${API_ENDPOINT}/api/auth/sign-in/email`, { email, password },{adapter: axiosTauriApiAdapter});
 
       console.log('Res2: ', res.data)
-
       const token = res.data.token;
       if (token) {
         toast.success(token)
@@ -236,23 +225,6 @@ export default function LoginPage() {
     } catch (error) {
       console.error('Card login error:', error);
       handleLoginError(error, 'card');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handler for saving the API key to the Tauri store
-  const onApiKeySubmit = async (data: ApiKeyFormData) => {
-    setIsLoading(true);
-    try {
-      await saveApiKey(data.apiKey); // Call the utility function to save the key
-      toast.success('API Key saved securely!');
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Failed to save API key:', error);
-      toast.error('Could not save API Key.', {
-        description: error instanceof Error ? error.message : 'An unknown error occurred.',
-      });
     } finally {
       setIsLoading(false);
     }
@@ -484,57 +456,6 @@ export default function LoginPage() {
                         <div className="flex items-center space-x-2">
                           <CreditCard className="w-4 h-4" />
                           <span>Verify Card</span>
-                        </div>
-                      )}
-                    </Button>
-                  </form>
-                </TabsContent>
-
-                {/* New Tab Content for API Key */}
-                <TabsContent value="apikey">
-                  <form onSubmit={handleApiKeySubmit(onApiKeySubmit)} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="apiKey" className="text-sm font-medium text-gray-700">
-                        Your Personal API Key
-                      </Label>
-                      <Input
-                        id="apiKey"
-                        type="password"
-                        placeholder="Enter your API key"
-                        className="h-11"
-                        aria-invalid={!!apiKeyErrors.apiKey}
-                        {...registerApiKey('apiKey')}
-                      />
-                      {apiKeyErrors.apiKey && <p className="text-sm text-red-600">{apiKeyErrors.apiKey.message}</p>}
-                    </div>
-
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <div className="flex items-start space-x-2">
-                        <KeyRound className="w-4 h-4 text-yellow-600 mt-0.5" />
-                        <div className="text-sm text-yellow-800">
-                          <p className="font-medium">API Key Login</p>
-                          <p className="text-yellow-700 mt-1">
-                            Use this for CLI access or third-party integrations. Your key is stored securely on your
-                            device.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button
-                      type="submit"
-                      disabled={isLoading}
-                      className="w-full h-11 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-medium"
-                    >
-                      {isLoading && activeTab === 'apikey' ? (
-                        <div className="flex items-center space-x-2">
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Saving...</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center space-x-2">
-                          <Shield className="w-4 h-4" />
-                          <span>Save Securely</span>
                         </div>
                       )}
                     </Button>

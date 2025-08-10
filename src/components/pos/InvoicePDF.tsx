@@ -240,6 +240,31 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 
+  // Additional Sections
+  additionalInfo: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 4,
+  },
+  additionalInfoTitle: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    color: '#333',
+  },
+  additionalInfoText: {
+    fontSize: 8,
+    color: '#666',
+    marginBottom: 2,
+  },
+  promoSection: {
+    marginTop: 4,
+    padding: 4,
+    backgroundColor: '#fff3e0',
+    borderRadius: 4,
+  },
+
   // Status Badge
   statusBadge: {
     backgroundColor: '#4CAF50',
@@ -269,7 +294,12 @@ const styles = StyleSheet.create({
 });
 
 interface InvoicePDFProps {
-  data: InvoiceData;
+  data: InvoiceData & {
+    orderType?: 'dine-in' | 'takeaway' | 'delivery';
+    notes?: string;
+    promoCode?: string;
+    specialInstructions?: string;
+  };
 }
 
 export const InvoicePDF = ({ data }: InvoicePDFProps) => {
@@ -353,23 +383,21 @@ export const InvoicePDF = ({ data }: InvoicePDFProps) => {
         <View style={styles.itemsSection}>
           <Text style={styles.sectionTitle}>Items Ordered</Text>
 
-          {order.items.map((item, index) => (
-            <View key={index} style={styles.itemRow}>
-              <Text style={styles.itemName}>{item.name}</Text>
-              {(item.variant || item.addition) && (
-                <Text style={styles.itemDetails}>
-                  {item.variant && `• ${item.variant}`}
-                  {item.addition && ` • ${item.addition}`}
-                </Text>
-              )}
-              <View style={styles.itemPricing}>
-                <Text style={styles.quantity}>Qty: {item.quantity}</Text>
-                <Text style={styles.price}>
-                  {formatCurrency(item.price)} × {item.quantity} = {formatCurrency(item.price * item.quantity)}
-                </Text>
-              </View>
-            </View>
-          ))}
+          {order.items.map(item => (
+                      <View key={item.id} style={styles.itemRow}>
+                        <Text style={styles.itemName}>{item.name}</Text>
+                        {(item.variant || item.addition) && (
+                          <Text style={styles.itemDetails}>
+                            {item.variant && `• ${item.variant}`}
+                            {item.addition && ` • ${item.addition}`}
+                          </Text>
+                        )}
+                        <View style={styles.itemPricing}>
+                          <Text style={styles.quantity}>Qty: {item.quantity} × {formatCurrency(item.price)}</Text>
+                          <Text style={styles.price}>{formatCurrency(item.price * item.quantity)}</Text>
+                        </View>
+                      </View>
+                    ))}
         </View>
 
         {/* Summary */}
@@ -405,11 +433,39 @@ export const InvoicePDF = ({ data }: InvoicePDFProps) => {
           </View>
         )}
 
+        {/* Order Type and Additional Info */}
+        {data.orderType && (
+          <View style={styles.additionalInfo}>
+            <Text style={styles.additionalInfoTitle}>Order Type</Text>
+            <Text style={styles.additionalInfoText}>
+              {data.orderType.charAt(0).toUpperCase() + data.orderType.slice(1)}
+            </Text>
+          </View>
+        )}
+
         {/* Notes */}
-        {order.notes && (
+        {(order.notes || data.specialInstructions) && (
           <View style={styles.notesSection}>
-            <Text style={styles.sectionTitle}>Special Notes</Text>
-            <Text style={styles.notesText}>{order.notes}</Text>
+            {order.notes && (
+              <>
+                <Text style={styles.sectionTitle}>Order Notes</Text>
+                <Text style={styles.notesText}>{order.notes}</Text>
+              </>
+            )}
+            {data.specialInstructions && (
+              <>
+                <Text style={styles.sectionTitle}>Special Instructions</Text>
+                <Text style={styles.notesText}>{data.specialInstructions}</Text>
+              </>
+            )}
+          </View>
+        )}
+
+        {/* Promo Code */}
+        {data.promoCode && (
+          <View style={styles.promoSection}>
+            <Text style={styles.sectionTitle}>Promo Code Applied</Text>
+            <Text style={styles.notesText}>{data.promoCode}</Text>
           </View>
         )}
 

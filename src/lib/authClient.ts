@@ -216,7 +216,7 @@ export function useSession(options?: UseSessionOptions): UseSessionReturn {
 export const signOut = async (): Promise<void> => {
   const response = await fetch(`${API_ENDPOINT}/api/auth/sign-out`, {
     method: 'POST',
-    credentials: 'include', // Ensure cookies are sent
+    credentials: 'include',
   });
 
   if (!response.ok) {

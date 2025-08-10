@@ -19,7 +19,7 @@ import {
 import { isTauri } from "@tauri-apps/api/core";
 import { LazyStore } from '@tauri-apps/plugin-store';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import api from './axios';
+import api, { axiosClientInstance } from './axios';
 
 
 interface OrgState {
@@ -202,14 +202,16 @@ export interface InvoiceResponse {
 class ApiClient {
   private axiosInstance: AxiosInstance;
   constructor(baseURL: string) {
-    this.axiosInstance = api;
+    this.axiosInstance = axiosClientInstance;
   }
   // Customers Service
   customers = {
     list: async (organizationId: string): Promise<ApiResponse<Customer[]>> =>
       this.axiosInstance.get(`/${organizationId}/v2/customers`).then(res => res.data),
     create: async (organizationId: string, data: Partial<Customer>): Promise<ApiResponse<Customer>> =>
-      this.axiosInstance.post(`/${organizationId}/v2/customers`, data).then(res => res.data),
+      this.axiosInstance
+        .post(`/${organizationId}/v2/customers`, data, { headers: { 'Content-Type': 'application/json' } })
+        .then(res => res.data),
     get: async (organizationId: string, customerId: string): Promise<ApiResponse<Customer>> =>
       this.axiosInstance.get(`/${organizationId}/customers/${customerId}`).then(res => res.data),
     update: async (

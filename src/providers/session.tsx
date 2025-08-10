@@ -81,7 +81,7 @@ export function SessionProvider({
     console.log('Auth state:', { authSession, authError, isPending: authLoading });
 
     if (authSession?.user) {
-      console.log('User found in session:', authSession.user);
+      // console.log('User found in session:', authSession.user);
       const currentUserId = session?.user?.id;
       const newUserId = authSession.user.id;
 

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Eye, ChevronDown, ChevronUp, Minus, Plus, Trash2, CreditCard, User } from 'lucide-react';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { Eye, ChevronDown, ChevronUp, Minus, Plus, Trash2, CreditCard, User, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -27,6 +27,148 @@ interface CartDetailsProps {
   setCustomFieldValues?: (values: Record<string, string>) => void;
 }
 
+// ============================================================================
+// MEMOIZED SUB-COMPONENTS FOR PERFORMANCE
+// ============================================================================
+
+/**
+ * Memoized component for rendering a single item in the cart.
+ * Prevents re-rendering unless its specific props change.
+ */
+const MemoizedCartItem = memo(
+  ({
+    item,
+    businessConfig,
+    formatCurrency,
+    onUpdateQuantity,
+    onRemoveItem,
+  }: {
+    item: CartItem;
+    businessConfig: ReturnType<typeof getBusinessConfig>;
+    formatCurrency: (value: number) => string;
+    onUpdateQuantity: (id: string, quantity: number) => void;
+    onRemoveItem: (id: string) => void;
+  }) => (
+    <div className="flex gap-4 items-center transition-colors hover:bg-gray-50 p-2 rounded-lg">
+      <img
+        src={item.image}
+        alt={item.name}
+        className="h-16 w-16 rounded-md object-cover shrink-0"
+        onError={e => {
+          (e.target as HTMLImageElement).src = 'https://placehold.co/400x300/e2e8f0/64748b?text=Item';
+        }}
+      />
+      <div className="flex-1">
+        <div className="flex justify-between items-start">
+          <h4 className="font-semibold text-sm">{item.name}</h4>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-red-500"
+            onClick={() => onRemoveItem(item.id)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">{formatCurrency(item.price)}</p>
+        <div className="flex items-center space-x-2 mt-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+            disabled={item.quantity <= 1}
+          >
+            <Minus className="h-3 w-3" />
+          </Button>
+          <span className="w-6 text-center font-medium text-sm">{item.quantity}</span>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+          >
+            <Plus className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+);
+MemoizedCartItem.displayName = 'MemoizedCartItem';
+
+/**
+ * Memoized component for rendering the cart's financial summary.
+ */
+const CartSummary = memo(
+  ({
+    summary,
+    businessConfig,
+    formatCurrency,
+    onProceed,
+    isCartEmpty,
+    discountPercentage,
+    setDiscountPercentage,
+  }: {
+    summary: { subtotal: number; discount: number; tax: number; total: number };
+    businessConfig: ReturnType<typeof getBusinessConfig>;
+    formatCurrency: (value: number) => string;
+    onProceed: () => void;
+    isCartEmpty: boolean;
+    discountPercentage: number;
+    setDiscountPercentage: (value: number) => void;
+  }) => {
+    const [promoCode, setPromoCode] = useState('');
+
+    return (
+      <div className="border-t bg-gray-50/50 p-4 space-y-3">
+        <div className="space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span>Subtotal</span>
+            <span className="font-medium">{formatCurrency(summary.subtotal)}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <span>Discount</span>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                className="w-16 h-7 text-xs"
+                value={discountPercentage}
+                onChange={e => setDiscountPercentage(Number(e.target.value))}
+              />
+              <span>%</span>
+            </div>
+            <span className="font-medium text-green-600">- {formatCurrency(summary.discount)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>{businessConfig.taxLabel || 'Tax'} (incl.)</span>
+            <span className="font-medium">{formatCurrency(summary.tax)}</span>
+          </div>
+        </div>
+        <div className="border-t pt-3 flex justify-between font-bold text-lg">
+          <span>Total</span>
+          <span>{formatCurrency(summary.total)}</span>
+        </div>
+        <div className="pt-2">
+          <div className="relative mb-3">
+            <Input placeholder="Enter promo code" value={promoCode} onChange={e => setPromoCode(e.target.value)} />
+            <Button variant="secondary" className="absolute right-1 top-1 h-8 text-xs" disabled={!promoCode}>
+              Apply
+            </Button>
+          </div>
+          <Button className="w-full bg-teal-600 hover:bg-teal-700" onClick={onProceed} disabled={isCartEmpty}>
+            <CreditCard className="mr-2 h-4 w-4" />
+            {businessConfig.paymentButtonText}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+);
+CartSummary.displayName = 'CartSummary';
+
 export function CartDetails({
   businessType,
   cartItems,
@@ -45,20 +187,46 @@ export function CartDetails({
 }: CartDetailsProps) {
   const [isCustomerInfoOpen, setIsCustomerInfoOpen] = useState(true);
   const [promoCode, setPromoCode] = useState('');
+  const [discountPercentage, setDiscountPercentage] = useState(0);
   const { taxRate, currency } = useOrgStore();
   const formatCurrency = useFormattedCurrency();
 
-  const businessConfig = getBusinessConfig(businessType);
+  // Memoize business configuration to prevent recalculation on every render
+  const businessConfig = useMemo(() => getBusinessConfig(businessType), [businessType]);
 
-  const calculateSubtotal = () => {
-    return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
-  };
+  /**
+   * Memoized calculation for the cart summary.
+   * Tax is calculated as INCLUSIVE. The item prices are assumed to already contain the tax.
+   * This calculation only runs when cart items, tax rate, or discount percentage change.
+   */
+  const summary = useMemo(() => {
+    const grossTotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+    const discount = grossTotal * (discountPercentage / 100);
+    const total = grossTotal - discount;
+    const subtotal = total / (1 + Number(taxRate));
+    const tax = total - subtotal;
 
-  const discount = calculateSubtotal() * businessConfig.defaultDiscount;
-  const tax = calculateSubtotal() * Number(taxRate);
-  const total = calculateSubtotal() - discount + tax;
+    return { subtotal, discount, tax, total };
+  }, [cartItems, taxRate, discountPercentage]);
 
-  const showLocationField = requiresLocationForOrderType(businessConfig, selectedOrderType);
+  const showLocationField = useMemo(
+    () => requiresLocationForOrderType(businessConfig, selectedOrderType),
+    [businessConfig, selectedOrderType]
+  );
+
+  const handleUpdateQuantity = useCallback(
+    (id: string, quantity: number) => {
+      updateQuantity(id, quantity);
+    },
+    [updateQuantity]
+  );
+
+  const handleRemoveItem = useCallback(
+    (id: string) => {
+      removeItem(id);
+    },
+    [removeItem]
+  );
 
   const handleCustomFieldChange = (fieldId: string, value: string) => {
     if (setCustomFieldValues) {
@@ -235,108 +403,37 @@ export function CartDetails({
           )}
         </div>
 
-        <div className="px-4 space-y-4 pb-4">
+        <div className="px-2 space-y-1 pb-4">
           {cartItems.length === 0 ? (
-            <div className="text-center py-6 text-gray-500">No items in cart</div>
+            <div className="text-center py-10 text-muted-foreground flex flex-col items-center gap-3">
+              <ShoppingCart className="h-10 w-10" />
+              <p className="font-medium">Your cart is empty</p>
+              <p className="text-xs">Add products to get started.</p>
+            </div>
           ) : (
             cartItems.map(item => (
-              <div key={item.id} className="flex gap-3">
-                <div className="h-16 w-16 rounded overflow-hidden shrink-0">
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="h-full w-full object-cover"
-                    onError={e => {
-                      (e.target as HTMLImageElement).src = 'https://placehold.co/400x300/e2e8f0/64748b?text=Item+Image';
-                    }}
-                  />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">{item.name}</h4>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-red-500"
-                      onClick={() => removeItem(item.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {businessConfig.showItemVariants && item.variant && <div>Variant: {item.variant}</div>}
-                    {businessConfig.showItemAdditions && item.addition && <div>Addition: {item.addition}</div>}
-                  </div>
-                  <div className="mt-1 font-medium">{formatCurrency(item.price)}</div>
-                </div>
-                {businessConfig.itemQuantityControls && (
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                      disabled={item.quantity <= 1}
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <span className="w-6 text-center">{item.quantity}</span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <MemoizedCartItem
+                key={item.id}
+                item={item}
+                businessConfig={businessConfig}
+                formatCurrency={formatCurrency}
+                onUpdateQuantity={handleUpdateQuantity}
+                onRemoveItem={handleRemoveItem}
+              />
             ))
           )}
         </div>
       </div>
 
-      {/* Summary and payment */}
-      <div className="border-t p-4 space-y-3">
-        <div className="flex justify-between text-sm">
-          <span>Sub total</span>
-          <span className="font-medium">{formatCurrency(calculateSubtotal())}</span>
-        </div>
-        {businessConfig.defaultDiscount > 0 && (
-          <div className="flex justify-between text-sm">
-            <span>Discount ({(businessConfig.defaultDiscount * 100).toFixed(0)}%)</span>
-            <span className="font-medium">- {formatCurrency(discount)}</span>
-          </div>
-        )}
-        <div className="flex justify-between text-sm">
-          <span>
-            {businessConfig.taxLabel || 'Tax'} ({(Number(taxRate) * 100).toFixed(1)}%)
-          </span>
-          <span className="font-medium">{formatCurrency(tax)}</span>
-        </div>
-        <div className="flex justify-between font-medium">
-          <span>Total amount</span>
-          <span>{formatCurrency(total)}</span>
-        </div>
-
-        <div>
-          <div className="relative mb-3">
-            <Input placeholder="Enter promo code" value={promoCode} onChange={e => setPromoCode(e.target.value)} />
-            <Button className="absolute right-1 top-1 h-7 text-xs" disabled={!promoCode}>
-              Apply
-            </Button>
-          </div>
-          <Button
-            className="w-full bg-teal-600 hover:bg-teal-700"
-            onClick={onProceedPayment}
-            disabled={cartItems.length === 0}
-          >
-            <CreditCard className="mr-2 h-4 w-4" />
-            {businessConfig.paymentButtonText}
-          </Button>
-        </div>
-      </div>
+      <CartSummary
+        summary={summary}
+        businessConfig={businessConfig}
+        formatCurrency={formatCurrency}
+        onProceed={onProceedPayment}
+        isCartEmpty={cartItems.length === 0}
+        discountPercentage={discountPercentage}
+        setDiscountPercentage={setDiscountPercentage}
+      />
     </div>
   );
 }
