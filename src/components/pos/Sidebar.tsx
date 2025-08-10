@@ -50,6 +50,7 @@ import { toast } from 'sonner';
 import { LazyStore } from '@tauri-apps/plugin-store';
 import { useNavigate } from 'react-router';
 import { SidebarSkeletonEnhanced } from '../sidebar-skeleton';
+import { useOrgStore } from '@/lib/tanstack-axios';
 
 const sidebarItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -71,18 +72,21 @@ export function Sidebar() {
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const navigate = useNavigate();
+  const {clear} = useOrgStore();
 
   const { data:session, isLoading } = useSession();
   const currentUser = session?.user;
 
   const handleLogout = async () => {
     try {
-      await signOut();
-
       try {
+        await signOut();
         const store = new LazyStore('.org-storage.dat');
         await store.reset();
         await store.save();
+        clear();
+        localStorage.removeItem('bearer_token');
+        localStorage.removeItem('org-details');
       } catch (storeError) {
         console.warn('Failed to clear local storage:', storeError);
         // Continue with logout even if store cleanup fails

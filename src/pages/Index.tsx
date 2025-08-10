@@ -227,7 +227,7 @@ function PosSystem() {
   );
 }
 
-// const IndexPage = withAuth(PosSystem);
-// export default IndexPage;
+const IndexPage = withAuth(PosSystem);
+export default IndexPage;
 
-export default PosSystem;
+// export default PosSystem;
