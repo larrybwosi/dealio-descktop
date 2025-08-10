@@ -19,7 +19,7 @@ import PrintersPage from './pages/printers';
 import ReceiptCustomizer from './pages/receipt';
 
 // Component wrapper for home routes that need OrgProvider
-// const HomeRouteWrapper = ({ children }) => <OrgProvider>{children}</OrgProvider>;
+const HomeRouteWrapper = ({ children }) => <OrgProvider>{children}</OrgProvider>;
 
 const App = () => {
   const toastConfigs = useMemo(
@@ -124,9 +124,9 @@ const App = () => {
                 <Route
                   path="/"
                   element={
-                    // <HomeRouteWrapper>
+                    <HomeRouteWrapper>
                       <Index />
-                    // </HomeRouteWrapper>
+                    </HomeRouteWrapper>
                   }
                 />
 

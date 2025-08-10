@@ -1,148 +1,128 @@
-// OrgProvider.tsx
-
-import { useEffect, useState, useRef } from 'react';
-import { AlertCircle, Building2 } from 'lucide-react';
-import { useOrgStore } from '@/lib/tanstack-axios';
-import { useSession } from './session';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import api from '@/lib/axios';
-import { Button } from '@/components/ui/button';
 import axios from 'axios';
+import { useSession } from './session';
+import { useOrgStore } from '@/lib/tanstack-axios';
+import api from '@/lib/axios';
+// Types
+interface LoadingState {
+  isLoading: boolean;
+  stage: 'session' | 'organization' | 'complete' | 'error';
+  error: string | null;
+}
 
-// --- Professional Loading State Component ---
-// This component renders a multi-stage loading indicator.
-const LoadingScreen = ({ stage }: { stage: string }) => {
-  const stageConfig = {
-    session: {
-      title: 'Authenticating',
-      message: 'Verifying your credentials...',
-      progress: 'w-1/3',
-    },
-    organization: {
-      title: 'Loading Organization',
-      message: 'Fetching your organization details...',
-      progress: 'w-2/3',
-    },
-    complete: {
-      title: 'Preparing Workspace',
-      message: 'Almost there...',
-      progress: 'w-full',
-    },
-  };
+interface OrgContextType {
+  loadingState: LoadingState;
+  retry: () => void;
+}
 
-  const currentStage = stageConfig[stage as keyof typeof stageConfig] || stageConfig.complete;
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 p-8 text-center">
-          <div className="flex justify-center mb-6">
-            <div className="relative">
-              <div className="w-20 h-20 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center animate-pulse">
-                <Building2 className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-          </div>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3">{currentStage.title}</h2>
-          <p className="text-slate-500 dark:text-slate-400 mb-6">{currentStage.message}</p>
-          <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 mb-2">
-            <div
-              className={`bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-500 ease-out ${currentStage.progress}`}
-            />
-          </div>
-          <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
-            <span>Session</span>
-            <span>Organization</span>
-            <span>Complete</span>
-          </div>
+// Loading Component
+const LoadingComponent: React.FC<{ stage: string }> = ({ stage }) => (
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="max-w-md w-full mx-4">
+      <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Setting up your workspace</h2>
+        <p className="text-gray-600 mb-4">
+          {stage === 'session' ? 'Verifying your session...' : 'Loading organization details...'}
+        </p>
+        <div className="w-full bg-gray-200 rounded-full h-2">
+          <div
+            className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
+            style={{ width: stage === 'session' ? '50%' : '90%' }}
+          ></div>
         </div>
-        {/* Decorative background elements */}
-        <div className="fixed inset-0 -z-10 overflow-hidden opacity-50">
-          <div className="absolute top-1/4 -right-20 w-64 h-64 bg-blue-400 dark:bg-blue-600 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 animate-float"></div>
-          <div className="absolute bottom-1/4 -left-20 w-64 h-64 bg-purple-400 dark:bg-purple-600 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 animate-float animation-delay-2000"></div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- Professional Error State Component ---
-// This component displays a clear error message with a working navigation button.
-const ErrorScreen = ({ error, onNavigate }: { error: string; onNavigate: () => void }) => (
-  <div className="min-h-screen bg-gradient-to-br from-slate-50 to-red-100 dark:from-slate-900 dark:to-red-900/50 flex items-center justify-center p-4">
-    <div className="max-w-md w-full">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-red-200 dark:border-red-700/50 p-8 text-center">
-        <div className="flex justify-center mb-4">
-          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
-            <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
-          </div>
-        </div>
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">An Error Occurred</h2>
-        <p className="text-slate-600 dark:text-slate-400 mb-6 break-words">{error}</p>
-        <Button
-          onClick={onNavigate}
-          className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white dark:bg-red-500 dark:hover:bg-red-600"
-        >
-          Go to Login
-        </Button>
       </div>
     </div>
   </div>
 );
 
-export function OrgProvider({ children }: { children: React.ReactNode }) {
-  const { isLoading: isSessionLoading, isAuthenticated } = useSession();
+// Error Component
+const ErrorComponent: React.FC<{ error: string; onRetry: () => void }> = ({ error, onRetry }) => (
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="max-w-md w-full mx-4">
+      <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+        <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+          <svg
+            className="w-8 h-8 text-red-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z"
+            />
+          </svg>
+        </div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Something went wrong</h2>
+        <p className="text-gray-600 mb-6">{error}</p>
+        <div className="space-y-3">
+          <button
+            onClick={onRetry}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+          >
+            Try again
+          </button>
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+          >
+            Refresh page
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// Context
+const OrgContext = createContext<OrgContextType | undefined>(undefined);
+
+// Provider Props
+interface OrgProviderProps {
+  children: ReactNode;
+}
+
+// Main Provider Component
+export const OrgProvider: React.FC<OrgProviderProps> = ({ children }) => {
   const navigate = useNavigate();
+  const { isLoading: isSessionLoading, session } = useSession();
   const { organizationId, set: setOrgDetails } = useOrgStore();
-  const [loadingState, setLoadingState] = useState({
+
+  const [loadingState, setLoadingState] = useState<LoadingState>({
     isLoading: true,
-    stage: 'session', 
-    error: null as string | null,
+    stage: 'session',
+    error: null,
   });
 
-console.log(isAuthenticated);
-  // This ref ensures the API call to fetch organization details is only made once.
-  const initializationAttempted = useRef(false);
+  const fetchAndSetOrg = async () => {
+    setLoadingState(prev => ({ ...prev, stage: 'organization', error: null, isLoading: true }));
 
-  useEffect(() => {
-    if (isSessionLoading) {
-      // The UI will show the 'session' loading stage.
-      return;
-    }
+    try {
+      const { data: details } = await api.get(`/api/org-details`);
 
-    // 2. Once session is loaded, check for authentication.
-    // If the user is not authenticated, they must be redirected to login.
-    if (!isAuthenticated) {
-      navigate('/login');
-      window.location.href='/login'
-      return; // Stop further execution.
-    }
+      if (details?.organizationId) {
+        setOrgDetails({
+          organizationId: details.organizationId,
+          memberId: details.memberId,
+          locationId: details.locationId,
+          locationName: details.locationName,
+          address: details.address,
+          logo: details.logo,
+          taxRate: details.taxRate,
+          currency: details.currency,
+          orgName: details.orgName,
+          plan: details.plan,
+        });
 
-    // 3. The user is authenticated. Check if the organization ID is already
-    // available in our state (e.g., from Zustand's persisted state after rehydration).
-    if (organizationId) {
-      // If we have it, the setup is complete.
-      setLoadingState({ isLoading: false, stage: 'complete', error: null });
-      return;
-    }
-
-    // 4. If we've reached this point, the user is authenticated, but we don't have
-    // an organization ID yet. We need to fetch it from the API.
-    // We use a ref to ensure this API call is only made once per component mount.
-    if (initializationAttempted.current) {
-      return;
-    }
-    initializationAttempted.current = true;
-
-    const fetchAndSetOrg = async () => {
-      setLoadingState(prev => ({ ...prev, stage: 'organization' }));
-      try {
-        const { data: details } = await api.get(`/api/org-details`);
-
-        if (details?.organizationId) {
-          // API call was successful and returned organization details.
-          // We update our global state.
-          setOrgDetails({
+        // Save to localStorage for persistence
+        localStorage.setItem(
+          'org-details',
+          JSON.stringify({
             organizationId: details.organizationId,
             memberId: details.memberId,
             locationId: details.locationId,
@@ -153,44 +133,96 @@ console.log(isAuthenticated);
             currency: details.currency,
             orgName: details.orgName,
             plan: details.plan,
-          });
-          // Mark loading as complete.
+          })
+        );
+
+        // Mark loading as complete.
+        setLoadingState({ isLoading: false, stage: 'complete', error: null });
+      } else {
+        // The user is authenticated but has no organization.
+        // Redirect them to the creation page.
+        navigate('/create-org');
+      }
+    } catch (error) {
+      console.error('Error initializing organization:', error);
+
+      // Check if the error is a 404, which means the user needs to create an org.
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        navigate('/create-org');
+      } else {
+        // For all other errors (network, server, etc.), show an error screen.
+        const message = error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.';
+        setLoadingState({ isLoading: false, stage: 'error', error: message });
+      }
+    }
+  };
+
+  const retry = () => {
+    if (!isSessionLoading && session) {
+      fetchAndSetOrg();
+    }
+  };
+
+  useEffect(() => {
+    // If session is still loading, wait
+    if (isSessionLoading) {
+      setLoadingState(prev => ({ ...prev, stage: 'session', isLoading: true }));
+      return;
+    }
+
+    // If no session, let the auth system handle it
+    if (!session) {
+      return;
+    }
+
+    // Check if we already have org details in localStorage
+    const cachedOrgDetails = localStorage.getItem('org-details');
+    if (cachedOrgDetails && organizationId) {
+      try {
+        const parsedDetails = JSON.parse(cachedOrgDetails);
+        if (parsedDetails.organizationId === organizationId) {
+          // We have valid cached data, skip loading
           setLoadingState({ isLoading: false, stage: 'complete', error: null });
-        } else {
-          // The user is authenticated but has no organization.
-          // Redirect them to the creation page.
-          navigate('/create-org');
+          return;
         }
       } catch (error) {
-        console.error('Error initializing organization:', error);
-
-        // Check if the error is a 404, which means the user needs to create an org.
-        if (axios.isAxiosError(error) && error.response?.status === 404) {
-          navigate('/create-org');
-        } else {
-          // For all other errors (network, server, etc.), show an error screen.
-          const message = error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.';
-          setLoadingState({ isLoading: false, stage: 'error', error: message });
-        }
+        console.warn('Invalid cached org details, refetching...');
+        localStorage.removeItem('org-details');
       }
-    };
+    }
 
+    // If we have organizationId but no cached data, or cached data is invalid
+    if (organizationId) {
+      setLoadingState({ isLoading: false, stage: 'complete', error: null });
+      return;
+    }
+
+    // Fetch organization details
     fetchAndSetOrg();
-  }, [isSessionLoading, isAuthenticated, organizationId, navigate, setOrgDetails]);
+  }, [isSessionLoading, session, organizationId]);
 
-  // --- Render Logic ---
+  // Show loading screen
+  if (loadingState.isLoading && loadingState.stage !== 'error') {
+    return <LoadingComponent stage={loadingState.stage} />;
+  }
 
-  // If there's an error, show the dedicated error screen.
-  // The navigation button will now work correctly.
+  // Show error screen
   if (loadingState.error) {
-    return <ErrorScreen error={loadingState.error} onNavigate={() => navigate('/login')} />;
+    return <ErrorComponent error={loadingState.error} onRetry={retry} />;
   }
 
-  // If we are still loading, show the staged loading screen.
-  if (loadingState.isLoading) {
-    return <LoadingScreen stage={loadingState.stage} />;
-  }
+  // Render children if everything is loaded
+  return <OrgContext.Provider value={{ loadingState, retry }}>{children}</OrgContext.Provider>;
+};
 
-  // Once loading is complete and successful, render the main application.
-  return <>{children}</>;
-}
+// Custom hook to use the org context
+export const useOrgContext = (): OrgContextType => {
+  const context = useContext(OrgContext);
+  if (context === undefined) {
+    throw new Error('useOrgContext must be used within an OrgProvider');
+  }
+  return context;
+};
+
+// Export the context for advanced usage
+export { OrgContext };
