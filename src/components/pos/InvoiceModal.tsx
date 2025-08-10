@@ -7,8 +7,8 @@ import { Printer, Download, Mail, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { printPdf } from 'tauri-plugin-printer-v2';
-import { BaseDirectory, writeFile } from '@tauri-apps/plugin-fs';
-import { invoke, isTauri } from '@tauri-apps/api/core';
+import { BaseDirectory, writeFile, mkdir, exists, remove } from '@tauri-apps/plugin-fs';
+import { isTauri } from '@tauri-apps/api/core';
 import { documentDir } from '@tauri-apps/api/path';
 import QRCode from 'qrcode';
 import { InvoicePDF } from '@/components/pos/InvoicePDF';
@@ -36,7 +36,7 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   const pdfRef = useRef<HTMLDivElement>(null);
   // --- ✨ Assuming useOrgStore provides all necessary fields ---
   const { orgName, address } = useOrgStore();
-  const { printers, isLoading: loadingPrinters, error, defaultPrinter } = usePrinterStore();
+  const { printers, defaultPrinter } = usePrinterStore();
 
   const orgInfo = {
     phone: '+62 812 3456 7890',
@@ -110,58 +110,80 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   };
 
   // ✨ --- TAURI: SILENT PRINT FUNCTION ---
-  const handleSilentPrint = async () => {
-    if (isLoading || isPrinting) return toast.info('Please wait...');
 
-    setIsPrinting(true);
-    toast.info('Sending to printer...');
+ const handleSilentPrint = async () => {
+   if (isLoading || isPrinting) return toast.info('Please wait...');
 
-    try {
-      const pdfDoc = isPaid
-        ? ThermalReceiptPDF({
-            items: order.items,
-            paymentData: paymentData,
-            qrCodeImage: qrCodeImage,
-            organization: organizationData,
-          })
-        : InvoicePDF({ data: invoiceData });
+   setIsPrinting(true);
+   toast.info('Sending to printer...');
 
-      const blob = await pdf(pdfDoc).toBlob();
-      const arrayBuffer = await blob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
+   let filePath = '';
 
-      // Convert Uint8Array to a Base64 string to send to Rust
-      const base64String = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
-      // const fileName = isPaid ? `Receipt_${order.orderNumber}.pdf` : `Invoice_${order.orderNumber}.pdf`;
-      // const documentDirPath = await documentDir();
-      // const filePath = `${documentDirPath}/${fileName}`;
-      // await writeFile(filePath, uint8Array, { baseDir: BaseDirectory.Download });
+   try {
+    //  const pdfDoc = isPaid
+    //    ? ThermalReceiptPDF({
+    //        items: order.items,
+    //        paymentData: paymentData,
+    //        qrCodeImage: qrCodeImage,
+    //        organization: organizationData,
+    //      })
+    //    : InvoicePDF({ data: invoiceData });
+     const pdfDoc = isPaid ? (
+       <ThermalReceiptPDF
+         items={order.items}
+         paymentData={paymentData}
+         qrCodeImage={qrCodeImage}
+         organization={organizationData}
+       />
+     ) : (
+       <InvoicePDF data={invoiceData} />
+     );
 
-      // const printers = await getPrinters();
-      // console.log('Available printers:', printers);
+     const blob = await pdf(pdfDoc).toBlob();
+     const arrayBuffer = await blob.arrayBuffer();
+     const uint8Array = new Uint8Array(arrayBuffer);
+     const fileName = isPaid ? `Receipt_${order.orderNumber}.pdf` : `Invoice_${order.orderNumber}.pdf`;
 
-      const printResult = await printPdf({
-        path: base64String,
-        printer: defaultPrinter ||printers[0].Name ||'XP-80C',
-        id: order.id,
-        remove_after_print: true,
-        print_settings: '',
-      });
-      
-      
-      toast.success('Successfully sent to printer!');
-    } catch (error) {
-      console.error('Error during silent print:', error);
-      toast.error(`Failed to print: ${error}`);
-    } finally {
-      setIsPrinting(false);
-    }
-  };
+     const documentDirPath = await documentDir();
+     const dealioFolderPath = `${documentDirPath}/dealio`;
 
+     // Check if folder exists, if not create it
+     if (!(await exists('dealio', { baseDir: BaseDirectory.Document }))) {
+       await mkdir('dealio', { baseDir: BaseDirectory.Document, recursive: true });
+     }
+
+     filePath = `${dealioFolderPath}/${fileName}`;
+     await writeFile(filePath, uint8Array, { baseDir: BaseDirectory.Document });
+
+     await printPdf({
+       path: filePath,
+       printer: defaultPrinter || printers[0]?.Name || 'XP-80C',
+       id: order.id,
+       remove_after_print: true,
+       print_settings: '',
+     });
+
+     toast.success('Successfully sent to printer!');
+   } catch (error) {
+     console.error('Error during silent print:', error);
+     toast.error(`Failed to print: ${error}`);
+   } finally {
+     // Always attempt to delete the file after printing
+     try {
+       if (filePath) {
+         await remove(filePath, { baseDir: BaseDirectory.Document });
+         console.log('Temporary print file deleted successfully');
+       }
+     } catch (deleteError) {
+       console.warn('Failed to delete temporary print file:', deleteError);
+     }
+     setIsPrinting(false);
+   }
+ };
+  // --- ✨ Download function for both receipt and invoice ---
   const handleDownload = async () => {
     if (isLoading) return toast.info('Please wait ...');
     try {
-      // --- ✨ Conditionally generate the correct PDF document for download ---
       const pdfDoc = isPaid
         ? ThermalReceiptPDF({
             items: order.items,
@@ -178,7 +200,14 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
 
       if (isTauri()) {
         const documentDirPath = await documentDir();
-        const filePath = `${documentDirPath}/${fileName}`;
+        const dealioFolderPath = `${documentDirPath}/dealio`;
+
+        // Check if folder exists, if not create it
+        if (!(await exists('dealio', { baseDir: BaseDirectory.Download }))) {
+          await mkdir('dealio', { baseDir: BaseDirectory.Download, recursive: true });
+        }
+
+        const filePath = `${dealioFolderPath}/${fileName}`;
         await writeFile(filePath, uint8Array, { baseDir: BaseDirectory.Download });
 
         toast.success('Document downloaded successfully!', {

@@ -41,6 +41,7 @@
     "printer:allow-remove-job",
     "printer:default",
     "http:allow-fetch-read-body",
+    "fs:allow-remove",
     {
       "identifier": "opener:allow-open-path",
       "allow": [
@@ -49,18 +50,24 @@
         },
         {
           "path": "$DOCUMENT/*"
-        },
-        {
-          "path": "$APPDATA/*"
-        }
+        }, { "path": "$APPDATA/*" }
       ]
     },
-    {
-      "identifier": "fs:scope",
-      "allow": [
-        { "path": "$DOWNLOAD" }, { "path": "$DOWNLOAD/*" }, { "path": "$DOCUMENT" }, { "path": "$DOCUMENT/*" }, { "path": "$APPDATA" }, { "path": "$APPDATA/*" }
-      ]
-    },
+{
+  "identifier": "fs:scope",
+  "allow": [
+    { "path": "$DOWNLOAD" },
+    { "path": "$DOWNLOAD/*" },
+    { "path": "$DOWNLOAD/dealio" },
+    { "path": "$DOWNLOAD/dealio/*" },
+    { "path": "$DOCUMENT" },
+    { "path": "$DOCUMENT/*" },
+    { "path": "$DOCUMENT/dealio" },
+    { "path": "$DOCUMENT/dealio/*" },
+    { "path": "$APPDATA" },
+    { "path": "$APPDATA/*" }
+  ]
+},
     {
       "identifier": "http:default",
       "allow": [{ "url": "https://*.tauri.app" },{ "url": "https://*:*"}, { "url": "https://dealioerp.vercel.app"}, { "url": "http://localhost:3000" }]

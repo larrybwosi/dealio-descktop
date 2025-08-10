@@ -4,16 +4,48 @@ import {
   Clock,
   AlertTriangle,
   Trash2,
-  Upload,
-  WifiOff,
   ArrowLeft,
   CheckCircle2,
   XCircle,
   AlertCircle,
   Package,
   Wifi,
+  WifiOff,
 } from 'lucide-react';
-import { getPendingSales, removePendingSale, useRetryPendingSales } from '@/lib/services/sales';
+
+// Mock data and services for demo
+const mockPendingSales = [
+  {
+    id: 'ORD-2024-001',
+    data: {},
+    organizationId: 'org_123',
+    timestamp: Date.now() - 1800000, // 30 minutes ago
+    retryCount: 0,
+  },
+  {
+    id: 'ORD-2024-002',
+    data: {},
+    organizationId: 'org_456',
+    timestamp: Date.now() - 7200000, // 2 hours ago
+    retryCount: 2,
+  },
+  {
+    id: 'ORD-2024-003',
+    data: {},
+    organizationId: 'org_789',
+    timestamp: Date.now() - 14400000, // 4 hours ago
+    retryCount: 3,
+  },
+];
+
+const getPendingSales = () => mockPendingSales;
+const removePendingSale = id => console.log('Removing sale:', id);
+const useRetryPendingSales = () => ({
+  retryAllPendingSales: async () => {
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    console.log('Retrying all pending sales');
+  },
+});
 
 interface PendingSale {
   id: string;
@@ -24,7 +56,13 @@ interface PendingSale {
 }
 
 const formatTimestamp = (timestamp: number) => {
-  return new Date(timestamp).toLocaleString();
+  return new Date(timestamp).toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 const formatTimeAgo = (timestamp: number) => {
@@ -34,9 +72,9 @@ const formatTimeAgo = (timestamp: number) => {
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
 
-  if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
-  if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-  if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+  if (days > 0) return `${days}d ago`;
+  if (hours > 0) return `${hours}h ago`;
+  if (minutes > 0) return `${minutes}m ago`;
   return 'Just now';
 };
 
@@ -48,7 +86,6 @@ export default function PendingOrdersPage() {
 
   const { retryAllPendingSales } = useRetryPendingSales();
 
-  // Refresh pending sales data
   const refreshData = () => {
     setPendingSales(getPendingSales());
   };
@@ -56,15 +93,13 @@ export default function PendingOrdersPage() {
   useEffect(() => {
     refreshData();
 
-    // Listen for online/offline status
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Refresh data periodically
-    const interval = setInterval(refreshData, 5000);
+    const interval = setInterval(refreshData, 30000);
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -77,7 +112,7 @@ export default function PendingOrdersPage() {
     setIsRetrying(true);
     try {
       await retryAllPendingSales();
-      setTimeout(refreshData, 1000); // Refresh after retry
+      setTimeout(refreshData, 1000);
     } finally {
       setIsRetrying(false);
     }
@@ -112,272 +147,224 @@ export default function PendingOrdersPage() {
     refreshData();
   };
 
-  const getStatusConfig = (retryCount: number) => {
+  const getStatusBadge = (retryCount: number) => {
     if (retryCount === 0) {
-      return {
-        color: 'bg-blue-50 text-blue-700 border-blue-200',
-        icon: Clock,
-        text: 'Pending',
-      };
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+          <Clock className="w-3 h-3" />
+          Pending
+        </span>
+      );
     }
     if (retryCount < 3) {
-      return {
-        color: 'bg-amber-50 text-amber-700 border-amber-200',
-        icon: AlertCircle,
-        text: `Retried ${retryCount}x`,
-      };
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+          <AlertCircle className="w-3 h-3" />
+          Retrying ({retryCount}/3)
+        </span>
+      );
     }
-    return {
-      color: 'bg-red-50 text-red-700 border-red-200',
-      icon: XCircle,
-      text: 'Failed',
-    };
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+        <XCircle className="w-3 h-3" />
+        Failed
+      </span>
+    );
   };
 
   const handleGoBack = () => {
-    // You can replace this with your navigation logic
     window.history.back();
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50">
-      {/* Enhanced Header */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200/60 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            {/* Left section with back button and title */}
-            <div className="flex items-center space-x-6">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Left section */}
+            <div className="flex items-center gap-4">
               <button
                 onClick={handleGoBack}
-                className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all duration-200 hover:scale-105"
-                title="Go back"
+                className="inline-flex items-center justify-center w-8 h-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
 
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-rose-500 rounded-2xl flex items-center justify-center shadow-lg">
-                    <Package className="w-6 h-6 text-white" />
-                  </div>
-                  {pendingSales.length > 0 && (
-                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-bold text-white">{pendingSales.length}</span>
-                    </div>
-                  )}
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <Package className="w-4 h-4 text-white" />
                 </div>
-
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                    Pending Orders
-                  </h1>
-                  <p className="text-slate-600 mt-1 font-medium">
-                    {pendingSales.length === 0
-                      ? 'All orders synchronized'
-                      : `${pendingSales.length} order${pendingSales.length !== 1 ? 's' : ''} waiting to sync`}
+                  <h1 className="text-xl font-semibold text-gray-900">Pending Orders</h1>
+                  <p className="text-sm text-gray-500">
+                    {pendingSales.length} {pendingSales.length === 1 ? 'order' : 'orders'} awaiting sync
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Right section with status and actions */}
-            <div className="flex items-center space-x-4">
-              {/* Enhanced Online/Offline Status */}
+            {/* Right section */}
+            <div className="flex items-center gap-3">
+              {/* Connection status */}
               <div
-                className={`flex items-center space-x-3 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium ${
                   isOnline
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm'
-                    : 'bg-red-50 text-red-700 border border-red-200 shadow-sm'
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : 'bg-red-50 text-red-700 border border-red-200'
                 }`}
               >
                 {isOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
-                <span className="text-sm">{isOnline ? 'Connected' : 'Offline'}</span>
-                <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-red-400'} animate-pulse`} />
+                {isOnline ? 'Online' : 'Offline'}
               </div>
 
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={refreshData}
-                  className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all duration-200 hover:scale-105"
-                  title="Refresh data"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
+              <button
+                onClick={refreshData}
+                className="inline-flex items-center justify-center w-8 h-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
 
-                <button
-                  onClick={handleRetryAll}
-                  disabled={isRetrying || pendingSales.length === 0 || !isOnline}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-300 disabled:to-slate-400 text-white px-6 py-2.5 rounded-xl font-medium transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl disabled:shadow-none hover:scale-105 disabled:scale-100"
-                >
-                  <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
-                  <span>{isRetrying ? 'Syncing...' : 'Sync All'}</span>
-                </button>
-              </div>
+              <button
+                onClick={handleRetryAll}
+                disabled={isRetrying || pendingSales.length === 0 || !isOnline}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
+                {isRetrying ? 'Syncing...' : 'Sync All'}
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Enhanced Bulk Actions */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Bulk actions bar */}
         {selectedSales.size > 0 && (
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/60 p-5 mb-8 animate-in slide-in-from-top duration-300">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                </div>
-                <span className="font-semibold text-slate-800">
-                  {selectedSales.size} order{selectedSales.size !== 1 ? 's' : ''} selected
-                </span>
-              </div>
+              <span className="text-sm font-medium text-blue-700">
+                {selectedSales.size} {selectedSales.size === 1 ? 'order' : 'orders'} selected
+              </span>
               <button
                 onClick={handleDeleteSelected}
-                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-5 py-2.5 rounded-xl font-medium transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl hover:scale-105"
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
-                <span>Delete Selected</span>
+                Delete Selected
               </button>
             </div>
           </div>
         )}
 
-        {/* Enhanced Orders List */}
+        {/* Main content */}
         {pendingSales.length === 0 ? (
-          <div className="bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl border border-slate-200/60 p-16 text-center">
-            <div className="relative mx-auto mb-8 w-24 h-24">
-              <div className="w-24 h-24 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-3xl flex items-center justify-center shadow-2xl">
-                <CheckCircle2 className="w-12 h-12 text-white" />
-              </div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-sm">✨</span>
-              </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-8 h-8 text-green-600" />
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3">Perfect! All caught up</h3>
-            <p className="text-slate-600 text-lg max-w-md mx-auto leading-relaxed">
-              No pending orders to sync at the moment. All your sales data is up to date.
+            <h3 className="text-lg font-medium text-gray-900 mb-2">All orders synchronized</h3>
+            <p className="text-gray-500 max-w-sm mx-auto">
+              No pending orders to sync. All your sales data is up to date.
             </p>
           </div>
         ) : (
-          <div className="bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl border border-slate-200/60 overflow-hidden">
-            {/* Enhanced Table Header */}
-            <div className="bg-gradient-to-r from-slate-50 to-slate-100/50 border-b border-slate-200/60 px-8 py-5">
-              <div className="flex items-center space-x-6">
-                <input
-                  type="checkbox"
-                  checked={selectedSales.size === pendingSales.length && pendingSales.length > 0}
-                  onChange={handleSelectAll}
-                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
-                />
-                <div className="grid grid-cols-12 gap-6 w-full text-sm font-semibold text-slate-700 uppercase tracking-wide">
-                  <div className="col-span-3">Order Details</div>
-                  <div className="col-span-2">Status</div>
-                  <div className="col-span-3">Created</div>
-                  <div className="col-span-2">Last Attempt</div>
-                  <div className="col-span-1">Retries</div>
-                  <div className="col-span-1">Actions</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Enhanced Table Body */}
-            <div className="divide-y divide-slate-200/60">
-              {pendingSales.map((sale, index) => {
-                const statusConfig = getStatusConfig(sale.retryCount);
-                const StatusIcon = statusConfig.icon;
-
-                return (
-                  <div
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            {/* Table */}
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="w-12 px-6 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedSales.size === pendingSales.length && pendingSales.length > 0}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Order ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Organization
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Created
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Retries
+                  </th>
+                  <th className="relative px-6 py-3">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {pendingSales.map(sale => (
+                  <tr
                     key={sale.id}
-                    className={`px-8 py-6 hover:bg-slate-50/50 transition-all duration-200 ${
-                      selectedSales.has(sale.id) ? 'bg-blue-50/50 border-l-4 border-blue-500' : ''
-                    }`}
+                    className={`hover:bg-gray-50 transition-colors ${selectedSales.has(sale.id) ? 'bg-blue-50' : ''}`}
                   >
-                    <div className="flex items-center space-x-6">
+                    <td className="px-6 py-4">
                       <input
                         type="checkbox"
                         checked={selectedSales.has(sale.id)}
                         onChange={() => handleSelectSale(sale.id)}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                       />
-
-                      <div className="grid grid-cols-12 gap-6 w-full items-center">
-                        {/* Order Details */}
-                        <div className="col-span-3">
-                          <div className="font-mono text-sm font-semibold text-slate-900 bg-slate-100 px-3 py-1 rounded-lg inline-block">
-                            {sale.id}
-                          </div>
-                          <div className="text-xs text-slate-500 mt-1">Organization: {sale.organizationId}</div>
-                        </div>
-
-                        {/* Enhanced Status */}
-                        <div className="col-span-2">
-                          <div
-                            className={`inline-flex items-center space-x-2 px-3 py-2 rounded-xl text-sm font-medium border ${statusConfig.color}`}
-                          >
-                            <StatusIcon className="w-4 h-4" />
-                            <span>{statusConfig.text}</span>
-                          </div>
-                        </div>
-
-                        {/* Created */}
-                        <div className="col-span-3">
-                          <div className="text-sm font-medium text-slate-900">{formatTimestamp(sale.timestamp)}</div>
-                          <div className="text-xs text-slate-500 font-medium">{formatTimeAgo(sale.timestamp)}</div>
-                        </div>
-
-                        {/* Last Retry */}
-                        <div className="col-span-2">
-                          <div className="text-sm font-medium text-slate-700">
-                            {sale.retryCount > 0 ? formatTimeAgo(sale.timestamp) : 'Never attempted'}
-                          </div>
-                        </div>
-
-                        {/* Attempts */}
-                        <div className="col-span-1">
-                          <div className="flex items-center space-x-1">
-                            <div className="flex items-center space-x-1 bg-slate-100 px-2 py-1 rounded-lg">
-                              <span className="text-sm font-bold text-slate-900">{sale.retryCount}</span>
-                              <span className="text-xs text-slate-500 font-medium">/3</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="col-span-1">
-                          <button
-                            onClick={() => handleDeleteSale(sale.id)}
-                            className="p-2.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110"
-                            title="Delete order"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{sale.id}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{sale.organizationId}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(sale.retryCount)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{formatTimestamp(sale.timestamp)}</div>
+                      <div className="text-sm text-gray-500">{formatTimeAgo(sale.timestamp)}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
+                        {sale.retryCount}/3
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleDeleteSale(sale.id)}
+                        className="text-red-600 hover:text-red-900 transition-colors p-1"
+                        title="Delete order"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
-        {/* Enhanced Footer Info */}
-        <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/60 rounded-2xl p-6 shadow-lg">
-          <div className="flex items-start space-x-4">
-            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="w-5 h-5 text-blue-600" />
-            </div>
-            <div className="text-sm text-blue-800">
-              <h4 className="font-bold text-base mb-2">How Pending Orders Work</h4>
-              <p className="leading-relaxed">
-                Orders that fail to sync are automatically stored locally and will be retried when you're back online.
-                The system attempts up to 3 retries with exponential backoff. Orders that fail all attempts require
-                manual attention.
-              </p>
+        {/* Info panel */}
+        {pendingSales.length > 0 && (
+          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="ml-3">
+                <h4 className="text-sm font-medium text-blue-800">About pending orders</h4>
+                <p className="mt-1 text-sm text-blue-700">
+                  Orders that fail to sync are stored locally and automatically retried when connectivity is restored.
+                  The system attempts up to 3 retries with increasing intervals between attempts.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
