@@ -1,4 +1,5 @@
 import Ably, { Message } from 'ably';
+import api from './axios';
 
 // Note: You need to install the Ably JS SDK: `npm install ably`
 
@@ -73,21 +74,15 @@ export async function initiateMpesaPayment({
   orderId,
 }: InitiateMpesaPaymentParams): Promise<MpesaResponse> {
   try {
-    const response = await fetch('/api/mpesa/initiate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    const response = await api.post('/api/mpesa/initiate', {
         phoneNumber,
         amount,
         saleNumber: orderId,
-      }),
     });
 
-    const data = await response.json();
+    const data = await response.data;
  
-    if (!response.ok) {
+    if (!response.data) {
       throw new Error(data.message || 'Failed to initiate payment');
     }
 

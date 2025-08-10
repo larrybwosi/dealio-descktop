@@ -12,6 +12,8 @@ const api = axios.create({
   },
   adapter: axiosTauriApiAdapter,
 });
+
+
 export const axiosClientInstance = axios.create({
   baseURL: `${API_ENDPOINT}/api/organizations`,
   headers: {

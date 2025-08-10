@@ -78,7 +78,7 @@ export function SessionProvider({
       return;
     }
 
-    console.log('Auth state:', { authSession, authError, isPending: authLoading });
+    // console.log('Auth state:', { authSession, authError, isPending: authLoading });
 
     if (authSession?.user) {
       // console.log('User found in session:', authSession.user);

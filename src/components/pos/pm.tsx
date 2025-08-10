@@ -4,7 +4,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { z } from 'zod/v3';
 import { QRCodeSVG } from 'qrcode.react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   CreditCard,
   Smartphone,
@@ -136,7 +142,7 @@ export const PaymentModal = ({
     const taxAmount = total - taxableAmount;
     return { totalPayable: total, priceBeforeTax: taxableAmount, calculatedTax: taxAmount };
   }, [subtotal, discount, taxRate]);
-
+  
   const change = useMemo(() => {
     const received = parseFloat(cashReceived) || 0;
     return received > totalPayable ? received - totalPayable : 0;

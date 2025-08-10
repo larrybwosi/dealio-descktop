@@ -3,6 +3,8 @@ import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { apiKeyClient, customSessionClient, organizationClient, usernameClient } from 'better-auth/client/plugins';
 import { API_ENDPOINT } from './axios';
 import { fetch } from '@tauri-apps/plugin-http';
+import axios, { AxiosError } from 'axios';
+import axiosTauriApiAdapter from 'axios-tauri-api-adapter';
 
 export const authClient = createAuthClient({
   baseURL: API_ENDPOINT,
@@ -137,7 +139,7 @@ const getSession = async (): Promise<SessionData> => {
   };
 };
 
-const SESSION_STORAGE_KEY = 'session_data';
+const SESSION_STORAGE_KEY = 'session_data_u';
 const TWENTY_FOUR_HOURS_IN_MS = 1000 * 60 * 60 * 24;
 
 export function useSession(options?: UseSessionOptions): UseSessionReturn {
@@ -210,22 +212,38 @@ export function useSession(options?: UseSessionOptions): UseSessionReturn {
     error: queryResult.error,
   };
 }
+
 /**
- * Signs out the user by calling the sign-out API endpoint.
+ * Signs out the user by calling the sign-out API endpoint and clears session data from localStorage.
  */
 export const signOut = async (): Promise<void> => {
-  const response = await fetch(`${API_ENDPOINT}/api/auth/sign-out`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    let errorInfo: unknown;
-    try {
-      errorInfo = await response.json();
-    } catch {
-      errorInfo = { message: 'Failed to parse error response.' };
+  try {
+    const token = localStorage.getItem('bearer_token');
+    await axios.post(
+      `${API_ENDPOINT}/api/auth/sign-out`,
+      {},
+      {
+        withCredentials: true,
+        adapter: axiosTauriApiAdapter,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    
+    // Clear session data from localStorage after successful sign-out
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+    localStorage.removeItem('bearer_token');
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      const errorInfo = error.response?.data || { message: 'Failed to parse error response.' };
+      throw new BetterFetchError(
+        `Failed to sign out. Status: ${error.response?.status || 'unknown'}`,
+        error.response?.status || 0,
+        errorInfo
+      );
     }
-    throw new BetterFetchError(`Failed to sign out. Status: ${response.status}`, response.status, errorInfo);
+    // Re-throw non-axios errors
+    throw error;
   }
 };
