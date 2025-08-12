@@ -24,6 +24,24 @@ export function ProductCard({
   //eslint-disable-next-line
   const selectedVariantDetails = product.variants?.find((v: any) => v.name === selectedVariant);
 
+  const handleAddToCart = () => {
+    // If quantity is 0, increment it first
+    if (currentQuantity === 0) {
+      onQuantityChange(1);
+      // Call onAddToCart after a small delay to ensure quantity is updated
+      setTimeout(onAddToCart, 1);
+    } else {
+      onAddToCart();
+    }
+  };
+
+  const handleQuickAdd = () => {
+    // For quick add, we want to ensure the quantity change happens first
+    onQuantityChange(1);
+    // Call onAddToCart after a small delay to ensure quantity is updated
+    setTimeout(onAddToCart, 1);
+  };
+
   return (
     <div key={productId} className="border rounded-md overflow-hidden">
       <div className="h-48 w-full overflow-hidden bg-gray-100">
@@ -84,7 +102,7 @@ export function ProductCard({
 
         {product.variants?.length === 1 && (
           <div className="mt-2">
-            <Button variant="outline" size="sm" className="text-xs h-7 px-2 rounded-sm" onClick={onAddToCart}>
+            <Button variant="outline" size="sm" className="text-xs h-7 px-2 rounded-sm" onClick={handleQuickAdd}>
               Add {product.variants[0].name} ({product.variants[0].price})
             </Button>
           </div>
@@ -92,7 +110,13 @@ export function ProductCard({
 
         <div className="mt-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onQuantityChange(-1)}>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onQuantityChange(-1)}
+              disabled={currentQuantity === 0}
+            >
               <MinusIcon className="h-3 w-3" />
             </Button>
             <span className="text-sm w-6 text-center">{currentQuantity}</span>
@@ -100,10 +124,18 @@ export function ProductCard({
               <PlusIcon className="h-3 w-3" />
             </Button>
           </div>
-          <Button onClick={onAddToCart} className="h-8 text-xs" disabled={currentQuantity === 0}>
-            <ShoppingCart className="mr-1 h-3 w-3" />
-            Add to cart
-          </Button>
+
+          {currentQuantity === 0 ? (
+            <Button onClick={handleQuickAdd} className="h-8 text-xs">
+              <ShoppingCart className="mr-1 h-3 w-3" />
+              Add to cart
+            </Button>
+          ) : (
+            <Button onClick={handleAddToCart} className="h-8 text-xs">
+              <ShoppingCart className="mr-1 h-3 w-3" />
+              Add to cart
+            </Button>
+          )}
         </div>
       </div>
     </div>

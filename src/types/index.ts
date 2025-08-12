@@ -1,8 +1,8 @@
 // Define types for our POS system
-import { PaymentMethod } from '@/prisma/client';
 import { ReactNode } from 'react';
 
 export type OrderStatus = 'ready-to-serve' | 'on-cooking' | 'cancelled' | 'completed' | 'pending-payment';
+export type PaymentMethod = "CASH" | "CREDIT_CARD" | "DEBIT_CARD" | "MOBILE_PAYMENT" | "BANK_TRANSFER" | "CHEQUE" | "STORE_CREDIT" | "GIFT_CARD" | "LOYALTY_POINTS" | "ON_ACCOUNT" | "OTHER"
 
 
 export type CurrencyType = 'IDR' | 'USD' | 'EUR' | 'GBP' | 'JPY' | 'BTC';
@@ -83,6 +83,7 @@ export interface Order {
   notes?: string;
   amountPaid?: number;
   change?: number;
+  saleNumber?: string
 }
 
 export interface InvoiceData {

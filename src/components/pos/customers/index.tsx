@@ -275,11 +275,15 @@ export function CustomerManagement({
               <Input
                 placeholder="Search customer by name, email or phone"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={e => setSearchQuery(e.target.value)}
                 className="pl-8"
                 disabled={isLoading}
               />
             </div>
+            <Button variant="outline" onClick={handleRetry} disabled={isLoading}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
             <Button onClick={handleAddCustomer} disabled={isLoading}>
               <PlusCircle className="mr-2 h-4 w-4" />
               New Customer
@@ -289,32 +293,19 @@ export function CustomerManagement({
           {error && !isLoading && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Failed to load customers. Please try again.
-              </AlertDescription>
+              <AlertDescription>Failed to load customers. Please try again.</AlertDescription>
             </Alert>
           )}
 
-          <div className="overflow-y-auto flex-1 min-h-[400px]">
-            {renderContent()}
-          </div>
+          <div className="overflow-y-auto flex-1 min-h-[400px]">{renderContent()}</div>
         </DialogContent>
       </Dialog>
 
-      <CreateCustomerModal
-        isOpen={isAddingCustomer}
-        onClose={() => setIsAddingCustomer(false)}
-      />
+      <CreateCustomerModal isOpen={isAddingCustomer} onClose={() => setIsAddingCustomer(false)} />
 
-      <UpdateCustomerModal
-        customer={selectedCustomer}
-        onClose={() => setSelectedCustomer(null)}
-      />
+      <UpdateCustomerModal customer={selectedCustomer} onClose={() => setSelectedCustomer(null)} />
 
-      <DeleteCustomerModal
-        customer={customerToDelete}
-        onClose={() => setCustomerToDelete(null)}
-      />
+      <DeleteCustomerModal customer={customerToDelete} onClose={() => setCustomerToDelete(null)} />
     </>
   );
 }

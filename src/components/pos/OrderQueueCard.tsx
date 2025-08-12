@@ -7,7 +7,7 @@ import { BusinessConfig } from '@/types/business-config';
 interface OrderQueueCardProps {
   queue: OrderQueue;
   config: BusinessConfig;
-  onViewOrder: (order: OrderQueue) => void;
+  onViewOrder: (queue: OrderQueue) => void;
   getStatusBadgeClass: (status: string) => string;
   getStatusLabel: (status: string) => string;
 }

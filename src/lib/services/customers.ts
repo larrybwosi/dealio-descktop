@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiResponse, useOrgStore } from "../tanstack-axios";
 import { Customer } from "@/types";
+import { toast } from "sonner";
 
 const CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
 
@@ -107,7 +108,9 @@ export const useListCustomers = () => {
   // Enhanced refetch that also clears cache
   const refetchWithCacheClear = async () => {
     invalidateCache();
-    return await refetch();
+    const res = await refetch();
+    toast.success('Customers updated')
+    return res
   };
 
   return {
@@ -130,11 +133,17 @@ export const useListCustomers = () => {
 export const useCreateCustomer = () => {
   const queryClient = useQueryClient();
   const organizationId = useOrgStore(state => state.organizationId);
+  const { invalidateCache } = useListCustomers(); // Get the cache invalidation function
 
   return useMutation<ApiResponse<Customer>, Error, Partial<Customer>>({
     mutationFn: data => apiClient.customers.create(organizationId!, data),
-    onSuccess: () => {
+    onSuccess: response => {
       queryClient.invalidateQueries({ queryKey: ['customers', organizationId] });
+      invalidateCache();
+      toast.success(`Customer "${response.data.name}" created successfully`);
+    },
+    onError: error => {
+      toast.error(`Failed to create customer: ${error.message}`);
     },
   });
 };

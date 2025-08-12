@@ -1,52 +1,57 @@
-import { useState, useCallback, useMemo } from "react";
-import { Sidebar } from "@/components/pos/Sidebar";
-import OrderQueues from "@/components/pos/OrderQueues";
-import { ProductList } from "@/components/pos/ProductList";
-import { CartDetails } from "@/components/pos/CartDetails";
-import { CustomerManagement } from "@/components/pos/customers";
-import { PaymentModal } from "@/components/pos/PaymentModal";
-import { InvoiceModal } from "@/components/pos/InvoiceModal";
-import { CartItem, Customer, Order, OrderType, OrderQueue } from "@/types";
-import { useOrgStore } from "@/lib/tanstack-axios";
-import { useBusinessConfig } from "@/lib/business-config-manager";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { withAuth } from "@/providers/session";
+import { useState, useCallback, useMemo } from 'react';
+import { Sidebar } from '@/components/pos/Sidebar';
+import OrderQueues from '@/components/pos/OrderQueues';
+import { ProductList } from '@/components/pos/ProductList';
+import { CartDetails } from '@/components/pos/CartDetails';
+import { CustomerManagement } from '@/components/pos/customers';
+import PaymentModal from '@/components/pos/PaymentModal';
+import { InvoiceModal } from '@/components/pos/InvoiceModal';
+import { CartItem, Customer, Order, OrderType, OrderQueue } from '@/types';
+import { useOrgStore } from '@/lib/tanstack-axios';
+import { useBusinessConfig } from '@/lib/business-config-manager';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { withAuth } from '@/providers/session';
 
 function PosSystem() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null
-  );
-  const [selectedOrderType, setSelectedOrderType] =
-    useState<OrderType>("Dine in");
-  const [tableNumber, setTableNumber] = useState<string>("Table 3B");
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedOrderType, setSelectedOrderType] = useState<OrderType>('Dine in');
+  const [tableNumber, setTableNumber] = useState<string>('Table 3B');
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
-  const { taxRate } = useOrgStore()
+  const { taxRate } = useOrgStore();
   const businessConfig = useBusinessConfig();
-  
-  // Memoized cart calculations
+
+  // Changed from percentage to fixed value discount
+  const [discountValue, setDiscountValue] = useState<number>(0);
+
   const { subtotal, discount, tax, total } = useMemo(() => {
-    const subtotal = cartItems.reduce(
-      (total, item) => total + item.price * item.quantity,
-      0
-    );
-    const discount = subtotal * 0.1;
-    const tax = subtotal * Number(taxRate);
+    const subtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+    // Now using fixed discount value instead of percentage
+    const discount = Math.min(discountValue, subtotal); // Ensure discount doesn't exceed subtotal
+    const tax = (subtotal - discount) * Number(taxRate);
     const total = subtotal - discount + tax;
     return { subtotal, discount, tax, total };
-  }, [cartItems, taxRate]);
+  }, [cartItems, taxRate, discountValue]);
+
+
+  const handleDiscountChange = useCallback(
+    (value: number) => {
+      // Ensure discount is not negative and doesn't exceed subtotal
+      const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      console.log(subtotal, value);
+      setDiscountValue(Math.max(0, Math.min(value, subtotal)));
+    },
+    [cartItems]
+  );
 
   // Stable callback for adding to cart
   const handleAddToCart = useCallback((item: CartItem) => {
-    setCartItems((currentItems) => {
+    setCartItems(currentItems => {
       const existingItemIndex = currentItems.findIndex(
-        (cartItem) =>
-          cartItem.id === item.id &&
-          cartItem.variant === item.variant &&
-          cartItem.addition === item.addition
+        cartItem => cartItem.id === item.id && cartItem.variant === item.variant && cartItem.addition === item.addition
       );
 
       if (existingItemIndex >= 0) {
@@ -59,34 +64,26 @@ function PosSystem() {
   }, []);
 
   // Stable callback for updating quantity
-  const handleUpdateQuantity = useCallback(
-    (id: string, newQuantity: number) => {
-      if (newQuantity <= 0) {
-        setCartItems((currentItems) =>
-          currentItems?.filter((item) => item.id !== id)
-        );
-        return;
-      }
+  const handleUpdateQuantity = useCallback((id: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      setCartItems(currentItems => currentItems?.filter(item => item.id !== id));
+      return;
+    }
 
-      setCartItems((currentItems) =>
-        currentItems.map((item) =>
-          item.id === id ? { ...item, quantity: newQuantity } : item
-        )
-      );
-    },
-    []
-  );
+    setCartItems(currentItems =>
+      currentItems.map(item => (item.id === id ? { ...item, quantity: newQuantity } : item))
+    );
+  }, []);
 
   // Stable callback for removing item
   const handleRemoveItem = useCallback((id: string) => {
-    setCartItems((currentItems) =>
-      currentItems?.filter((item) => item.id !== id)
-    );
+    setCartItems(currentItems => currentItems?.filter(item => item.id !== id));
   }, []);
 
   // Stable callback for clearing cart
   const handleClearCart = useCallback(() => {
     setCartItems([]);
+    setDiscountValue(0); // Reset discount when clearing cart
   }, []);
 
   // Stable callback for opening customer modal
@@ -110,15 +107,16 @@ function PosSystem() {
     setCurrentOrder(order);
     setIsInvoiceModalOpen(true);
 
-    if (order.status === "completed") {
+    if (order.status === 'completed') {
       setCartItems([]);
-      setSelectedCustomer((prevCustomer) => {
+      setDiscountValue(0); // Reset discount after successful payment
+      setSelectedCustomer(prevCustomer => {
         if (!prevCustomer || !prevCustomer.orderHistory) return prevCustomer;
 
         return {
           ...prevCustomer,
           orderHistory: [...prevCustomer.orderHistory, order.orderNumber],
-          lastVisit: new Date().toISOString().split("T")[0],
+          lastVisit: new Date().toISOString().split('T')[0],
         };
       });
     }
@@ -138,7 +136,9 @@ function PosSystem() {
       setSelectedOrderType,
       tableNumber,
       setTableNumber,
-      businessType:businessConfig.businessType,
+      businessType: businessConfig.businessType,
+      discountValue,
+      onDiscountChange: handleDiscountChange,
     }),
     [
       cartItems,
@@ -151,6 +151,8 @@ function PosSystem() {
       selectedOrderType,
       tableNumber,
       businessConfig.businessType,
+      discountValue,
+      handleDiscountChange,
     ]
   );
 
@@ -184,7 +186,7 @@ function PosSystem() {
       handlePaymentComplete,
     ]
   );
-  
+
   return (
     <div className="flex flex-1 h-screen bg-gray-50">
       <Sidebar />
@@ -198,9 +200,7 @@ function PosSystem() {
               </div>
               <OrderQueues config={businessConfig.config} />
               <ScrollArea className="h-[calc(100vh-200px)]">
-                <ProductList
-                  onAddToCart={handleAddToCart}
-                />
+                <ProductList onAddToCart={handleAddToCart} />
               </ScrollArea>
             </div>
           </div>
@@ -228,5 +228,3 @@ function PosSystem() {
 
 const IndexPage = withAuth(PosSystem);
 export default IndexPage;
-
-// export default PosSystem;

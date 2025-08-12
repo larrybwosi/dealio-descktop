@@ -37,6 +37,7 @@ import { Label } from '../ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Input } from '../ui/input';
+import { API_ENDPOINT } from '@/lib/axios';
 
 // Memoized customer badge component
 const CustomerBadge = memo(({ customer }: { customer: Customer | null }) => {
@@ -91,7 +92,7 @@ interface PaymentModalProps {
   onPaymentComplete: (order: Order) => void;
 }
 
-export const PaymentModal = ({
+const PaymentModal = ({
   isOpen,
   onClose,
   cartItems,
@@ -141,10 +142,9 @@ export const PaymentModal = ({
     const received = parseFloat(cashReceived) || 0;
     return received > totalPayable ? received - totalPayable : 0;
   }, [cashReceived, totalPayable]);
-  console.log(`Change: ${change}`);
 
   const paymentUrl = useMemo(
-    () => `${window.location.origin}/payment/${orderId}?amount=${totalPayable}&customer=${customer?.id || 'guest'}`,
+    () => `${API_ENDPOINT}/payment/${orderId}?amount=${totalPayable}&customer=${customer?.id || 'guest'}`,
     [orderId, totalPayable, customer]
   );
 
@@ -248,6 +248,7 @@ export const PaymentModal = ({
       notes,
       status: 'completed',
       paymentMethod,
+      saleNumber,
       amountPaid: paymentMethod === 'CASH' ? parseFloat(cashReceived) || 0 : totalPayable,
       change: paymentMethod === 'CASH' ? change : 0,
       ...(paymentMethod === 'MOBILE_PAYMENT' && {
@@ -547,7 +548,7 @@ export const PaymentModal = ({
                                     </Alert>
                                   )}
                                   {mobilePayment.status === 'confirmed' && (
-                                    <Alert variant="success">
+                                    <Alert variant="default">
                                       <Check className="h-4 w-4" />
                                       <AlertDescription>
                                         Payment confirmed! You can now complete the sale.
@@ -677,3 +678,5 @@ export const PaymentModal = ({
     </Dialog>
   );
 };
+
+export default memo(PaymentModal)

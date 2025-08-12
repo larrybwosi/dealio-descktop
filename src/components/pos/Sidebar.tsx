@@ -62,7 +62,7 @@ const sidebarItems = [
   { id: 'orderLists', label: 'Order lists', icon: FileText, path: '/order-lists' },
   { id: 'printers', label: 'Printers', icon: PrinterCheck, path: '/printers' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
-  { id: 'settings', label: 'Receipt', icon: FileText, path: '/receipt' },
+  { id: 'receipt', label: 'Receipt', icon: FileText, path: '/receipt' },
   { id: 'helpCenter', label: 'Help center', icon: HelpCircle },
 ];
 

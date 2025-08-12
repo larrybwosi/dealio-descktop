@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Search, RefreshCw, X, Filter, SortAsc, Grid3x3, List, Package } from 'lucide-react';
+import { Search, RefreshCw, X, Package } from 'lucide-react';
 import { CartItem, Product } from '@/types';
 import { cn } from '@/lib/utils';
 import { useProductState } from '@/store';
@@ -85,9 +85,6 @@ export function ProductList({ onAddToCart }: ProductListProps) {
         onAddToCart(cartItem);
         setQuantities(prev => ({ ...prev, [productKey]: 0 }));
 
-        toast.success(`${product.name} added to cart`, {
-          description: selectedVariant ? `Variant: ${selectedVariant}` : undefined,
-        });
       } catch (error) {
         console.error('Error adding to cart:', error);
         toast.error('Failed to add item to cart');

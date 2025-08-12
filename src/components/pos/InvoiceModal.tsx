@@ -15,6 +15,7 @@ import { InvoicePDF } from '@/components/pos/InvoicePDF';
 import { useOrgStore } from '@/lib/tanstack-axios';
 import { ThermalReceiptPDF, OrganizationData } from './ThermalReceiptPDF';
 import { usePrinterStore } from '@/store/printer-store';
+import { API_ENDPOINT } from '@/lib/axios';
 
 export interface PaymentData {
   paymentMethod: 'cash' | 'mobile' | 'card';
@@ -35,7 +36,7 @@ interface InvoiceModalProps {
 export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   const pdfRef = useRef<HTMLDivElement>(null);
   // --- ✨ Assuming useOrgStore provides all necessary fields ---
-  const { orgName, address } = useOrgStore();
+  const { orgName, address, organizationId: orgId } = useOrgStore();
   const { printers, defaultPrinter } = usePrinterStore();
 
   const orgInfo = {
@@ -50,6 +51,7 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   const [qrCodeImage, setQrCodeImage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
+  console.log('Order in InvoiceModal:',` ${API_ENDPOINT}/organizations/${orgId}/sales/${order.id}/receipt`);
 
   useEffect(() => {
     const generateQrCode = async () => {
@@ -57,8 +59,8 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
       setIsLoading(true);
       try {
         const url = isPaid
-          ? `https://dealioerp.vercel.app/receipt/${order.id}`
-          : `https://dealioerp.vercel.app/pay/${order.id}`;
+          ? `${API_ENDPOINT}/api/organizations/${orgId}/receipt/${order.saleNumber}`
+          : `${API_ENDPOINT}/pay/${order.id}`;
 
         const dataUrl = await QRCode.toDataURL(url, {
           width: 128,

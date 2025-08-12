@@ -145,7 +145,6 @@ export const useCreateSale = () => {
     mutationFn: data => apiClient.sales.create(organizationId!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', organizationId] });
-      toast.success('Sale created successfully!');
     },
     //eslint-disable-next-line
     onError: (error: any, variables) => {

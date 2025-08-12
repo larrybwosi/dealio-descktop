@@ -1,5 +1,5 @@
-import { memo, useCallback, useMemo, useState } from 'react';
-import { Eye, ChevronDown, ChevronUp, Minus, Plus, Trash2, CreditCard, User, ShoppingCart } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { Eye, ChevronDown, ChevronUp, Trash2, CreditCard, User, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,8 @@ import { CartItem, OrderType, Customer } from '@/types';
 import { BusinessType, getBusinessConfig, requiresLocationForOrderType } from '@/types/business-config';
 import { useFormattedCurrency } from '@/lib/utils';
 import { useOrgStore } from '@/lib/tanstack-axios';
+import { CartItemComponent } from './cart-item';
+import { CartSummaryComponent } from './cart-summary';
 
 interface CartDetailsProps {
   businessType: BusinessType;
@@ -25,149 +27,9 @@ interface CartDetailsProps {
   setTableNumber: (table: string) => void;
   customFieldValues?: Record<string, string>;
   setCustomFieldValues?: (values: Record<string, string>) => void;
+  onDiscountChange: (value: number) => void;
+  discountValue: number;
 }
-
-// ============================================================================
-// MEMOIZED SUB-COMPONENTS FOR PERFORMANCE
-// ============================================================================
-
-/**
- * Memoized component for rendering a single item in the cart.
- * Prevents re-rendering unless its specific props change.
- */
-const MemoizedCartItem = memo(
-  ({
-    item,
-    businessConfig,
-    formatCurrency,
-    onUpdateQuantity,
-    onRemoveItem,
-  }: {
-    item: CartItem;
-    businessConfig: ReturnType<typeof getBusinessConfig>;
-    formatCurrency: (value: number) => string;
-    onUpdateQuantity: (id: string, quantity: number) => void;
-    onRemoveItem: (id: string) => void;
-  }) => (
-    <div className="flex gap-4 items-center transition-colors hover:bg-gray-50 p-2 rounded-lg">
-      <img
-        src={item.image}
-        alt={item.name}
-        className="h-16 w-16 rounded-md object-cover shrink-0"
-        onError={e => {
-          (e.target as HTMLImageElement).src = 'https://placehold.co/400x300/e2e8f0/64748b?text=Item';
-        }}
-      />
-      <div className="flex-1">
-        <div className="flex justify-between items-start">
-          <h4 className="font-semibold text-sm">{item.name}</h4>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-red-500"
-            onClick={() => onRemoveItem(item.id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">{formatCurrency(item.price)}</p>
-        <div className="flex items-center space-x-2 mt-2">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-            disabled={item.quantity <= 1}
-          >
-            <Minus className="h-3 w-3" />
-          </Button>
-          <span className="w-6 text-center font-medium text-sm">{item.quantity}</span>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-          >
-            <Plus className="h-3 w-3" />
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-);
-MemoizedCartItem.displayName = 'MemoizedCartItem';
-
-/**
- * Memoized component for rendering the cart's financial summary.
- */
-const CartSummary = memo(
-  ({
-    summary,
-    businessConfig,
-    formatCurrency,
-    onProceed,
-    isCartEmpty,
-    discountPercentage,
-    setDiscountPercentage,
-  }: {
-    summary: { subtotal: number; discount: number; tax: number; total: number };
-    businessConfig: ReturnType<typeof getBusinessConfig>;
-    formatCurrency: (value: number) => string;
-    onProceed: () => void;
-    isCartEmpty: boolean;
-    discountPercentage: number;
-    setDiscountPercentage: (value: number) => void;
-  }) => {
-    const [promoCode, setPromoCode] = useState('');
-
-    return (
-      <div className="border-t bg-gray-50/50 p-4 space-y-3">
-        <div className="space-y-1 text-sm">
-          <div className="flex justify-between">
-            <span>Subtotal</span>
-            <span className="font-medium">{formatCurrency(summary.subtotal)}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <span>Discount</span>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                className="w-16 h-7 text-xs"
-                value={discountPercentage}
-                onChange={e => setDiscountPercentage(Number(e.target.value))}
-              />
-              <span>%</span>
-            </div>
-            <span className="font-medium text-green-600">- {formatCurrency(summary.discount)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>{businessConfig.taxLabel || 'Tax'} (incl.)</span>
-            <span className="font-medium">{formatCurrency(summary.tax)}</span>
-          </div>
-        </div>
-        <div className="border-t pt-3 flex justify-between font-bold text-lg">
-          <span>Total</span>
-          <span>{formatCurrency(summary.total)}</span>
-        </div>
-        <div className="pt-2">
-          <div className="relative mb-3">
-            <Input placeholder="Enter promo code" value={promoCode} onChange={e => setPromoCode(e.target.value)} />
-            <Button variant="secondary" className="absolute right-1 top-1 h-8 text-xs" disabled={!promoCode}>
-              Apply
-            </Button>
-          </div>
-          <Button className="w-full bg-teal-600 hover:bg-teal-700" onClick={onProceed} disabled={isCartEmpty}>
-            <CreditCard className="mr-2 h-4 w-4" />
-            {businessConfig.paymentButtonText}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-);
-CartSummary.displayName = 'CartSummary';
 
 export function CartDetails({
   businessType,
@@ -184,30 +46,24 @@ export function CartDetails({
   setTableNumber,
   customFieldValues = {},
   setCustomFieldValues,
+  onDiscountChange,
+  discountValue,
 }: CartDetailsProps) {
   const [isCustomerInfoOpen, setIsCustomerInfoOpen] = useState(true);
-  const [promoCode, setPromoCode] = useState('');
-  const [discountPercentage, setDiscountPercentage] = useState(0);
   const { taxRate, currency } = useOrgStore();
   const formatCurrency = useFormattedCurrency();
 
-  // Memoize business configuration to prevent recalculation on every render
   const businessConfig = useMemo(() => getBusinessConfig(businessType), [businessType]);
 
-  /**
-   * Memoized calculation for the cart summary.
-   * Tax is calculated as INCLUSIVE. The item prices are assumed to already contain the tax.
-   * This calculation only runs when cart items, tax rate, or discount percentage change.
-   */
   const summary = useMemo(() => {
-    const grossTotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
-    const discount = grossTotal * (discountPercentage / 100);
-    const total = grossTotal - discount;
-    const subtotal = total / (1 + Number(taxRate));
-    const tax = total - subtotal;
+    const subtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+    const discount = Math.min(discountValue, subtotal); // Ensure discount doesn't exceed subtotal
+    const taxableAmount = subtotal - discount;
+    const tax = taxableAmount * Number(taxRate);
+    const total = taxableAmount + tax;
 
     return { subtotal, discount, tax, total };
-  }, [cartItems, taxRate, discountPercentage]);
+  }, [cartItems, taxRate, discountValue]);
 
   const showLocationField = useMemo(
     () => requiresLocationForOrderType(businessConfig, selectedOrderType),
@@ -236,8 +92,7 @@ export function CartDetails({
       });
     }
   };
-
-  //eslint-disable-next-line
+//eslint-disable-next-line
   const renderCustomField = (field: any) => {
     const value = customFieldValues[field.id] || '';
 
@@ -412,7 +267,7 @@ export function CartDetails({
             </div>
           ) : (
             cartItems.map(item => (
-              <MemoizedCartItem
+              <CartItemComponent
                 key={item.id}
                 item={item}
                 businessConfig={businessConfig}
@@ -425,16 +280,17 @@ export function CartDetails({
         </div>
       </div>
 
-      <CartSummary
+      <CartSummaryComponent
         summary={summary}
         businessConfig={businessConfig}
         formatCurrency={formatCurrency}
         onProceed={onProceedPayment}
         isCartEmpty={cartItems.length === 0}
-        discountPercentage={discountPercentage}
-        setDiscountPercentage={setDiscountPercentage}
+        discountValue={discountValue}
+        onDiscountValueChange={onDiscountChange}
       />
     </div>
   );
 }
+
 export default CartDetails;

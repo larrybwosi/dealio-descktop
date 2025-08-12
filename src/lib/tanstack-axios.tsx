@@ -207,11 +207,11 @@ class ApiClient {
   // Customers Service
   customers = {
     list: async (organizationId: string): Promise<ApiResponse<Customer[]>> =>
-      this.axiosInstance.get(`/${organizationId}/v2/customers`).then(res => res.data),
+      this.axiosInstance.get(`/${organizationId}/v2/customers`).then(res => res),
     create: async (organizationId: string, data: Partial<Customer>): Promise<ApiResponse<Customer>> =>
       this.axiosInstance
         .post(`/${organizationId}/v2/customers`, data, { headers: { 'Content-Type': 'application/json' } })
-        .then(res => res.data),
+        .then(res => res),
     get: async (organizationId: string, customerId: string): Promise<ApiResponse<Customer>> =>
       this.axiosInstance.get(`/${organizationId}/customers/${customerId}`).then(res => res.data),
     update: async (

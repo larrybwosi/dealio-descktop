@@ -1,4 +1,4 @@
-import { OrderQueue } from "@/types";
+import { Order, OrderQueue } from "@/types";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -13,13 +13,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileCheck, FileEdit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BusinessConfig } from "@/types/business-config";
+import { useOrderStore } from "@/store/orders";
 
 interface OrderDetailsModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedOrder: OrderQueue | null;
+  selectedOrder: Order | null;
   onUpdateStatus: (status: OrderQueue['status']) => void;
-  config: BusinessConfig; 
+  config: BusinessConfig;
 }
 
 
@@ -40,6 +41,9 @@ export default  function OrderDetailsModal({ isOpen, onOpenChange, selectedOrder
         return status;
     }
   };
+  const { pendingOrders } = useOrderStore()
+  const order = pendingOrders.find((o)=>o?.id ===selectedOrder?.id)
+  console.log(order)
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>

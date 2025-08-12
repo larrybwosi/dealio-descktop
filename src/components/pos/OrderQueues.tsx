@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import OrderDetailsModal from './OrderDetailsModal';
 import { BusinessConfig } from '@/types/business-config';
 import { OrderQueueCard } from './OrderQueueCard';
+import { Order, OrderQueue } from '@/types';
 
 interface OrderQueuesProps {
   config: BusinessConfig;
@@ -14,7 +15,7 @@ interface OrderQueuesProps {
 
 export default function OrderQueues({ config }: OrderQueuesProps) {
   const { data: orderQueues, isLoading } = useOrderQueues();
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -38,8 +39,8 @@ export default function OrderQueues({ config }: OrderQueuesProps) {
     setCurrentIndex(Math.min(maxIndex, currentIndex + 5));
   };
 
-  const handleViewOrder = order => {
-    setSelectedOrder(order);
+  const handleViewOrder = queue => {
+    setSelectedOrder(queue);
     setIsViewModalOpen(true);
   };
 
