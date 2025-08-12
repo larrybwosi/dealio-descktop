@@ -16,7 +16,7 @@ interface CartItemProps {
 export const CartItemComponent = memo(
   ({ item, businessConfig, formatCurrency, onUpdateQuantity, onRemoveItem }: CartItemProps) => {
     // Add console.log to debug if needed
-    // console.log('Rendering CartItem:', item.id, item.quantity);
+    console.log('Rendering CartItem:', item.id, item.quantity);
 
     return (
       <div className="flex gap-4 items-center transition-colors hover:bg-gray-50 p-2 rounded-lg">

@@ -1,4 +1,5 @@
 use tauri_plugin_printer_v2::init;
+use tauri_plugin_sentry::{minidump, sentry};
 
 use hidapi::HidApi;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -100,7 +101,23 @@ fn start_scanner_listener(app_handle: AppHandle) {
 
 
 pub fn run() {
+    // Initialize Sentry client
+    let client = sentry::init((
+        "https://09dd798f5d3f6a3dda0562f8882d6eb2@o4508136465956864.ingest.de.sentry.io/4509293615710288",
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            auto_session_tracking: true,
+            ..Default::default()
+        },
+    ));
+
+    // Caution! Everything before here runs in both app and crash reporter processes
+    #[cfg(not(target_os = "ios"))]
+    let _guard = minidump::init(&client);
+    // Everything after here runs in only the app process
+
     let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_sentry::init(&client)) 
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_deep_link::init())

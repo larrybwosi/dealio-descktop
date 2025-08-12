@@ -42,6 +42,7 @@
     "printer:default",
     "http:allow-fetch-read-body",
     "fs:allow-remove",
+    "sentry:default",
     {
       "identifier": "opener:allow-open-path",
       "allow": [

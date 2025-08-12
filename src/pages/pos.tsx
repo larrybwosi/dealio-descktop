@@ -1,13 +1,15 @@
 // Complete implementation example
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CartDetails } from '@/components/pos/CartDetails';
 import { useBusinessConfig, ConfigValidator, businessPresets } from '@/lib/business-config-manager';
+import { useOrgStore } from '@/lib/tanstack-axios';
 import { BusinessType, OrderType } from '@/types/business-config';
 import { CartItem, Customer } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 export function ConfigurablePOSSystem() {
   const businessConfig = useBusinessConfig();
@@ -18,6 +20,19 @@ export function ConfigurablePOSSystem() {
   const [selectedOrderType, setSelectedOrderType] = useState<OrderType>('In-store');
   const [tableNumber, setTableNumber] = useState('');
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  
+  // Calculate summary
+  const { taxRate } = useOrgStore();
+  const summary = useMemo(() => {
+    const subtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+    const discount = Math.min(discountValue, subtotal); // Ensure discount doesn't exceed subtotal
+    const taxableAmount = subtotal - discount;
+    const tax = taxableAmount * Number(taxRate);
+    const total = taxableAmount + tax;
+
+    return { subtotal, discount, tax, total };
+  }, [cartItems, taxRate, discountValue]);
 
   // Update order type when business type changes
   useEffect(() => {
@@ -305,6 +320,8 @@ export function ConfigurablePOSSystem() {
           setTableNumber={setTableNumber}
           customFieldValues={customFieldValues}
           setCustomFieldValues={setCustomFieldValues}
+          discountValue={discountValue}
+          onDiscountChange={setDiscountValue}
         />
       </div>
     </div>

@@ -1,4 +1,3 @@
-// components/cart/cart-summary.tsx
 import { memo, useState } from 'react';
 import { CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,9 +37,9 @@ export const CartSummaryComponent = memo(
       }
 
       // Parse the value and ensure it's within bounds
-      // const numValue = Math.max(0, Math.min(parseFloat(newValue), summary.subtotal));
-      // console.log('Discount value changed:', numValue);
-      onDiscountValueChange(parseFloat(newValue));
+      const numValue = Math.max(0, Math.min(parseFloat(newValue), summary.subtotal));
+      console.log('Parsed discount value:', numValue);
+      onDiscountValueChange(numValue);
     };
 
     const handleDiscountBlur = () => {
@@ -61,6 +60,7 @@ export const CartSummaryComponent = memo(
               <span>Discount</span>
               <div className="relative">
                 <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground">
+                  $
                 </span>
                 <Input
                   type="number"
@@ -68,7 +68,7 @@ export const CartSummaryComponent = memo(
                   max={summary.subtotal}
                   step="0.01"
                   className="w-24 h-7 text-xs pl-6"
-                  value={discountValue || ''}
+                  value={discountValue}
                   onChange={handleDiscountChange}
                   onBlur={handleDiscountBlur}
                 />
