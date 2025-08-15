@@ -147,11 +147,11 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
      const fileName = isPaid ? `Receipt_${order.orderNumber}.pdf` : `Invoice_${order.orderNumber}.pdf`;
 
      const documentDirPath = await documentDir();
-     const dealioFolderPath = `${documentDirPath}/dealio`;
+     const dealioFolderPath = `${documentDirPath}/Dealio`;
 
      // Check if folder exists, if not create it
-     if (!(await exists('dealio', { baseDir: BaseDirectory.Document }))) {
-       await mkdir('dealio', { baseDir: BaseDirectory.Document, recursive: true });
+     if (!(await exists('Dealio', { baseDir: BaseDirectory.Document }))) {
+       await mkdir('Dealio', { baseDir: BaseDirectory.Document, recursive: true });
      }
 
      filePath = `${dealioFolderPath}/${fileName}`;
@@ -202,11 +202,11 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
 
       if (isTauri()) {
         const documentDirPath = await documentDir();
-        const dealioFolderPath = `${documentDirPath}/dealio`;
+        const dealioFolderPath = `${documentDirPath}/Dealio`;
 
         // Check if folder exists, if not create it
-        if (!(await exists('dealio', { baseDir: BaseDirectory.Download }))) {
-          await mkdir('dealio', { baseDir: BaseDirectory.Download, recursive: true });
+        if (!(await exists('Dealio', { baseDir: BaseDirectory.Download }))) {
+          await mkdir('Dealio', { baseDir: BaseDirectory.Download, recursive: true });
         }
 
         const filePath = `${dealioFolderPath}/${fileName}`;

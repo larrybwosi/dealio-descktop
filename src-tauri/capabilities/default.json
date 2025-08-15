@@ -46,12 +46,13 @@
     {
       "identifier": "opener:allow-open-path",
       "allow": [
-        {
-          "path": "$DOWNLOAD/*"
-        },
-        {
-          "path": "$DOCUMENT/*"
-        }, { "path": "$APPDATA/*" }
+        { "path": "$DOWNLOAD/*" },
+        { "path": "$DOCUMENT/*" },
+        { "path": "$APPDATA/*" },
+        { "path": "$DOWNLOAD/Dealio" },
+        { "path": "$DOWNLOAD/Dealio/*" },
+        { "path": "$DOCUMENT/Dealio" },
+        { "path": "$DOCUMENT/Dealio/*" }
       ]
     },
 {
@@ -59,12 +60,12 @@
   "allow": [
     { "path": "$DOWNLOAD" },
     { "path": "$DOWNLOAD/*" },
-    { "path": "$DOWNLOAD/dealio" },
-    { "path": "$DOWNLOAD/dealio/*" },
+    { "path": "$DOWNLOAD/Dealio" },
+    { "path": "$DOWNLOAD/Dealio/*" },
     { "path": "$DOCUMENT" },
     { "path": "$DOCUMENT/*" },
-    { "path": "$DOCUMENT/dealio" },
-    { "path": "$DOCUMENT/dealio/*" },
+    { "path": "$DOCUMENT/Dealio" },
+    { "path": "$DOCUMENT/Dealio/*" },
     { "path": "$APPDATA" },
     { "path": "$APPDATA/*" }
   ]
