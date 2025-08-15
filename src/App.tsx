@@ -17,6 +17,7 @@ import PendingOrdersPage from './pages/PendingOrders';
 import { SessionProvider } from './providers/session';
 import PrintersPage from './pages/printers';
 import ReceiptCustomizer from './pages/receipt';
+import SalesDashboard from './pages/sales';
 
 // Component wrapper for home routes that need OrgProvider
 const HomeRouteWrapper = ({ children }) => <OrgProvider>{children}</OrgProvider>;
@@ -137,6 +138,7 @@ const App = () => {
                 <Route path="/order-lists" element={<PendingOrdersPage />} />
                 <Route path="/printers" element={<PrintersPage />} />
                 <Route path="/receipt" element={<ReceiptCustomizer />} />
+                <Route path="/sales" element={<SalesDashboard />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </SessionProvider>

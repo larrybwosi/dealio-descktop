@@ -44,6 +44,7 @@ import {
   Calendar,
   Printer,
   PrinterCheck,
+  BrickWall,
 } from 'lucide-react';
 import { signOut, useSession } from '@/lib/authClient';
 import { toast } from 'sonner';
@@ -63,6 +64,7 @@ const sidebarItems = [
   { id: 'printers', label: 'Printers', icon: PrinterCheck, path: '/printers' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
   { id: 'receipt', label: 'Receipt', icon: FileText, path: '/receipt' },
+  { id: 'sales', label: 'Sales', icon: BrickWall, path: '/sales' },
   { id: 'helpCenter', label: 'Help center', icon: HelpCircle },
 ];
 

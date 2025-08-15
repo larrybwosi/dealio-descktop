@@ -1,4 +1,3 @@
-// components/ProductCard.tsx
 import { Button } from '@/components/ui/button';
 import { MinusIcon, PlusIcon, ShoppingCart } from 'lucide-react';
 
@@ -25,21 +24,17 @@ export function ProductCard({
   const selectedVariantDetails = product.variants?.find((v: any) => v.name === selectedVariant);
 
   const handleAddToCart = () => {
-    // If quantity is 0, increment it first
     if (currentQuantity === 0) {
       onQuantityChange(1);
-      // Call onAddToCart after a small delay to ensure quantity is updated
-      setTimeout(onAddToCart, 1);
+      setTimeout(onAddToCart, 0);
     } else {
       onAddToCart();
     }
   };
 
   const handleQuickAdd = () => {
-    // For quick add, we want to ensure the quantity change happens first
     onQuantityChange(1);
-    // Call onAddToCart after a small delay to ensure quantity is updated
-    setTimeout(onAddToCart, 1);
+    setTimeout(onAddToCart, 0);
   };
 
   return (
