@@ -1,5 +1,3 @@
-"use client"
-
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -34,6 +32,7 @@ import {
 import type { ReceiptConfig, CartItem, PaymentData } from "@/types"
 import { ReceiptPreview } from "./receipt-preview"
 import { toast } from "sonner"
+import { PDFDownloadButton } from "./pdf-download-button"
 
 const defaultConfig: ReceiptConfig = {
   // Basic Info
@@ -128,7 +127,7 @@ const samplePaymentData: PaymentData = {
 const sampleQRCode =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
 
-const PDFDownloadButton = () => import("./pdf-download-button").then((mod) => ({ default: mod.PDFDownloadButton }))
+// const PDFDownloadButton = () => import("./pdf-download-button").then((mod) => ({ default: mod.PDFDownloadButton }))
   // {
   //   ssr: false,
   //   loading: () => (
@@ -164,6 +163,7 @@ export function ReceiptCustomizer() {
   const saveConfig = async () => {
     try {
       console.log("Saving configuration:", config)
+      localStorage.setItem('receipt-config',JSON.stringify(config))
       toast.success('Configuration Saved', {
         description: 'Your receipt settings have been saved successfully.',
       });

@@ -59,7 +59,7 @@
     "@tauri-apps/plugin-updater": "~2.9.0",
     "@tauri-apps/plugin-upload": "~2.3.1",
     "@tauri-apps/plugin-websocket": "~2.4.0",
-    "ably": "^2.10.1",
+    "ably": "^2.11.0",
     "argon2": "^0.43.1",
     "axios": "^1.11.0",
     "axios-tauri-api-adapter": "^2.0.6",
@@ -92,7 +92,7 @@
     "uuid": "^11.1.0",
     "vaul": "^1.1.2",
     "xlsx": "^0.18.5",
-    "zod": "^4.0.15",
+    "zod": "^4.0.17",
     "zustand": "4"
   },
   "devDependencies": {

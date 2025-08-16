@@ -1,4 +1,3 @@
-'use client';
 import axios, { AxiosInstance } from 'axios';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';

@@ -363,7 +363,7 @@ export function ProductList({ onAddToCart }: ProductListProps) {
       return <ProductListError error={error} onRetry={handleRefetch} isRetrying={isRetrying} />;
     }
     if (isLoading) {
-      return <ProductSkeleton count={12} />;
+      return <ProductSkeleton />;
     }
     if (filteredAndSortedProducts.length === 0) {
       return (
@@ -396,7 +396,7 @@ export function ProductList({ onAddToCart }: ProductListProps) {
               <ProductCard
                 key={product.id}
                 product={product}
-                selectedVariantName={selectedVariantName}
+                selectedVariant={selectedVariantName}
                 currentQuantity={currentQuantity}
                 onVariantSelect={variantName => handleVariantSelect(productId, variantName)}
                 onQuantityChange={delta => updateQuantity(productId, selectedVariantName, delta)}
@@ -471,7 +471,7 @@ export function ProductList({ onAddToCart }: ProductListProps) {
       {/* Category Tabs */}
       {!error && (
         <div className="px-4 md:px-6 py-3 border-b border-gray-200">
-          <ScrollArea orientation="horizontal" className="pb-2 -mb-2">
+          <ScrollArea className="pb-2 -mb-2">
             <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
               <TabsList>
                 {availableCategories.map(category => (

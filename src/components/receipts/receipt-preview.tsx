@@ -1,5 +1,3 @@
-"use client"
-
 import type { ReceiptConfig } from "@/types"
 
 interface ReceiptPreviewProps {

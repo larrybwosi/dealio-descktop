@@ -46,8 +46,11 @@ export interface Product {
   image: string;
   category: string;
   variants?: {
+    id: string;
     name: string;
     default?: boolean;
+    price: number;
+    sellingUnits: {id:string}[]
   }[];
   additions?: {
     name: string;
@@ -105,4 +108,99 @@ export interface ModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+}
+
+
+export interface ReceiptConfig {
+  // Basic Info
+  businessName: string;
+  businessTagline: string;
+  businessAddress: string;
+  businessPhone: string;
+  businessEmail: string;
+  businessWebsite: string;
+
+  // Logo
+  logoUrl: string;
+  logoSize: number;
+  logoPosition: 'left' | 'center' | 'right';
+
+  // Colors
+  primaryColor: string;
+  secondaryColor: string;
+  backgroundColor: string;
+  accentColor: string;
+
+  // Typography
+  headerFont: string;
+  bodyFont: string;
+  headerSize: number;
+  bodySize: number;
+  titleSize: number;
+
+  // Layout
+  width: number;
+  padding: number;
+  spacing: number;
+  borderRadius: number;
+  showBorder: boolean;
+  borderColor: string;
+  showDivider: boolean;
+  dividerStyle: 'solid' | 'dashed' | 'dotted';
+  dividerWidth: number;
+
+  // Receipt Fields
+  showDateTime: boolean;
+  showReceiptNumber: boolean;
+  showOrderType: boolean;
+  showCustomerInfo: boolean;
+  showCashier: boolean;
+  showTax: boolean;
+  showDiscount: boolean;
+  showPaymentMethod: boolean;
+  showAmountReceived: boolean;
+  showChange: boolean;
+  showQRCode: boolean;
+  showPromoCode: boolean;
+  showSpecialInstructions: boolean;
+  showOrderNotes: boolean;
+
+  // Sections
+  showHeader: boolean;
+  showItemsSection: boolean;
+  showTotalsSection: boolean;
+  showPaymentSection: boolean;
+  showFooter: boolean;
+
+  // Text Content
+  receiptTitle: string;
+  thankYouMessage: string;
+  footerText: string;
+  qrCodeText: string;
+  promoCodeText: string;
+  notesTitle: string;
+  instructionsTitle: string;
+
+  // Paper Style
+  paperType: 'thermal' | 'standard';
+  showPerforation: boolean;
+}
+
+
+export interface PaymentData {
+  orderId: string;
+  customerName?: string;
+  customerPhone?: string;
+  paymentMethod: 'cash' | 'card' | 'mobile';
+  amountPaid: number;
+  change: number;
+}
+
+export interface OrganizationData {
+  name: string;
+  tagline?: string;
+  address: string;
+  phone: string;
+  email?: string;
+  website?: string;
 }

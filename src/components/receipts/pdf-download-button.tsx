@@ -1,10 +1,8 @@
-"use client"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
 import { FileDown, Loader2 } from "lucide-react"
 import type { ReceiptConfig, CartItem, PaymentData, OrganizationData } from "@/types"
+import { toast } from "sonner"
 
 interface PDFDownloadButtonProps {
   config: ReceiptConfig
@@ -15,7 +13,6 @@ interface PDFDownloadButtonProps {
 
 export function PDFDownloadButton({ config, sampleItems, samplePaymentData, sampleQRCode }: PDFDownloadButtonProps) {
   const [isGenerating, setIsGenerating] = useState(false)
-  const { toast } = useToast()
 
   const downloadPDF = async () => {
     setIsGenerating(true)
@@ -55,17 +52,17 @@ export function PDFDownloadButton({ config, sampleItems, samplePaymentData, samp
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
 
-      toast({
-        title: "PDF Downloaded",
-        description: "Your receipt PDF has been generated and downloaded successfully.",
-      })
+      // toast("PDF Downloaded",{
+      //   title: 
+      //   description: "Your receipt PDF has been generated and downloaded successfully.",
+      // })
     } catch (error) {
       console.error("Error generating PDF:", error)
-      toast({
-        title: "PDF Generation Failed",
-        description: "There was an error generating your receipt PDF. Please try again.",
-        variant: "destructive",
-      })
+      // toast({
+      //   title: "PDF Generation Failed",
+      //   description: "There was an error generating your receipt PDF. Please try again.",
+      //   variant: "destructive",
+      // })
     } finally {
       setIsGenerating(false)
     }

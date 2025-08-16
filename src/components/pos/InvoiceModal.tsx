@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { InvoiceData, Order } from '@/types';
-import { PDFViewer, pdf } from '@react-pdf/renderer';
+import { PDFViewer } from '@react-pdf/renderer';
 import { Printer, Download, Mail, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -16,6 +16,7 @@ import { useOrgStore } from '@/lib/tanstack-axios';
 import { ThermalReceiptPDF, OrganizationData } from './ThermalReceiptPDF';
 import { usePrinterStore } from '@/store/printer-store';
 import { API_ENDPOINT } from '@/lib/axios';
+import { EnhancedThermalReceiptPDF } from '../receipts/enhanced-thermal-receipt-pdf';
 
 export interface PaymentData {
   paymentMethod: 'cash' | 'mobile' | 'card';
@@ -38,6 +39,7 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   // --- ✨ Assuming useOrgStore provides all necessary fields ---
   const { orgName, address, organizationId: orgId } = useOrgStore();
   const { printers, defaultPrinter } = usePrinterStore();
+  const config = JSON.parse(localStorage.getItem('receipt-config'));
 
   const orgInfo = {
     phone: '+62 812 3456 7890',
@@ -51,7 +53,6 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   const [qrCodeImage, setQrCodeImage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
-  console.log('Order in InvoiceModal:',` ${API_ENDPOINT}/organizations/${orgId}/sales/${order.id}/receipt`);
 
   useEffect(() => {
     const generateQrCode = async () => {
@@ -113,87 +114,154 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
 
   // ✨ --- TAURI: SILENT PRINT FUNCTION ---
 
- const handleSilentPrint = async () => {
-   if (isLoading || isPrinting) return toast.info('Please wait...');
+  const handleSilentPrint = async () => {
+    if (!config) {
+      return toast.info('No receipt config!', {
+        description: 'Please set this in the receipt page',
+        action: {
+          label: 'Navigate to page',
+          onClick: () => {
+            window.location.href = '/receipt';
+          },
+        },
+      });
+    }
+    if (isLoading || isPrinting) return toast.info('Please wait...');
 
-   setIsPrinting(true);
-   toast.info('Sending to printer...');
+    setIsPrinting(true);
+    toast.info('Sending to printer...');
 
-   let filePath = '';
+    let filePath = '';
 
-   try {
-    //  const pdfDoc = isPaid
-    //    ? ThermalReceiptPDF({
-    //        items: order.items,
-    //        paymentData: paymentData,
-    //        qrCodeImage: qrCodeImage,
-    //        organization: organizationData,
-    //      })
-    //    : InvoicePDF({ data: invoiceData });
-     const pdfDoc = isPaid ? (
-       <ThermalReceiptPDF
-         items={order.items}
-         paymentData={paymentData}
-         qrCodeImage={qrCodeImage}
-         organization={organizationData}
-       />
-     ) : (
-       <InvoicePDF data={invoiceData} />
-     );
+    try {
+      const { pdf } = await import('@react-pdf/renderer');
+      const organizationData: OrganizationData = {
+        name: config.businessName,
+        tagline: config.businessTagline,
+        address: config.businessAddress,
+        phone: config.businessPhone,
+        email: config.businessEmail,
+        website: config.businessWebsite,
+      };
 
-     const blob = await pdf(pdfDoc).toBlob();
-     const arrayBuffer = await blob.arrayBuffer();
-     const uint8Array = new Uint8Array(arrayBuffer);
-     const fileName = isPaid ? `Receipt_${order.orderNumber}.pdf` : `Invoice_${order.orderNumber}.pdf`;
+      const pdfDoc = isPaid ? (
+        <EnhancedThermalReceiptPDF
+          items={order.items}
+          paymentData={paymentData}
+          qrCodeImage={qrCodeImage}
+          config={config}
+          organization={organizationData}
+        />
+      ) : (
+        <InvoicePDF data={invoiceData} />
+      );
 
-     const documentDirPath = await documentDir();
-     const dealioFolderPath = `${documentDirPath}/Dealio`;
+      //============ALSO WORKS CUSTOMIZE FOR RESTAURANTS=====================//
 
-     // Check if folder exists, if not create it
-     if (!(await exists('Dealio', { baseDir: BaseDirectory.Document }))) {
-       await mkdir('Dealio', { baseDir: BaseDirectory.Document, recursive: true });
-     }
+      // const pdfElement = createElement(EnhancedThermalReceiptPDF, {
+      //   items: order.items,
+      //   paymentData: paymentData,
+      //   qrCodeImage,
+      //   organization: organizationData,
+      //   config: config,
+      //   orderType: 'dine-in' as const,
+      //   notes: 'Thank you for your order!',
+      //   promoCode: 'SAVE10',
+      //   specialInstructions: 'Extra hot, no sugar',
+      // });
 
-     filePath = `${dealioFolderPath}/${fileName}`;
-     await writeFile(filePath, uint8Array, { baseDir: BaseDirectory.Document });
+      const blob = await pdf(pdfDoc).toBlob();
+      const arrayBuffer = await blob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const fileName = isPaid ? `Receipt_${order.orderNumber}.pdf` : `Invoice_${order.orderNumber}.pdf`;
 
-     await printPdf({
-       path: filePath,
-       printer: defaultPrinter || printers[0]?.Name || 'XP-80C',
-       id: order.id,
-       remove_after_print: true,
-       print_settings: '',
-     });
+      const documentDirPath = await documentDir();
+      const dealioFolderPath = `${documentDirPath}/Dealio`;
 
-     toast.success('Successfully sent to printer!');
-   } catch (error) {
-     console.error('Error during silent print:', error);
-     toast.error(`Failed to print: ${error}`);
-   } finally {
-     // Always attempt to delete the file after printing
-     try {
-       if (filePath) {
-         await remove(filePath, { baseDir: BaseDirectory.Document });
-         console.log('Temporary print file deleted successfully');
-       }
-     } catch (deleteError) {
-       console.warn('Failed to delete temporary print file:', deleteError);
-     }
-     setIsPrinting(false);
-   }
- };
+      // Check if folder exists, if not create it
+      if (!(await exists('Dealio', { baseDir: BaseDirectory.Document }))) {
+        await mkdir('Dealio', { baseDir: BaseDirectory.Document, recursive: true });
+      }
+
+      filePath = `${dealioFolderPath}/${fileName}`;
+      await writeFile(filePath, uint8Array, { baseDir: BaseDirectory.Document });
+
+      await printPdf({
+        path: filePath,
+        printer: defaultPrinter || printers[0]?.Name || 'XP-80C',
+        id: order.id,
+        remove_after_print: true,
+        print_settings: '',
+      });
+
+      toast.success('Successfully sent to printer!');
+    } catch (error) {
+      console.error('Error during silent print:', error);
+      toast.error(`Failed to print: ${error}`);
+    } finally {
+      // Always attempt to delete the file after printing
+      try {
+        if (filePath) {
+          await remove(filePath, { baseDir: BaseDirectory.Document });
+          console.log('Temporary print file deleted successfully');
+        }
+      } catch (deleteError) {
+        console.warn('Failed to delete temporary print file:', deleteError);
+      }
+      setIsPrinting(false);
+    }
+  };
   // --- ✨ Download function for both receipt and invoice ---
   const handleDownload = async () => {
+    if (!config) {
+      return toast.info('No receipt config!', {
+        description: 'Please set this in the receipt page',
+        action: {
+          label: 'Navigate to page',
+          onClick: () => {
+            window.location.href = '/receipt';
+          },
+        },
+      });
+    }
     if (isLoading) return toast.info('Please wait ...');
+
     try {
-      const pdfDoc = isPaid
-        ? ThermalReceiptPDF({
-            items: order.items,
-            paymentData: paymentData,
-            qrCodeImage: qrCodeImage,
-            organization: organizationData,
-          })
-        : InvoicePDF({ data: invoiceData });
+      const { pdf } = await import('@react-pdf/renderer');
+      const organizationData: OrganizationData = {
+        name: config.businessName,
+        tagline: config.businessTagline,
+        address: config.businessAddress,
+        phone: config.businessPhone,
+        email: config.businessEmail,
+        website: config.businessWebsite,
+      };
+
+      //============ALSO WORKS CUSTOMIZE FOR RESTAURANTS=====================//
+
+      // const pdfElement = createElement(EnhancedThermalReceiptPDF, {
+      //   items: order.items,
+      //   paymentData: paymentData,
+      //   qrCodeImage,
+      //   organization: organizationData,
+      //   config: config,
+      //   orderType: 'dine-in' as const,
+      //   notes: 'Thank you for your order!',
+      //   promoCode: 'SAVE10',
+      //   specialInstructions: 'Extra hot, no sugar',
+      // });
+
+      const pdfDoc = isPaid ? (
+        <EnhancedThermalReceiptPDF
+          items={order.items}
+          paymentData={paymentData}
+          qrCodeImage={qrCodeImage}
+          config={config}
+          organization={organizationData}
+        />
+      ) : (
+        <InvoicePDF data={invoiceData} />
+      );
 
       const blob = await pdf(pdfDoc).toBlob();
       const arrayBuffer = await blob.arrayBuffer();

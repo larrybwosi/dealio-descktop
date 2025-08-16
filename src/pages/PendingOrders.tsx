@@ -12,40 +12,7 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react';
-
-// Mock data and services for demo
-const mockPendingSales = [
-  {
-    id: 'ORD-2024-001',
-    data: {},
-    organizationId: 'org_123',
-    timestamp: Date.now() - 1800000, // 30 minutes ago
-    retryCount: 0,
-  },
-  {
-    id: 'ORD-2024-002',
-    data: {},
-    organizationId: 'org_456',
-    timestamp: Date.now() - 7200000, // 2 hours ago
-    retryCount: 2,
-  },
-  {
-    id: 'ORD-2024-003',
-    data: {},
-    organizationId: 'org_789',
-    timestamp: Date.now() - 14400000, // 4 hours ago
-    retryCount: 3,
-  },
-];
-
-const getPendingSales = () => mockPendingSales;
-const removePendingSale = id => console.log('Removing sale:', id);
-const useRetryPendingSales = () => ({
-  retryAllPendingSales: async () => {
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    console.log('Retrying all pending sales');
-  },
-});
+import { getPendingSales, removePendingSale, useRetryPendingSales } from '@/lib/services/sales';
 
 interface PendingSale {
   id: string;

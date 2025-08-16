@@ -1,6 +1,6 @@
-"use client"
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer"
 import type { PaymentData, CartItem, OrganizationData, ReceiptConfig } from "@/types"
+import { useFormattedCurrency } from "@/lib/utils"
 
 const createStyles = (config: ReceiptConfig) =>
   StyleSheet.create({
@@ -288,6 +288,7 @@ export const EnhancedThermalReceiptPDF = ({
   specialInstructions,
 }: EnhancedThermalReceiptPDFProps) => {
   const styles = createStyles(config)
+  const formatCurrency = useFormattedCurrency()
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const discount = config.showDiscount ? subtotal * 0.1 : 0
@@ -362,10 +363,10 @@ export const EnhancedThermalReceiptPDF = ({
             <View style={styles.table}>
               {/* Table Header */}
               <View style={styles.tableHeader}>
-                <Text style={[styles.tableHeaderCell, { width: "50%" }]}>Item</Text>
-                <Text style={[styles.tableHeaderCell, { width: "15%", textAlign: "center" }]}>Qty</Text>
-                <Text style={[styles.tableHeaderCell, { width: "17.5%", textAlign: "right" }]}>Price</Text>
-                <Text style={[styles.tableHeaderCell, { width: "17.5%", textAlign: "right" }]}>Total</Text>
+                <Text style={[styles.tableHeaderCell, { width: '50%' }]}>Item</Text>
+                <Text style={[styles.tableHeaderCell, { width: '15%', textAlign: 'center' }]}>Qty</Text>
+                <Text style={[styles.tableHeaderCell, { width: '17.5%', textAlign: 'right' }]}>Price</Text>
+                <Text style={[styles.tableHeaderCell, { width: '17.5%', textAlign: 'right' }]}>Total</Text>
               </View>
 
               {/* Table Rows */}
@@ -378,8 +379,8 @@ export const EnhancedThermalReceiptPDF = ({
                       {item.addition && <Text style={styles.itemVariant}>+ {item.addition}</Text>}
                     </View>
                     <Text style={styles.itemQty}>{item.quantity}</Text>
-                    <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-                    <Text style={styles.itemTotal}>${(item.price * item.quantity).toFixed(2)}</Text>
+                    <Text style={styles.itemPrice}>{formatCurrency(item.price)}</Text>
+                    <Text style={styles.itemTotal}>{formatCurrency(item.price * item.quantity)}</Text>
                   </View>
                 </View>
               ))}
@@ -394,23 +395,23 @@ export const EnhancedThermalReceiptPDF = ({
           <View style={styles.totalsSection}>
             <View style={styles.totalsRow}>
               <Text style={styles.totalsLabel}>Subtotal:</Text>
-              <Text style={styles.totalsValue}>${subtotal.toFixed(2)}</Text>
+              <Text style={styles.totalsValue}>{formatCurrency(subtotal)}</Text>
             </View>
             {config.showDiscount && discount > 0 && (
               <View style={styles.totalsRow}>
                 <Text style={styles.totalsLabel}>Discount (10%):</Text>
-                <Text style={styles.totalsValue}>-${discount.toFixed(2)}</Text>
+                <Text style={styles.totalsValue}>-{formatCurrency(discount)}</Text>
               </View>
             )}
             {config.showTax && tax > 0 && (
               <View style={styles.totalsRow}>
                 <Text style={styles.totalsLabel}>Tax (2.5%):</Text>
-                <Text style={styles.totalsValue}>${tax.toFixed(2)}</Text>
+                <Text style={styles.totalsValue}>{formatCurrency(tax)}</Text>
               </View>
             )}
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>TOTAL:</Text>
-              <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
             </View>
           </View>
         )}
@@ -423,24 +424,24 @@ export const EnhancedThermalReceiptPDF = ({
               <View style={styles.paymentRow}>
                 <Text style={styles.paymentLabel}>Method:</Text>
                 <Text style={styles.paymentValue}>
-                  {paymentData.paymentMethod === "cash"
-                    ? "Cash"
-                    : paymentData.paymentMethod === "mobile"
-                      ? "Mobile Payment"
-                      : "Card Payment"}
+                  {paymentData.paymentMethod === 'cash'
+                    ? 'Cash'
+                    : paymentData.paymentMethod === 'mobile'
+                    ? 'Mobile Payment'
+                    : 'Card Payment'}
                 </Text>
               </View>
             )}
             {config.showAmountReceived && (
               <View style={styles.paymentRow}>
                 <Text style={styles.paymentLabel}>Paid:</Text>
-                <Text style={styles.paymentValue}>${paymentData.amountPaid.toFixed(2)}</Text>
+                <Text style={styles.paymentValue}>{formatCurrency(paymentData.amountPaid)}</Text>
               </View>
             )}
             {config.showChange && paymentData.change > 0 && (
               <View style={styles.paymentRow}>
                 <Text style={styles.paymentLabel}>Change:</Text>
-                <Text style={styles.paymentValue}>${paymentData.change.toFixed(2)}</Text>
+                <Text style={styles.paymentValue}>{formatCurrency(paymentData.change)}</Text>
               </View>
             )}
           </View>
@@ -483,5 +484,5 @@ export const EnhancedThermalReceiptPDF = ({
         {config.showPerforation && <View style={styles.perforation} />}
       </Page>
     </Document>
-  )
+  );
 }
