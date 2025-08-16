@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,479 +14,380 @@ import {
   Lock,
   CreditCard,
   Building2,
-  Shield,
-  Users,
+  ShieldAlert,
   KeyRound,
   CheckCircle,
   Quote,
+  Loader2,
+  AlertTriangle,
+  Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { signIn } from '@/lib/authClient';
 import { z } from 'zod/v4';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { fetch } from '@tauri-apps/plugin-http';
-import axiosTauriApiAdapter from 'axios-tauri-api-adapter';
 import axios from 'axios';
+import axiosTauriApiAdapter from 'axios-tauri-api-adapter';
 import { API_ENDPOINT } from '@/lib/axios';
 
-// Define Zod schemas for validation
+// --- ZOD VALIDATION SCHEMAS ---
 const emailLoginSchema = z.object({
-  email: z
-    .string()
-    .min(1, 'Email or username is required')
-    .refine(
-      value => !value.includes('@') || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
-      'Please enter a valid email address'
-    ),
-  password: z.string().min(1, 'Password is required').min(6, 'Password must be at least 6 characters'),
+  email: z.string().min(1, 'Email or username is required'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 const cardLoginSchema = z.object({
   employeeCard: z
     .string()
-    .min(1, 'Employee card number is required')
-    .regex(/^\d+$/, 'Card number must contain only digits')
-    .min(8, 'Card number must be at least 8 digits'),
+    .min(8, 'Card number must be at least 8 digits')
+    .regex(/^\d+$/, 'Card number must contain only digits'),
 });
 
-// Zod schema for the API Key form
 const apiKeySchema = z.object({
-  apiKey: z.string().min(10, 'API Key must be at least 10 characters long'),
+  apiKey: z.string().min(20, 'API Key must be at least 20 characters long'),
 });
 
+// --- TYPE DEFINITIONS ---
 type EmailLoginFormData = z.infer<typeof emailLoginSchema>;
 type CardLoginFormData = z.infer<typeof cardLoginSchema>;
 type ApiKeyFormData = z.infer<typeof apiKeySchema>;
+type LoginMethod = 'email' | 'card' | 'apikey';
 
-interface LoginOptions {
-  loginWithEmail: (
-    email: string,
-    password: string,
-    callbackUrl?: string
-  ) => Promise<{
-    error?: { code?: string; message?: string; status: number; statusText: string };
-    data?: { user?: { name: string } };
-  }>;
-  loginWithUsername: (
-    username: string,
-    password: string
-  ) => Promise<{
-    error?: { code?: string; message?: string; status: number; statusText: string };
-    data?: { user?: { name: string } };
-  }>;
-  loginWithCard: (cardNumber: string) => Promise<{ error?: string; data?: { user?: { name: string } } }>;
-}
+// --- API SERVICE (for better separation of concerns) ---
+const authService = {
+  loginWithEmail: async (data: EmailLoginFormData) => {
+    // This logic can differentiate between email and username server-side
+    // Or you can add the check back here if needed.
+    const response = await axios.post(`${API_ENDPOINT}/api/auth/sign-in/email`, data, {
+      adapter: axiosTauriApiAdapter,
+    });
+    return response.data;
+  },
+  loginWithCard: async (data: CardLoginFormData) => {
+    // Replace with your actual card login API endpoint
+    const response = await axios.post(`${API_ENDPOINT}/api/auth/sign-in/card`, data, {
+      adapter: axiosTauriApiAdapter,
+    });
+    return response.data;
+  },
+  loginWithApiKey: async (data: ApiKeyFormData) => {
+    // Replace with your actual API key login endpoint
+    const response = await axios.post(`${API_ENDPOINT}/api/auth/sign-in/apikey`, data, {
+      adapter: axiosTauriApiAdapter,
+    });
+    return response.data;
+  },
+};
 
-export default function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'email' | 'card' | 'apikey'>('email');
-  const [generalError, setGeneralError] = useState('');
+// --- UI COMPONENTS ---
 
-  const {
-    register: registerEmail,
-    handleSubmit: handleEmailSubmit,
-    formState: { errors: emailErrors },
-    reset: resetEmailForm,
-  } = useForm<EmailLoginFormData>({
-    resolver: zodResolver(emailLoginSchema),
-  });
-
-  const {
-    register: registerCard,
-    handleSubmit: handleCardSubmit,
-    formState: { errors: cardErrors },
-    reset: resetCardForm,
-  } = useForm<CardLoginFormData>({
-    resolver: zodResolver(cardLoginSchema),
-  });
-
-  const {
-    register: registerApiKey,
-    handleSubmit: handleApiKeySubmit,
-    setValue: setApiKeyFormValue,
-    formState: { errors: apiKeyErrors },
-  } = useForm<ApiKeyFormData>({
-    resolver: zodResolver(apiKeySchema),
-  });
-
-
-  const loginOptions: LoginOptions = {
-    loginWithEmail: async (email, password, callbackUrl) => {
-      // const { error, data } = await signIn.email({
-      //   email,
-      //   password,
-      //   callbackURL: callbackUrl || '/',
-      // });
-      const res = await axios.post(`${API_ENDPOINT}/api/auth/sign-in/email`, { email, password },{adapter: axiosTauriApiAdapter});
-
-      console.log('Res2: ', res.data)
-      const token = res.data.token;
-      if (token) {
-        toast.success(token)
-        localStorage.setItem('bearer_token', token);
-      }
-      return { error: undefined, data: res.data };
-    },
-    loginWithUsername: async (username, password) => {
-      const { error, data } = await signIn.username({
-        username,
-        password,
-        rememberMe: true,
-      });
-      return { error, data };
-    },
-    loginWithCard: async cardNumber => {
-      try {
-        const response = await fetch('/api/login/card', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ cardNumber }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Card verification failed');
-        }
-
-        return await response.json();
-      } catch (error) {
-        return {
-          error: error instanceof Error ? error.message : 'Card verification failed',
-        };
-      }
-    },
-  };
-
-  const handleTabChange = (value: string) => {
-    setActiveTab(value as 'email' | 'card' | 'apikey');
-    setGeneralError('');
-  };
-
-  const onEmailLogin = async (data: EmailLoginFormData) => {
-    setIsLoading(true);
-    setGeneralError('');
-
-    try {
-      let result;
-      if (data.email.includes('@')) {
-        result = await loginOptions.loginWithEmail(data.email, data.password, '/');
-      } else {
-        result = await loginOptions.loginWithUsername(data.email, data.password);
-      }
-      console.log('Login result:', result);
-      // Add explicit checks
-      if (!result) {
-        toast.error('No response from authentication service');
-        throw new Error('No response from authentication service');
-      }
-
-      if (result?.error) {
-        toast.error(result.error.message || 'Login failed');
-        throw new Error(result.error.message || 'Login failed');
-      }
-      const userName = result?.data?.user?.name || 'there';
-      toast.success(`Login successful! Welcome back, ${userName}`);
-
-      // Force a full page reload to ensure all session data is loaded
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 2000);
-    } catch (error) {
-      console.error('Login error:', error);
-      toast.error('Login failed. Please try again.', {
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
-      });
-      handleLoginError(error, 'email');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const onCardLogin = async (data: CardLoginFormData) => {
-    setIsLoading(true);
-    setGeneralError('');
-
-    try {
-      const result = await loginOptions.loginWithCard(data.employeeCard);
-
-      if (result?.error) {
-        throw new Error(result.error);
-      }
-
-      const userName = result?.data?.user?.name || 'there';
-      toast.success(`Login successful! Welcome back, ${userName}`);
-
-      // Force a full page reload to ensure all session data is loaded
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Card login error:', error);
-      handleLoginError(error, 'card');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLoginError = (error: unknown, loginType: 'email' | 'card') => {
-    let errorMessage = 'Login failed. Please try again.';
-
-    if (error instanceof Error) {
-      errorMessage = error.message;
-
-      // Handle specific error cases
-      if (errorMessage.includes('invalid credentials') || errorMessage.includes('incorrect password')) {
-        errorMessage = 'Invalid email/username or password';
-      } else if (errorMessage.includes('user not found')) {
-        errorMessage = 'Account not found. Please check your email/username';
-      } else if (errorMessage.includes('card not found')) {
-        errorMessage = 'Employee card not recognized';
-      } else if (errorMessage.includes('inactive')) {
-        errorMessage = 'Your account is inactive. Please contact support';
-      }
-    }
-
-    toast.error(errorMessage);
-    setGeneralError(errorMessage);
-  };
-
-  return (
-    <div className="min-h-screen flex bg-gray-50">
-      {/* Left side - Image with overlay text - Redesigned for a more professional look */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gray-900 text-white overflow-hidden">
-        {/* Subtle background pattern */}
-        <div
-          className="absolute inset-0 opacity-[.03]"
-          style={{
-            backgroundImage:
-              "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")",
-          }}
-        />
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-gray-900 via-gray-900 to-black" />
-
-        <div className="relative z-10 flex flex-col justify-between p-16">
-          <div>
-            <div className="flex items-center gap-3 mb-10">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-3xl font-bold tracking-wider">Dealio</span>
-            </div>
-
-            <h1 className="text-5xl font-bold mb-6 leading-tight tracking-tight">Unlock Your Business Potential.</h1>
-            <p className="text-xl text-gray-300 mb-10 leading-relaxed">
-              Access your dashboard to manage sales, track performance, and connect with your team seamlessly.
-            </p>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-                <span className="text-gray-300">Advanced Analytics & Reporting</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-                <span className="text-gray-300">Real-time Collaboration Tools</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-                <span className="text-gray-300">Enterprise-grade Security</span>
-              </div>
-            </div>
+/**
+ * Left-side branding panel for the login page.
+ */
+const LoginBranding = () => (
+  <div className="hidden lg:flex lg:w-1/2 relative bg-gray-900 text-white overflow-hidden">
+    <div
+      className="absolute inset-0 opacity-[.03]"
+      style={{
+        backgroundImage:
+          "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")",
+      }}
+    />
+    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-gray-900 via-gray-900 to-black" />
+    <div className="relative z-10 flex flex-col justify-between p-16">
+      <div>
+        <div className="flex items-center gap-3 mb-10">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+            <Building2 className="w-6 h-6 text-white" />
           </div>
-
-          <div className="mt-12">
-            <div className="relative p-6 bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700">
-              <Quote className="absolute top-4 left-4 w-8 h-8 text-gray-600" />
-              <p className="text-lg italic text-gray-300">
-                "Dealio has revolutionized our workflow. The insights we gain are invaluable, and the platform is
-                incredibly intuitive."
-              </p>
-              <p className="mt-4 text-right font-semibold text-gray-200">- Jane Doe, CEO at Innovate Inc.</p>
-            </div>
+          <span className="text-3xl font-bold tracking-wider">Dealio POS</span>
+        </div>
+        <h1 className="text-5xl font-bold mb-6 leading-tight tracking-tight">Unlock Your Business Potential.</h1>
+        <p className="text-xl text-gray-300 mb-10 leading-relaxed">
+          Access your dashboard to manage sales, track performance, and connect with your team seamlessly.
+        </p>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+            <span className="text-gray-300">Advanced Analytics & Reporting</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+            <span className="text-gray-300">Real-time Collaboration Tools</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+            <span className="text-gray-300">Enterprise-grade Security</span>
           </div>
         </div>
       </div>
-
-      {/* Right side - Login form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
-        <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="lg:hidden flex items-center justify-center mb-8">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-white" />
-            </div>
-            <span className="ml-3 text-xl font-bold text-gray-900">Dealio</span>
-          </div>
-
-          <Card className="border-0 shadow-xl">
-            <CardHeader className="space-y-4 pb-6">
-              <div>
-                <CardTitle className="text-2xl font-bold text-center text-gray-900">Sign in to your account</CardTitle>
-                <CardDescription className="text-center mt-2 text-gray-600">
-                  Choose your preferred login method
-                </CardDescription>
-              </div>
-            </CardHeader>
-
-            <CardContent className="space-y-6">
-              {generalError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-800 text-sm">
-                  {generalError}
-                </div>
-              )}
-
-              <Tabs defaultValue="email" className="w-full" onValueChange={handleTabChange}>
-                <TabsList className="grid w-full grid-cols-3 mb-6">
-                  <TabsTrigger value="email" className="flex items-center space-x-2">
-                    <Mail className="w-4 h-4" />
-                    <span>Email</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="card" className="flex items-center space-x-2">
-                    <CreditCard className="w-4 h-4" />
-                    <span>Card</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="apikey" className="flex items-center space-x-2">
-                    <KeyRound className="w-4 h-4" />
-                    <span>API Key</span>
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="email">
-                  <form onSubmit={handleEmailSubmit(onEmailLogin)} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                        Email or Username
-                      </Label>
-                      <Input
-                        id="email"
-                        type="text"
-                        placeholder="Enter your email or username"
-                        className="h-11"
-                        aria-invalid={!!emailErrors.email}
-                        {...registerEmail('email')}
-                      />
-                      {emailErrors.email && <p className="text-sm text-red-600">{emailErrors.email.message}</p>}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-                        Password
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="password"
-                          type={showPassword ? 'text' : 'password'}
-                          placeholder="Enter your password"
-                          className="h-11 pr-10"
-                          aria-invalid={!!emailErrors.password}
-                          {...registerEmail('password')}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        >
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                      {emailErrors.password && <p className="text-sm text-red-600">{emailErrors.password.message}</p>}
-                    </div>
-
-                    <Button
-                      type="submit"
-                      disabled={isLoading}
-                      className="w-full h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium"
-                    >
-                      {isLoading && activeTab === 'email' ? (
-                        <div className="flex items-center space-x-2">
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Signing in...</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center space-x-2">
-                          <Lock className="w-4 h-4" />
-                          <span>Sign In</span>
-                        </div>
-                      )}
-                    </Button>
-                  </form>
-                </TabsContent>
-
-                <TabsContent value="card">
-                  <form onSubmit={handleCardSubmit(onCardLogin)} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="employeeCard" className="text-sm font-medium text-gray-700">
-                        Employee Card Number
-                      </Label>
-                      <Input
-                        id="employeeCard"
-                        type="text"
-                        placeholder="Enter your employee card number"
-                        className="h-11"
-                        aria-invalid={!!cardErrors.employeeCard}
-                        {...registerCard('employeeCard')}
-                      />
-                      {cardErrors.employeeCard && (
-                        <p className="text-sm text-red-600">{cardErrors.employeeCard.message}</p>
-                      )}
-                    </div>
-
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <div className="flex items-start space-x-2">
-                        <CreditCard className="w-4 h-4 text-blue-600 mt-0.5" />
-                        <div className="text-sm text-blue-800">
-                          <p className="font-medium">Employee Card Login</p>
-                          <p className="text-blue-600 mt-1">Use your physical employee card number for quick access</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button
-                      type="submit"
-                      disabled={isLoading}
-                      className="w-full h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium"
-                    >
-                      {isLoading && activeTab === 'card' ? (
-                        <div className="flex items-center space-x-2">
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Verifying...</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center space-x-2">
-                          <CreditCard className="w-4 h-4" />
-                          <span>Verify Card</span>
-                        </div>
-                      )}
-                    </Button>
-                  </form>
-                </TabsContent>
-              </Tabs>
-
-              <div className="flex items-center justify-between text-sm">
-                <button className="text-blue-600 hover:text-blue-800 font-medium">Forgot password?</button>
-                <button className="text-gray-600 hover:text-gray-800">Need help?</button>
-              </div>
-
-              <div className="pt-4 border-t border-gray-200">
-                <div className="flex items-center justify-center space-x-2 text-xs text-gray-500">
-                  <Badge variant="secondary" className="text-xs">
-                    Secure Login
-                  </Badge>
-                  <span>•</span>
-                  <span>Protected by enterprise security</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <p className="text-center text-xs text-gray-500 mt-6">
-            By signing in, you agree to our{' '}
-            <button className="text-blue-600 hover:text-blue-800">Terms of Service</button> and{' '}
-            <button className="text-blue-600 hover:text-blue-800">Privacy Policy</button>
+      <div className="mt-12">
+        <div className="relative p-6 bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700">
+          <Quote className="absolute top-4 left-4 w-8 h-8 text-gray-600" />
+          <p className="text-lg italic text-gray-300">
+            "Dealio has revolutionized our workflow. The insights we gain are invaluable, and the platform is incredibly
+            intuitive."
           </p>
+          <p className="mt-4 text-right font-semibold text-gray-200">- Jane Doe, CEO at Innovate Inc.</p>
         </div>
       </div>
     </div>
+  </div>
+);
+
+/**
+ * Main login form container with tabs for different login methods.
+ */
+const LoginForm = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<LoginMethod>('email');
+  const [generalError, setGeneralError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const emailForm = useForm<EmailLoginFormData>({ resolver: zodResolver(emailLoginSchema) });
+  const cardForm = useForm<CardLoginFormData>({ resolver: zodResolver(cardLoginSchema) });
+  const apiKeyForm = useForm<ApiKeyFormData>({ resolver: zodResolver(apiKeySchema) });
+
+  const handleLoginSuccess = (data: { token: string; user?: { name: string } }) => {
+    localStorage.setItem('bearer_token', data.token);
+    const userName = data.user?.name || 'there';
+    toast.success(`Login successful! Welcome back, ${userName}.`);
+    setTimeout(() => {
+      window.location.href = '/'; // Full reload to clear state and re-initialize app
+    }, 1500);
+  };
+
+  const handleLoginError = (error: unknown) => {
+    let errorMessage = 'An unexpected error occurred. Please try again.';
+    // **This is the key part for handling your specific error structure**
+    if (axios.isAxiosError(error) && error.response?.data?.message) {
+      // We found a specific error message from the API response.
+      errorMessage = error.response.data.message;
+    } else if (error instanceof Error) {
+      // Fallback for other types of errors (network issues, etc.)
+      errorMessage = error.message;
+    }
+    setGeneralError(errorMessage);
+    toast.error('Login Failed', { description: errorMessage });
+  };
+
+  const handleFormSubmit = async (data: any, method: LoginMethod) => {
+    setIsLoading(true);
+    setGeneralError('');
+    try {
+      let result;
+      if (method === 'email') {
+        result = await authService.loginWithEmail(data);
+      } else if (method === 'card') {
+        result = await authService.loginWithCard(data);
+      } else {
+        result = await authService.loginWithApiKey(data);
+      }
+      handleLoginSuccess(result);
+    } catch (error) {
+      handleLoginError(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const SubmitButton = ({ method, text, loadingText }: { method: LoginMethod; text: string; loadingText: string }) => (
+    <Button
+      type="submit"
+      disabled={isLoading}
+      className="w-full h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium"
+    >
+      {isLoading && activeTab === method ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          {loadingText}
+        </>
+      ) : (
+        text
+      )}
+    </Button>
+  );
+
+  return (
+    <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
+      <div className="w-full max-w-md">
+        <Card className="border-0 shadow-xl">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold text-gray-900">Sign in to your Account</CardTitle>
+            <CardDescription>Choose your preferred login method to continue</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {generalError && (
+              <div
+                className="bg-red-50 border-l-4 border-red-400 text-red-700 p-4 rounded-md flex items-start space-x-3"
+                role="alert"
+                aria-live="polite"
+              >
+                <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                <div>
+                  <p className="font-bold">Login Error</p>
+                  <p className="text-sm">{generalError}</p>
+                </div>
+              </div>
+            )}
+            <Tabs
+              defaultValue="email"
+              className="w-full"
+              onValueChange={value => {
+                setGeneralError('');
+                setActiveTab(value as LoginMethod);
+              }}
+            >
+              <TabsList className="grid w-full grid-cols-3 mb-6">
+                <TabsTrigger value="email">
+                  <Mail className="w-4 h-4 mr-2" /> Email
+                </TabsTrigger>
+                <TabsTrigger value="card">
+                  <CreditCard className="w-4 h-4 mr-2" /> Card
+                </TabsTrigger>
+                <TabsTrigger value="apikey">
+                  <KeyRound className="w-4 h-4 mr-2" /> API Key
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Email/Username Login Form */}
+              <TabsContent value="email">
+                <form onSubmit={emailForm.handleSubmit(data => handleFormSubmit(data, 'email'))} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email or Username</Label>
+                    <Input id="email" placeholder="you@example.com" {...emailForm.register('email')} />
+                    {emailForm.formState.errors.email && (
+                      <p className="text-sm text-red-600">{emailForm.formState.errors.email.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        {...emailForm.register('password')}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {emailForm.formState.errors.password && (
+                      <p className="text-sm text-red-600">{emailForm.formState.errors.password.message}</p>
+                    )}
+                  </div>
+                  <SubmitButton method="email" text="Sign In" loadingText="Signing In..." />
+                </form>
+              </TabsContent>
+
+              {/* Card Login Form */}
+              <TabsContent value="card">
+                <form onSubmit={cardForm.handleSubmit(data => handleFormSubmit(data, 'card'))} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="employeeCard">Employee Card Number</Label>
+                    <Input id="employeeCard" placeholder="Enter card number" {...cardForm.register('employeeCard')} />
+                    {cardForm.formState.errors.employeeCard && (
+                      <p className="text-sm text-red-600">{cardForm.formState.errors.employeeCard.message}</p>
+                    )}
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800 flex items-start space-x-2">
+                    <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <p>Use your physical employee card number for quick, passwordless access.</p>
+                  </div>
+                  <SubmitButton method="card" text="Verify Card" loadingText="Verifying..." />
+                </form>
+              </TabsContent>
+
+              {/* API Key Login Form */}
+              <TabsContent value="apikey">
+                <form
+                  onSubmit={apiKeyForm.handleSubmit(data => handleFormSubmit(data, 'apikey'))}
+                  className="space-y-4"
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="apiKey">API Key</Label>
+                    <Input id="apiKey" placeholder="Enter your API key" {...apiKeyForm.register('apiKey')} />
+                    {apiKeyForm.formState.errors.apiKey && (
+                      <p className="text-sm text-red-600">{apiKeyForm.formState.errors.apiKey.message}</p>
+                    )}
+                  </div>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800 flex items-start space-x-2">
+                    <ShieldAlert className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <p>For developer and system integration use only. Handle with care.</p>
+                  </div>
+                  <SubmitButton method="apikey" text="Authenticate" loadingText="Authenticating..." />
+                </form>
+              </TabsContent>
+            </Tabs>
+            <div className="flex items-center justify-between text-sm">
+              <button className="font-medium text-blue-600 hover:underline">Forgot password?</button>
+              <button className="text-gray-600 hover:underline">Need help?</button>
+            </div>
+            <div className="pt-4 border-t border-gray-200 flex items-center justify-center space-x-2 text-xs text-gray-500">
+              <Badge variant="secondary">
+                <Lock className="w-3 h-3 mr-1" /> Secure Login
+              </Badge>
+              <span>•</span>
+              <span>Protected by enterprise security</span>
+            </div>
+          </CardContent>
+        </Card>
+        <p className="mt-6 text-center text-xs text-gray-500">
+          By signing in, you agree to our{' '}
+          <a href="#" className="font-medium text-blue-600 hover:underline">
+            Terms of Service
+          </a>{' '}
+          and{' '}
+          <a href="#" className="font-medium text-blue-600 hover:underline">
+            Privacy Policy
+          </a>
+          .
+        </p>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * A wrapper to ensure the application is only viewed on larger screens.
+ */
+const DesktopOnlyView = ({ children }: { children: React.ReactNode }) => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  // This should ideally be handled with CSS media queries for better performance,
+  // but a JS check is fine for a simple message overlay.
+  // Using a CSS approach:
+  // <div className="hidden sm:block">{children}</div>
+  // <div className="sm:hidden">Message</div>
+
+  return (
+    <>
+      <div className="hidden lg:flex min-h-screen w-full">{children}</div>
+      <div className="lg:hidden flex flex-col items-center justify-center min-h-screen text-center p-4 bg-gray-100">
+        <Building2 className="w-16 h-16 text-blue-600 mb-4" />
+        <h1 className="text-2xl font-bold text-gray-800">Desktop Experience Recommended</h1>
+        <p className="mt-2 text-gray-600">
+          For the best experience, please access the Dealio POS on a desktop or laptop computer.
+        </p>
+      </div>
+    </>
+  );
+};
+
+// --- MAIN PAGE COMPONENT ---
+export default function LoginPage() {
+  return (
+    <DesktopOnlyView>
+      <div className="min-h-screen flex bg-gray-50 w-full">
+        <LoginBranding />
+        <LoginForm />
+      </div>
+    </DesktopOnlyView>
   );
 }

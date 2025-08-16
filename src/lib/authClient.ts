@@ -1,39 +1,28 @@
 import { createAuthClient } from 'better-auth/react';
-import { useQuery, UseQueryResult } from '@tanstack/react-query';
+import { useQuery, UseQueryResult, useQueryClient } from '@tanstack/react-query';
 import { apiKeyClient, customSessionClient, organizationClient, usernameClient } from 'better-auth/client/plugins';
 import { API_ENDPOINT } from './axios';
 import { fetch } from '@tauri-apps/plugin-http';
 import axios, { AxiosError } from 'axios';
 import axiosTauriApiAdapter from 'axios-tauri-api-adapter';
 
-export const authClient = createAuthClient({
-  baseURL: API_ENDPOINT,
-  plugins: [customSessionClient(), apiKeyClient(), usernameClient(), organizationClient()],
-  fetchOptions: {
-    onSuccess: ctx => {
-      const jwt = ctx.response.headers.get('set-auth-jwt');
-      if (jwt) {
-        console.log('client token:', jwt);
-        localStorage.setItem('jwt_token', jwt);
-      }
-    },
-    auth: {
-      type: 'Bearer',
-      token: () => localStorage.getItem('bearer_token'), // get the token from localStorage
-    },
-  },
-  disableDefaultFetchPlugins: true,
-});
-export const { signIn, signUp, changePassword, organization, apiKey } = authClient;
+// ========= CONSTANTS =========
+const SESSION_STORAGE_KEY = 'session_data_v1' as const;
+const BEARER_TOKEN_KEY = 'bearer_token' as const;
+const QUERY_KEY = ['session'] as const;
 
-// 1. ========= TYPE DEFINITIONS =========
+// Time constants
+const TIME_CONSTANTS = {
+  ONE_HOUR: 60 * 60 * 1000,
+  FIVE_MINUTES: 5 * 60 * 1000,
+  TWENTY_FOUR_HOURS: 24 * 60 * 60 * 1000,
+  MAX_RETRY_DELAY: 30 * 1000,
+} as const;
 
-/**
- * A custom error class for fetch requests to include the HTTP status.
- */
+// ========= TYPE DEFINITIONS =========
 export class BetterFetchError extends Error {
-  status: number;
-  info?: unknown;
+  readonly status: number;
+  readonly info?: unknown;
 
   constructor(message: string, status: number, info?: unknown) {
     super(message);
@@ -43,70 +32,151 @@ export class BetterFetchError extends Error {
   }
 }
 
-// Type for the User object
 interface User {
-  id: string;
-  emailVerified: boolean;
-  name: string;
-  createdAt: Date;
-  updatedAt: Date;
-  email?: string;
-  image?: string;
-  username?: string;
-  displayUsername?: string;
+  readonly id: string;
+  readonly emailVerified: boolean;
+  readonly name: string;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly email?: string;
+  readonly image?: string;
+  readonly username?: string;
+  readonly displayUsername?: string;
 }
 
-// Type for the Session object
 interface Session {
-  id: string;
-  userId: string;
-  expiresAt: Date;
-  createdAt: Date;
-  updatedAt: Date;
-  token: string;
-  ipAddress?: string;
-  userAgent?: string;
-  activeOrganizationId?: string;
+  readonly id: string;
+  readonly userId: string;
+  readonly expiresAt: Date;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly token: string;
+  readonly ipAddress?: string;
+  readonly userAgent?: string;
+  readonly activeOrganizationId?: string;
 }
 
-// The complete data structure returned by the API
 export interface SessionData {
-  user: User;
-  session: Session;
+  readonly user: User;
+  readonly session: Session;
 }
 
-// Options for the useSession hook
 interface UseSessionOptions {
   /**
    * How long to persist the session data in the cache before it becomes stale.
-   * Value is in milliseconds.
    * @default 3600000 (1 hour)
    */
-  persistFor?: number;
-  
+  readonly persistFor?: number;
+
   /**
    * Whether to enable the query. Useful for conditional fetching.
    * @default true
    */
-  enabled?: boolean;
+  readonly enabled?: boolean;
+
+  /**
+   * Custom refetch interval in milliseconds. Set to false to disable.
+   * @default false
+   */
+  readonly refetchInterval?: number | false;
 }
 
-// The return type of the useSession hook
 type UseSessionReturn = Omit<UseQueryResult<SessionData, BetterFetchError>, 'data' | 'error'> & {
-  data: SessionData | undefined; // Ensure data can be undefined while loading
-  error: BetterFetchError | null; // useQuery returns null for error when not present
+  readonly data: SessionData | undefined;
+  readonly error: BetterFetchError | null;
+  readonly clearSession: () => void;
+  readonly refreshSession: () => Promise<SessionData>;
 };
 
-// 2. ========= DATA FETCHER =========
+interface StoredSessionData {
+  readonly data: SessionData;
+  readonly timestamp: number;
+}
 
-/**
- * Fetches session data from the API endpoint.
- * It automatically parses date strings into Date objects.
- */
-const getSession = async (): Promise<SessionData> => {
+// ========= UTILITY FUNCTIONS =========
+const parseStoredDates = (data: any): SessionData => ({
+  ...data,
+  user: {
+    ...data.user,
+    createdAt: new Date(data.user.createdAt),
+    updatedAt: new Date(data.user.updatedAt),
+  },
+  session: {
+    ...data.session,
+    expiresAt: new Date(data.session.expiresAt),
+    createdAt: new Date(data.session.createdAt),
+    updatedAt: new Date(data.session.updatedAt),
+  },
+});
+
+const getStoredSession = (): SessionData | null => {
+  try {
+    const storedSession = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!storedSession) return null;
+
+    const parsed: StoredSessionData = JSON.parse(storedSession);
+    const isValid = Date.now() - parsed.timestamp < TIME_CONSTANTS.TWENTY_FOUR_HOURS;
+
+    if (!isValid) {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+      return null;
+    }
+
+    return parseStoredDates(parsed.data);
+  } catch (error) {
+    console.warn('Failed to parse stored session:', error);
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+    return null;
+  }
+};
+
+const storeSession = (data: SessionData): void => {
+  try {
+    const storedData: StoredSessionData = {
+      data,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(storedData));
+  } catch (error) {
+    console.warn('Failed to store session data:', error);
+  }
+};
+
+const clearStoredSession = (): void => {
+  try {
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+    localStorage.removeItem(BEARER_TOKEN_KEY);
+  } catch (error) {
+    console.warn('Failed to clear stored session:', error);
+  }
+};
+
+const isAuthError = (error: unknown): boolean => {
+  return error instanceof BetterFetchError && (error.status === 401 || error.status === 403);
+};
+
+// ========= AUTH CLIENT CONFIGURATION =========
+export const authClient = createAuthClient({
+  baseURL: API_ENDPOINT,
+  plugins: [customSessionClient(), apiKeyClient(), usernameClient(), organizationClient()],
+  fetchOptions: {
+    auth: {
+      type: 'Bearer',
+      token: () => localStorage.getItem(BEARER_TOKEN_KEY),
+    },
+  },
+  disableDefaultFetchPlugins: true,
+});
+
+export const { signIn, signUp, changePassword, organization, apiKey } = authClient;
+
+// ========= SESSION FETCHER =========
+const fetchSession = async (): Promise<SessionData> => {
   const response = await fetch(`${API_ENDPOINT}/api/auth/get-session`, {
-    // Add credentials to ensure cookies are sent
     credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
 
   if (!response.ok) {
@@ -116,109 +186,91 @@ const getSession = async (): Promise<SessionData> => {
     } catch {
       errorInfo = { message: 'Failed to parse error response.' };
     }
+
     throw new BetterFetchError(`Failed to fetch session. Status: ${response.status}`, response.status, errorInfo);
   }
 
   const data = await response.json();
-
-  // JSON doesn't support Date objects, so they are transmitted as strings.
-  // We need to parse them back into Date objects for type safety.
-  return {
-    ...data,
-    user: {
-      ...data.user,
-      createdAt: new Date(data.user.createdAt),
-      updatedAt: new Date(data.user.updatedAt),
-    },
-    session: {
-      ...data.session,
-      expiresAt: new Date(data.session.expiresAt),
-      createdAt: new Date(data.session.createdAt),
-      updatedAt: new Date(data.session.updatedAt),
-    },
-  };
+  return parseStoredDates(data);
 };
 
-const SESSION_STORAGE_KEY = 'session_data_u';
-const TWENTY_FOUR_HOURS_IN_MS = 1000 * 60 * 60 * 24;
-
-export function useSession(options?: UseSessionOptions): UseSessionReturn {
-  const ONE_HOUR_IN_MS = 1000 * 60 * 60;
-  const FIVE_MINUTES_IN_MS = 1000 * 60 * 5;
+// ========= SESSION HOOK =========
+export function useSession(options: UseSessionOptions = {}): UseSessionReturn {
+  const queryClient = useQueryClient();
 
   const queryResult = useQuery<SessionData, BetterFetchError>({
-    queryKey: ['session'],
-    queryFn: async () => {
-      // First try to get from localStorage if within 24 hours
-      const storedSession = localStorage.getItem(SESSION_STORAGE_KEY);
+    queryKey: QUERY_KEY,
+    queryFn: async (): Promise<SessionData> => {
+      // Try to get from localStorage first
+      const storedSession = getStoredSession();
       if (storedSession) {
-        const { data, timestamp } = JSON.parse(storedSession);
-        if (Date.now() - timestamp < TWENTY_FOUR_HOURS_IN_MS) {
-          return {
-            ...data,
-            user: {
-              ...data.user,
-              createdAt: new Date(data.user.createdAt),
-              updatedAt: new Date(data.user.updatedAt),
-            },
-            session: {
-              ...data.session,
-              expiresAt: new Date(data.session.expiresAt),
-              createdAt: new Date(data.session.createdAt),
-              updatedAt: new Date(data.session.updatedAt),
-            },
-          };
-        }
+        return storedSession;
       }
 
-      // If no valid localStorage data, fetch from API
-      const freshData = await getSession();
-      
-      // Store in localStorage with timestamp
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        data: freshData,
-        timestamp: Date.now()
-      }));
-      
+      // Fetch from API and store
+      const freshData = await fetchSession();
+      storeSession(freshData);
       return freshData;
     },
-    staleTime: options?.persistFor ?? ONE_HOUR_IN_MS,
-    gcTime: TWENTY_FOUR_HOURS_IN_MS,
 
-    // CRITICAL FIX: Prevent excessive refetching
+    // Cache configuration
+    staleTime: options.persistFor ?? TIME_CONSTANTS.ONE_HOUR,
+    gcTime: TIME_CONSTANTS.TWENTY_FOUR_HOURS,
+
+    // Prevent excessive refetching
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    // Add retry configuration to prevent rapid retries
+    refetchOnMount: true,
+    refetchInterval: options.refetchInterval ?? false,
+    refetchIntervalInBackground: false,
+
+    // Retry configuration
     retry: (failureCount, error) => {
-      // Don't retry on 401/403 (authentication errors)
-      if (error instanceof BetterFetchError && (error.status === 401 || error.status === 403)) {
+      if (isAuthError(error)) {
+        clearStoredSession();
         return false;
       }
-      // Only retry up to 2 times with exponential backoff
       return failureCount < 2;
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff, max 30s
+    retryDelay: attemptIndex => Math.min(1000 * Math.pow(2, attemptIndex), TIME_CONSTANTS.MAX_RETRY_DELAY),
+
+    // Other options
     networkMode: 'online',
-    refetchInterval: false, 
-    enabled: options?.enabled !== false,
-    retryOnMount: true,
-    refetchIntervalInBackground: false,
+    enabled: options.enabled !== false,
   });
 
-  // Return all properties from useQuery, but override data and error types
+  // Helper functions
+  const clearSession = (): void => {
+    clearStoredSession();
+    queryClient.removeQueries({ queryKey: QUERY_KEY });
+    queryClient.clear();
+  };
+
+  const refreshSession = async (): Promise<SessionData> => {
+    clearStoredSession();
+    const freshData = await queryClient.fetchQuery({
+      queryKey: QUERY_KEY,
+      queryFn: fetchSession,
+      staleTime: 0, // Force fresh fetch
+    });
+    storeSession(freshData);
+    return freshData;
+  };
+
   return {
     ...queryResult,
     data: queryResult.data,
     error: queryResult.error,
+    clearSession,
+    refreshSession,
   };
 }
 
-/**
- * Signs out the user by calling the sign-out API endpoint and clears session data from localStorage.
- */
+// ========= SIGN OUT FUNCTION =========
 export const signOut = async (): Promise<void> => {
   try {
-    const token = localStorage.getItem('bearer_token');
+    const token = localStorage.getItem(BEARER_TOKEN_KEY);
+
     await axios.post(
       `${API_ENDPOINT}/api/auth/sign-out`,
       {},
@@ -226,14 +278,12 @@ export const signOut = async (): Promise<void> => {
         withCredentials: true,
         adapter: axiosTauriApiAdapter,
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: token ? `Bearer ${token}` : undefined,
+          'Content-Type': 'application/json',
         },
+        timeout: 10000, // 10 second timeout
       }
     );
-    
-    // Clear session data from localStorage after successful sign-out
-    localStorage.removeItem(SESSION_STORAGE_KEY);
-    localStorage.removeItem('bearer_token');
   } catch (error) {
     if (error instanceof AxiosError) {
       const errorInfo = error.response?.data || { message: 'Failed to parse error response.' };
@@ -243,7 +293,37 @@ export const signOut = async (): Promise<void> => {
         errorInfo
       );
     }
-    // Re-throw non-axios errors
     throw error;
+  } finally {
+    // Always clear session data, even if the API call fails
+    clearStoredSession();
   }
+};
+
+// ========= ADDITIONAL UTILITIES =========
+
+/**
+ * Check if the current session is valid (not expired)
+ */
+export const isSessionValid = (sessionData?: SessionData): boolean => {
+  if (!sessionData?.session?.expiresAt) return false;
+  return new Date(sessionData.session.expiresAt) > new Date();
+};
+
+/**
+ * Get session expiry time in milliseconds from now
+ */
+export const getSessionTimeToExpiry = (sessionData?: SessionData): number => {
+  if (!sessionData?.session?.expiresAt) return 0;
+  return Math.max(0, new Date(sessionData.session.expiresAt).getTime() - Date.now());
+};
+
+/**
+ * Check if session will expire within the given time (in milliseconds)
+ */
+export const isSessionNearExpiry = (
+  sessionData?: SessionData,
+  withinMs: number = TIME_CONSTANTS.FIVE_MINUTES
+): boolean => {
+  return getSessionTimeToExpiry(sessionData) < withinMs;
 };

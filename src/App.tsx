@@ -16,11 +16,9 @@ import { QueryProvider } from './lib/tanstack-axios';
 import PendingOrdersPage from './pages/PendingOrders';
 import { SessionProvider } from './providers/session';
 import PrintersPage from './pages/printers';
-import ReceiptCustomizer from './pages/receipt';
 import SalesDashboard from './pages/sales';
-import Home from './pages/page';
+import Receipt from './pages/page';
 
-// Component wrapper for home routes that need OrgProvider
 const HomeRouteWrapper = ({ children }) => <OrgProvider>{children}</OrgProvider>;
 
 const App = () => {
@@ -138,7 +136,7 @@ const App = () => {
                 <Route path="/settings" element={<PosConfigManagerPage />} />
                 <Route path="/order-lists" element={<PendingOrdersPage />} />
                 <Route path="/printers" element={<PrintersPage />} />
-                <Route path="/receipt" element={<Home />} />
+                <Route path="/receipt" element={<Receipt />} />
                 <Route path="/sales" element={<SalesDashboard />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

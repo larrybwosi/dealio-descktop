@@ -344,6 +344,8 @@ class ApiClient {
           responseType: 'blob',
         })
         .then(res => res.data),
+    sync: (organizationId: string, data: unknown) =>
+      this.axiosInstance.post(`/organizations/${organizationId}/sales/sync`, data),
 
     // Sales-specific operations process
     refund: async (organizationId: string, saleId: string): Promise<ApiResponse<Sale>> =>

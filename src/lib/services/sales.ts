@@ -9,17 +9,58 @@ interface Sale {
   // Add your sale properties here
 }
 
+interface SaleData {
+  cartItems: Array<{
+    variantId: string;
+    quantity: number;
+  }>;
+  locationId: string;
+  customerId?: string | null;
+  paymentMethod: string;
+  paymentStatus?: string;
+  discountAmount?: number;
+  cashDrawerId?: string | null;
+  notes?: string | null;
+  enableStockTracking: boolean;
+}
 
 interface PendingSale {
   id: string;
-  data: unknown;
+  data: SaleData;
   organizationId: string;
   timestamp: number;
   retryCount: number;
 }
 
+interface SyncSalesRequest {
+  sales: Array<{
+    id: string; // The temporary offline ID
+    cartItems: Array<{
+      variantId: string;
+      quantity: number;
+    }>;
+    locationId: string;
+    customerId?: string | null;
+    paymentMethod: string;
+    paymentStatus?: string;
+    discountAmount?: number;
+    cashDrawerId?: string | null;
+    notes?: string | null;
+    enableStockTracking: boolean;
+  }>;
+}
+
+interface SyncSalesResponse {
+  message: string;
+  successfullySynced: string[];
+  failedToSync: Array<{
+    id: string;
+    reason: string;
+  }>;
+}
+
 const PENDING_SALES_KEY = 'pending_sales';
-const MAX_RETRY_ATTEMPTS = 3;
+const MAX_RETRY_ATTEMPTS = 7;
 const RETRY_DELAY = 2000; // 2 seconds
 
 // Utility functions for localStorage operations
@@ -60,42 +101,30 @@ export const removePendingSale = (saleId: string): void => {
   }
 };
 
+export const removePendingSales = (saleIds: string[]): void => {
+  try {
+    const pendingSales = getPendingSales();
+    const filtered = pendingSales?.filter(sale => !saleIds.includes(sale.id));
+    localStorage.setItem(PENDING_SALES_KEY, JSON.stringify(filtered));
+  } catch (error) {
+    console.error('Error removing pending sales from localStorage:', error);
+  }
+};
+
 const generateSaleId = (): string => {
   return `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
+// Add sync sales function to apiClient (you'll need to add this to your apiClient)
+const syncSales = async (organizationId: string, request: SyncSalesRequest): Promise<SyncSalesResponse> => {
+  // Assuming your apiClient follows a similar pattern, update this based on your actual apiClient structure
+  return apiClient.sales.sync(`/organizations/${organizationId}/sales/sync`, request).then(res => res.data);
 };
 
 // Custom hook for retrying pending sales
 export const useRetryPendingSales = () => {
   const queryClient = useQueryClient();
   const organizationId = useOrgStore(state => state.organizationId);
-
-  const retryPendingSale = async (pendingSale: PendingSale): Promise<boolean> => {
-    try {
-      await apiClient.sales.create(pendingSale.organizationId, pendingSale.data);
-      removePendingSale(pendingSale.id);
-      queryClient.invalidateQueries({ queryKey: ['sales', pendingSale.organizationId] });
-      toast.success('Pending sale successfully saved!');
-      return true;
-      //eslint-disable-next-line
-    } catch (error: any) {
-      const updatedSale: PendingSale = {
-        ...pendingSale,
-        retryCount: pendingSale.retryCount + 1,
-        timestamp: Date.now(),
-      };
-
-      if (updatedSale.retryCount >= MAX_RETRY_ATTEMPTS) {
-        toast.error('Failed to save pending sale after multiple attempts. Please try again later.');
-        // Optionally remove the sale or keep it for manual retry
-        removePendingSale(pendingSale.id);
-        return false;
-      } else {
-        savePendingSale(updatedSale);
-        toast.warning(`Retry attempt ${updatedSale.retryCount} failed. Will try again later.`);
-        return false;
-      }
-    }
-  };
 
   const retryAllPendingSales = async (): Promise<void> => {
     const pendingSales = getPendingSales();
@@ -105,9 +134,90 @@ export const useRetryPendingSales = () => {
 
     toast.info(`Attempting to sync ${relevantSales.length} pending sale(s)...`);
 
-    for (const sale of relevantSales) {
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-      await retryPendingSale(sale);
+    try {
+      // Prepare the sync request
+      const syncRequest: SyncSalesRequest = {
+        sales: relevantSales.map(sale => ({
+          id: sale.id,
+          ...sale.data,
+        })),
+      };
+
+      // Call the batch sync endpoint
+      const response = await syncSales(organizationId!, syncRequest);
+
+      // Handle successful syncs
+      if (response.successfullySynced.length > 0) {
+        removePendingSales(response.successfullySynced);
+        queryClient.invalidateQueries({ queryKey: ['sales', organizationId] });
+        toast.success(`Successfully synced ${response.successfullySynced.length} sale(s)!`);
+      }
+
+      // Handle failed syncs
+      if (response.failedToSync.length > 0) {
+        const updatedSales: PendingSale[] = [];
+        const salesToRemove: string[] = [];
+
+        response.failedToSync.forEach(failed => {
+          const originalSale = relevantSales.find(s => s.id === failed.id);
+          if (originalSale) {
+            const updatedSale: PendingSale = {
+              ...originalSale,
+              retryCount: originalSale.retryCount + 1,
+              timestamp: Date.now(),
+            };
+
+            if (updatedSale.retryCount >= MAX_RETRY_ATTEMPTS) {
+              salesToRemove.push(failed.id);
+              toast.error(`Failed to sync sale after ${MAX_RETRY_ATTEMPTS} attempts: ${failed.reason}`);
+            } else {
+              updatedSales.push(updatedSale);
+              toast.warning(`Sync failed for sale (attempt ${updatedSale.retryCount}): ${failed.reason}`);
+            }
+          }
+        });
+
+        // Update sales that still have retry attempts left
+        updatedSales.forEach(sale => savePendingSale(sale));
+
+        // Remove sales that have exceeded max retry attempts
+        if (salesToRemove.length > 0) {
+          removePendingSales(salesToRemove);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error syncing pending sales:', error);
+
+      // Increment retry count for all sales and handle max retries 3
+      const updatedSales: PendingSale[] = [];
+      const salesToRemove: string[] = [];
+
+      relevantSales.forEach(sale => {
+        const updatedSale: PendingSale = {
+          ...sale,
+          retryCount: sale.retryCount + 1,
+          timestamp: Date.now(),
+        };
+
+        if (updatedSale.retryCount >= MAX_RETRY_ATTEMPTS) {
+          salesToRemove.push(sale.id);
+        } else {
+          updatedSales.push(updatedSale);
+        }
+      });
+
+      // Update sales that still have retry attempts left
+      updatedSales.forEach(sale => savePendingSale(sale));
+
+      // Remove sales that have exceeded max retry attempts
+      if (salesToRemove.length > 0) {
+        removePendingSales(salesToRemove);
+        toast.error(`Removed ${salesToRemove.length} sale(s) after ${MAX_RETRY_ATTEMPTS} failed attempts.`);
+      }
+
+      if (updatedSales.length > 0) {
+        toast.warning(`Sync failed. Will retry ${updatedSales.length} sale(s) later.`);
+      }
     }
   };
 
@@ -141,7 +251,7 @@ export const useCreateSale = () => {
   const queryClient = useQueryClient();
   const organizationId = useOrgStore(state => state.organizationId);
 
-  return useMutation<ApiResponse<Sale>, Error, unknown>({
+  return useMutation<ApiResponse<Sale>, Error, SaleData>({
     mutationFn: data => apiClient.sales.create(organizationId!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', organizationId] });
