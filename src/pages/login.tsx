@@ -29,6 +29,7 @@ import { useForm } from 'react-hook-form';
 import axios from 'axios';
 import axiosTauriApiAdapter from 'axios-tauri-api-adapter';
 import { API_ENDPOINT } from '@/lib/axios';
+import { fetch } from '@tauri-apps/plugin-http';
 
 // --- ZOD VALIDATION SCHEMAS ---
 const emailLoginSchema = z.object({
@@ -56,11 +57,10 @@ type LoginMethod = 'email' | 'card' | 'apikey';
 // --- API SERVICE (for better separation of concerns) ---
 const authService = {
   loginWithEmail: async (data: EmailLoginFormData) => {
-    // This logic can differentiate between email and username server-side
-    // Or you can add the check back here if needed.
     const response = await axios.post(`${API_ENDPOINT}/api/auth/sign-in/email`, data, {
       adapter: axiosTauriApiAdapter,
     });
+    
     return response.data;
   },
   loginWithCard: async (data: CardLoginFormData) => {
@@ -78,8 +78,6 @@ const authService = {
     return response.data;
   },
 };
-
-// --- UI COMPONENTS ---
 
 /**
  * Left-side branding panel for the login page.
@@ -148,9 +146,24 @@ const LoginForm = () => {
   const cardForm = useForm<CardLoginFormData>({ resolver: zodResolver(cardLoginSchema) });
   const apiKeyForm = useForm<ApiKeyFormData>({ resolver: zodResolver(apiKeySchema) });
 
-  const handleLoginSuccess = (data: { token: string; user?: { name: string } }) => {
+  const handleLoginSuccess = async (data: { token: string; user?: { name: string } }) => {
+    
     localStorage.setItem('bearer_token', data.token);
     const userName = data.user?.name || 'there';
+    const res = await fetch(`${API_ENDPOINT}/api/auth/token`, {
+      headers: {
+        Authorization: `Bearer ${data.token}`,
+      },
+    });
+
+    const resp = await res.json();
+    
+    const jwt = resp?.token || null;
+    if (jwt) {
+      console.log('JWT from login:', jwt);
+      // Store JWT in localStorage for later use
+      localStorage.setItem('jwt_token', jwt);
+    }
     toast.success(`Login successful! Welcome back, ${userName}.`);
     setTimeout(() => {
       window.location.href = '/'; // Full reload to clear state and re-initialize app
@@ -171,6 +184,7 @@ const LoginForm = () => {
     toast.error('Login Failed', { description: errorMessage });
   };
 
+  //eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleFormSubmit = async (data: any, method: LoginMethod) => {
     setIsLoading(true);
     setGeneralError('');
@@ -183,6 +197,7 @@ const LoginForm = () => {
       } else {
         result = await authService.loginWithApiKey(data);
       }
+      console.log('Login result:', result);
       handleLoginSuccess(result);
     } catch (error) {
       handleLoginError(error);

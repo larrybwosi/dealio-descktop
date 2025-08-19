@@ -1,11 +1,8 @@
-import { useMemo } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Order, OrderQueue } from '@/types'; // Assuming OrderQueue is defined in your types file
+import { Order } from '@/types'; 
 
-/**
- * Interface for the order store state and its actions.
- */
+
 interface OrderState {
   pendingOrders: Order[];
   addPendingOrder: (order: Order) => void;
@@ -13,12 +10,6 @@ interface OrderState {
   clearPendingOrders: () => void;
 }
 
-/**
- * Zustand store for managing pending orders.
- *
- * It uses `persist` middleware to save the state to localStorage,
- * allowing the data to persist across browser sessions.
- */
 export const useOrderStore = create<OrderState>()(
   persist(
     set => ({
@@ -34,8 +25,8 @@ export const useOrderStore = create<OrderState>()(
       clearPendingOrders: () => set({ pendingOrders: [] }),
     }),
     {
-      name: 'pending-orders-storage', // Unique name for the localStorage key
-      version: 1, // Optional version for migrations
+      name: 'pending-orders-storage', 
+      version: 1, 
     }
   )
 );

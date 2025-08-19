@@ -37,18 +37,12 @@ interface InvoiceModalProps {
 export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   const pdfRef = useRef<HTMLDivElement>(null);
   // --- ✨ Assuming useOrgStore provides all necessary fields ---
-  const { orgName, address, organizationId: orgId } = useOrgStore();
+  const { organizationId: orgId } = useOrgStore();
   const { printers, defaultPrinter } = usePrinterStore();
   const config = JSON.parse(localStorage.getItem('receipt-config'));
 
-  const orgInfo = {
-    phone: '+62 812 3456 7890',
-    email: 'dealio@gealio.co',
-    website: 'www.dealio.co',
-    tagline: 'Your favorite spot',
-  };
 
-  const { phone, email, website, tagline } = orgInfo;
+  // const { phone, email, website, tagline } = orgInfo;
   const isPaid = order.status === 'completed';
   const [qrCodeImage, setQrCodeImage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -83,14 +77,14 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   }, [order.id, isPaid, isOpen]);
 
   // --- ✨ Data structured for ThermalReceiptPDF ---
-  const organizationData: OrganizationData = {
-    name: orgName || 'Dealio',
-    address: address || 'Indah Kapuk Beach, Jakarta',
-    phone: phone || '+62 812 3456 7890',
-    email: email || 'info@dealio.co',
-    website: website || 'www.dealio.co',
-    tagline: tagline || 'Your favorite spot',
-  };
+    const organizationData: OrganizationData = {
+      name: config.businessName,
+      tagline: config.businessTagline,
+      address: config.businessAddress,
+      phone: config.businessPhone,
+      email: config.businessEmail,
+      website: config.businessWebsite,
+    };
 
   const paymentData: PaymentData = {
     paymentMethod: order.paymentMethod as 'cash' | 'mobile' | 'card',
@@ -105,10 +99,10 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   // --- ✨ Data structured for standard InvoicePDF ---
   const invoiceData: InvoiceData = {
     order,
-    restaurantName: orgName || 'Dealio',
-    restaurantAddress: address || 'Indah Kapuk Beach, Jakarta',
-    restaurantPhone: phone || '+62 812 3456 7890',
-    restaurantEmail: 'info@dealio.co',
+    restaurantName: config.businessName || 'Dealio',
+    restaurantAddress: config.businessAddress || 'Indah Kapuk Beach, Jakarta',
+    restaurantPhone: config.businessPhone || '123-456-7890',
+    restaurantEmail: config.businessEmail || 'info@dealio.co',
     qrCodeImage: qrCodeImage,
   };
 
@@ -321,10 +315,11 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
           <PDFViewer width="100%" height={500} style={{ border: 'none' }}>
             {/* --- ✨ Conditionally render correct component with correct props --- */}
             {isPaid ? (
-              <ThermalReceiptPDF
+              <EnhancedThermalReceiptPDF
                 items={order.items}
                 paymentData={paymentData}
                 qrCodeImage={qrCodeImage}
+                config={config}
                 organization={organizationData}
               />
             ) : (

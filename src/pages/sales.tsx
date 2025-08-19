@@ -315,8 +315,8 @@ const SalesDashboard = () => {
   };
 
   const handleRefresh = () => {
-    refetchSummary();
-    refetchSales();
+    // refetchSummary();
+    // refetchSales();
   };
 
   // Optimized pagination range

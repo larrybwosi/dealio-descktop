@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,7 @@ import {
   Receipt,
   Info,
   Loader2,
+  ArrowLeft,
 } from "lucide-react"
 import type { ReceiptConfig, CartItem, PaymentData } from "@/types"
 import { ReceiptPreview } from "./receipt-preview"
@@ -127,20 +128,35 @@ const samplePaymentData: PaymentData = {
 const sampleQRCode =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
 
-// const PDFDownloadButton = () => import("./pdf-download-button").then((mod) => ({ default: mod.PDFDownloadButton }))
-  // {
-  //   ssr: false,
-  //   loading: () => (
-  //     <Button className="w-full" size="lg" disabled>
-  //       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-  //       Loading PDF Generator...
-  //     </Button>
-  //   ),
-  // }
 export function ReceiptCustomizer() {
   const [config, setConfig] = useState<ReceiptConfig>(defaultConfig)
   const [activeTab, setActiveTab] = useState("business")
-  // const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    const loadSavedConfig = () => {
+      try {
+        setIsLoading(true)
+        const savedConfig = localStorage.getItem('receipt-config')
+        if (savedConfig) {
+          const parsedConfig = JSON.parse(savedConfig) as ReceiptConfig
+          setConfig(parsedConfig)
+          toast.success('Configuration Loaded', {
+            description: 'Your saved receipt settings have been loaded.',
+          })
+        }
+      } catch (error) {
+        console.error("Error loading configuration:", error)
+        toast.error('Load Failed', {
+          description: 'There was an error loading your saved configuration.',
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadSavedConfig()
+  }, [])
 
   const updateConfig = (key: keyof ReceiptConfig, value: any) => {
     setConfig((prev) => ({ ...prev, [key]: value }))
@@ -162,33 +178,56 @@ export function ReceiptCustomizer() {
 
   const saveConfig = async () => {
     try {
+      setIsLoading(true)
       console.log("Saving configuration:", config)
-      localStorage.setItem('receipt-config',JSON.stringify(config))
+      localStorage.setItem('receipt-config', JSON.stringify(config))
       toast.success('Configuration Saved', {
         description: 'Your receipt settings have been saved successfully.',
-      });
+      })
     } catch (error) {
       console.error("Error saving configuration:", error)
       toast.error('Save Failed', {
         description: 'There was an error saving your configuration.',
-      });
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const resetConfig = () => {
+    if (window.confirm('Are you sure you want to reset to default configuration? This will discard all your changes.')) {
+      setConfig(defaultConfig)
+      toast.info('Configuration Reset', {
+        description: 'Your receipt settings have been reset to default values.',
+      })
     }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       <div className="container mx-auto p-6 max-w-7xl">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-3 bg-primary/10 rounded-full">
-              <Receipt className="h-8 w-8 text-primary" />
+        {/* Header with Navigation */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <Button 
+              variant="ghost" 
+              className="flex items-center gap-2" 
+              onClick={() => window.history.back()}
+            >
+              <ArrowLeft className="h-5 w-5" />
+              Back
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-primary/10 rounded-full">
+                <Receipt className="h-6 w-6 text-primary" />
+              </div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-slate-100 dark:to-slate-400 bg-clip-text text-transparent">
+                Receipt Designer
+              </h1>
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-slate-100 dark:to-slate-400 bg-clip-text text-transparent">
-              Receipt Designer
-            </h1>
+            <div className="w-[100px]"></div> {/* Empty div for balance */}
           </div>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-center">
             Create beautiful, professional thermal receipts with our intuitive customization tools. Perfect for
             restaurants, retail stores, and service businesses.
           </p>
@@ -883,14 +922,35 @@ export function ReceiptCustomizer() {
                     samplePaymentData={samplePaymentData}
                     sampleQRCode={sampleQRCode}
                   />
-                  <Button onClick={saveConfig} variant="outline" className="w-full bg-transparent" size="lg">
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Configuration
+                  <Button 
+                    onClick={saveConfig} 
+                    variant="outline" 
+                    className="w-full bg-transparent" 
+                    size="lg"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save Configuration
+                      </>
+                    )}
                   </Button>
-                  <Button onClick={exportConfig} variant="outline" className="w-full bg-transparent" size="lg">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Configuration
-                  </Button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button onClick={exportConfig} variant="outline" className="bg-transparent" size="lg">
+                      <Download className="h-4 w-4 mr-2" />
+                      Export
+                    </Button>
+                    <Button onClick={resetConfig} variant="outline" className="bg-transparent" size="lg">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Reset
+                    </Button>
+                  </div>
                 </div>
               </Tabs>
             </CardContent>

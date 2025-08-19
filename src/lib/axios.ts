@@ -1,9 +1,10 @@
 import axios from "axios";
-import axiosTauriApiAdapter  from 'axios-tauri-api-adapter';
+import axiosTauriApiAdapter from 'axios-tauri-api-adapter';
+
 
 export const API_ENDPOINT = import.meta.env.VITE_PUBLIC_API_ENDPOINT;
 
-const token = localStorage.getItem('bearer_token');
+const token = localStorage.getItem('jwt_token') || localStorage.getItem('bearer_token');
 const api = axios.create({
   baseURL: `${API_ENDPOINT}`,
   headers: {

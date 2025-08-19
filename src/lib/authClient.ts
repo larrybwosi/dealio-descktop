@@ -94,6 +94,7 @@ interface StoredSessionData {
 }
 
 // ========= UTILITY FUNCTIONS =========
+//eslint-disable-next-line
 const parseStoredDates = (data: any): SessionData => ({
   ...data,
   user: {
@@ -131,12 +132,14 @@ const getStoredSession = (): SessionData | null => {
 };
 
 const storeSession = (data: SessionData): void => {
+  // console.log('Session storage set: ', data)
   try {
     const storedData: StoredSessionData = {
       data,
       timestamp: Date.now(),
     };
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(storedData));
+    // localStorage.setItem(BEARER_TOKEN_KEY,data.session.token);
   } catch (error) {
     console.warn('Failed to store session data:', error);
   }
@@ -164,6 +167,7 @@ export const authClient = createAuthClient({
       type: 'Bearer',
       token: () => localStorage.getItem(BEARER_TOKEN_KEY),
     },
+    mode:'same-origin'
   },
   disableDefaultFetchPlugins: true,
 });
@@ -204,7 +208,27 @@ export function useSession(options: UseSessionOptions = {}): UseSessionReturn {
       // Try to get from localStorage first
       const storedSession = getStoredSession();
       if (storedSession) {
-        return storedSession;
+        // Check if session is valid and not near expiry
+        if (isSessionValid(storedSession) && !isSessionNearExpiry(storedSession)) {
+          return storedSession;
+        }
+        
+        // If session is valid but near expiry, refresh it silently
+        if (isSessionValid(storedSession) && isSessionNearExpiry(storedSession)) {
+          try {
+            console.log('Session near expiry, refreshing token...');
+            const freshData = await fetchSession();
+            storeSession(freshData);
+            return freshData;
+          } catch (error) {
+            console.warn('Failed to refresh near-expiry token:', error);
+            // Fall back to the stored session if refresh fails
+            return storedSession;
+          }
+        }
+        
+        // If session is invalid (expired), clear it and fetch a new one
+        clearStoredSession();
       }
 
       // Fetch from API and store
@@ -218,11 +242,12 @@ export function useSession(options: UseSessionOptions = {}): UseSessionReturn {
     gcTime: TIME_CONSTANTS.TWENTY_FOUR_HOURS,
 
     // Prevent excessive refetching
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    refetchOnWindowFocus: true, // Enable to catch expired sessions when user returns
+    refetchOnReconnect: true, // Enable to refresh token when reconnecting
     refetchOnMount: true,
-    refetchInterval: options.refetchInterval ?? false,
-    refetchIntervalInBackground: false,
+    // Set default refetchInterval to check for token expiry
+    refetchInterval: options.refetchInterval ?? TIME_CONSTANTS.FIVE_MINUTES,
+    refetchIntervalInBackground: true,
 
     // Retry configuration
     retry: (failureCount, error) => {
@@ -326,4 +351,85 @@ export const isSessionNearExpiry = (
   withinMs: number = TIME_CONSTANTS.FIVE_MINUTES
 ): boolean => {
   return getSessionTimeToExpiry(sessionData) < withinMs;
+};
+
+/**
+ * Auto-refresh middleware for axios requests
+ * This can be used to automatically refresh tokens when making API calls
+ */
+export const createAuthRefreshInterceptor = (axiosInstance: typeof axios) => {
+  let isRefreshing = false;
+  let refreshPromise: Promise<SessionData> | null = null;
+  const pendingRequests: Array<() => void> = [];
+
+  // Function to process pending requests after token refresh
+  const processPendingRequests = () => {
+    pendingRequests.forEach(callback => callback());
+    pendingRequests.length = 0;
+  };
+
+  // Response interceptor to catch auth errors
+  axiosInstance.interceptors.response.use(
+    response => response,
+    async error => {
+      const originalRequest = error.config;
+      
+      // If error is not auth-related or request has already been retried, reject
+      if (!isAuthError(error) || originalRequest._retry) {
+        return Promise.reject(error);
+      }
+      
+      // Mark request as retried to prevent infinite loops
+      originalRequest._retry = true;
+      
+      // If not already refreshing, start refresh process
+      if (!isRefreshing) {
+        isRefreshing = true;
+        
+        try {
+          // Use existing refresh promise or create a new one
+          refreshPromise = refreshPromise || fetchSession().then(data => {
+            storeSession(data);
+            return data;
+          });
+          
+          // Wait for token refresh
+          await refreshPromise;
+          
+          // Process all pending requests
+          processPendingRequests();
+          
+          // Update authorization header with new token
+          const token = localStorage.getItem(BEARER_TOKEN_KEY);
+          if (token) {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+          }
+          
+          // Retry the original request
+          return axiosInstance(originalRequest);
+        } catch (refreshError) {
+          // If refresh fails, clear session and reject
+          clearStoredSession();
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
+          refreshPromise = null;
+        }
+      } else {
+        // If already refreshing, queue this request
+        return new Promise(resolve => {
+          pendingRequests.push(() => {
+            // Update authorization header with new token
+            const token = localStorage.getItem(BEARER_TOKEN_KEY);
+            if (token) {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+            }
+            resolve(axiosInstance(originalRequest));
+          });
+        });
+      }
+    }
+  );
+
+  return axiosInstance;
 };
