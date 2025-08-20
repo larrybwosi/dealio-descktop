@@ -30,7 +30,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 
-// Icons from lucide-react
 import {
   Save,
   Upload,
@@ -67,7 +66,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useBusinessConfig } from '@/lib/business-config-manager';
-import { BusinessConfig, BusinessType, LocationOption, OrderType } from '@/types/business-config';
+import { BusinessConfig, BusinessType, LocationOption, OrderType, CartField } from '@/types/business-config';
 import { useNavigate } from 'react-router';
 
 interface CustomFieldType {
@@ -75,7 +74,6 @@ interface CustomFieldType {
   type: string;
 }
 
-// --- Enhanced Visual Components ---
 const businessTypeVisuals: Record<BusinessType, { icon: LucideIcon; className: string; description: string }> = {
   restaurant: {
     icon: UtensilsCrossed,
@@ -288,7 +286,7 @@ export default function PosConfigManagerPageV2() {
     resetToDefaults,
   } = useBusinessConfig();
 
-  const [editableConfig, setEditableConfig] = useState<any>(null);
+  const [editableConfig, setEditableConfig] = useState<BusinessConfig | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isImportDialogOpen, setImportDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -307,8 +305,133 @@ export default function PosConfigManagerPageV2() {
 
   const PAYMENT_METHODS = ['Credit Card', 'Cash', 'Mobile Pay', 'Gift Card', 'Bank Transfer'];
   const CUSTOM_FIELD_TYPES = ['text', 'number', 'date', 'select', 'checkbox', 'phone', 'email'];
+const CART_FIELD_TYPES = ['text', 'select', 'number', 'date', 'phone', 'email', 'address'];
+
+const CartFieldsSection = ({
+  cartFields,
+  onAddField,
+  onRemoveField,
+  onUpdateField,
+}: {
+  cartFields: CartField[];
+  onAddField: (field: CartField) => void;
+  onRemoveField: (index: number) => void;
+  onUpdateField: (index: number, field: Partial<CartField>) => void;
+}): JSX.Element => {
+  return (
+    <ConfigSectionCard
+      icon={ShoppingBag}
+      title="Cart Fields"
+      description="Customize fields shown during checkout for each order"
+      badge={<Badge variant="outline">{cartFields?.length || 0} fields</Badge>}
+    >
+      <div className="space-y-4">
+        <div className="grid gap-4">
+          {cartFields?.map((field, index) => (
+            <div key={field.id} className="flex items-start gap-4 p-4 border rounded-lg">
+              <div className="flex-1 space-y-4">
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor={`field-label-${index}`}>Field Label</Label>
+                    <Input
+                      id={`field-label-${index}`}
+                      value={field.label}
+                      onChange={e => onUpdateField(index, { label: e.target.value })}
+                    />
+                  </div>
+                  <div className="w-40">
+                    <Label htmlFor={`field-type-${index}`}>Type</Label>
+                    <Select
+                      value={field.type}
+                      onValueChange={value => onUpdateField(index, { type: value as CartField['type'] })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CART_FIELD_TYPES.map(type => (
+                          <SelectItem key={type} value={type}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor={`field-placeholder-${index}`}>Placeholder</Label>
+                    <Input
+                      id={`field-placeholder-${index}`}
+                      value={field.placeholder || ''}
+                      onChange={e => onUpdateField(index, { placeholder: e.target.value })}
+                    />
+                  </div>
+                  {field.type === 'select' && (
+                    <div className="flex-1">
+                      <Label htmlFor={`field-options-${index}`}>Options (comma-separated)</Label>
+                      <Input
+                        id={`field-options-${index}`}
+                        value={field.options?.join(', ') || ''}
+                        onChange={e => onUpdateField(index, { options: e.target.value.split(',').map(s => s.trim()) })}
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-4 items-center">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id={`field-required-${index}`}
+                      checked={field.required}
+                      onCheckedChange={checked => onUpdateField(index, { required: checked })}
+                    />
+                    <Label htmlFor={`field-required-${index}`}>Required</Label>
+                  </div>
+                  {(field.type === 'text' || field.type === 'phone' || field.type === 'email') && (
+                    <div className="flex-1">
+                      <Label htmlFor={`field-validation-${index}`}>Validation Pattern (regex)</Label>
+                      <Input
+                        id={`field-validation-${index}`}
+                        value={field.validation || ''}
+                        onChange={e => onUpdateField(index, { validation: e.target.value })}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="flex-shrink-0"
+                onClick={() => onRemoveField(index)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() =>
+            onAddField({
+              id: `field_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+              label: 'New Field',
+              type: 'text',
+              required: false,
+            })
+          }
+        >
+          <PlusCircle className="h-4 w-4 mr-2" />
+          Add Field
+        </Button>
+      </div>
+    </ConfigSectionCard>
+  );
+};
 
   useEffect(() => {
+    // Load the current configuration when the component mounts
     setEditableConfig(JSON.parse(JSON.stringify(config)));
   }, [config]);
 
@@ -318,13 +441,18 @@ export default function PosConfigManagerPageV2() {
     }
   }, [editableConfig, config]);
 
-  const handleConfigChange = (key: any, value: any) => {
+  const handleConfigChange = (key: keyof BusinessConfig, value: unknown) => {
     setEditableConfig(prev => (prev ? { ...prev, [key]: value } : null));
   };
 
-  const handleArrayChange = <T,>(arrayKey: keyof BusinessConfig, index: number, field: keyof T, value: any) => {
+  const handleArrayChange = (
+    arrayKey: keyof BusinessConfig,
+    index: number,
+    field: string,
+    value: unknown
+  ) => {
     if (!editableConfig) return;
-    const currentArray = editableConfig[arrayKey] as T[] | undefined;
+    const currentArray = editableConfig[arrayKey] as Array<Record<string, unknown>> | undefined;
     if (!currentArray) return;
     const newArray = [...currentArray];
     newArray[index] = { ...newArray[index], [field]: value };
@@ -339,7 +467,7 @@ export default function PosConfigManagerPageV2() {
 
   const removeFromArray = (arrayKey: keyof BusinessConfig, index: number) => {
     if (!editableConfig) return;
-    const currentArray = editableConfig[arrayKey] as any[] | undefined;
+    const currentArray = editableConfig[arrayKey] as Array<Record<string, unknown>> | undefined;
     if (!currentArray) return;
     handleConfigChange(
       arrayKey,
@@ -783,14 +911,14 @@ export default function PosConfigManagerPageV2() {
                         <Input
                           placeholder="Label"
                           value={loc.label}
-                          onChange={e => handleArrayChange<LocationOption>('locations', index, 'label', e.target.value)}
+                          onChange={e => handleArrayChange('locations', index, 'label', e.target.value)}
                           className="h-8 text-sm"
                         />
                         <Input
                           placeholder="Description"
                           value={loc.description}
                           onChange={e =>
-                            handleArrayChange<LocationOption>('locations', index, 'description', e.target.value)
+                            handleArrayChange('locations', index, 'description', e.target.value)
                           }
                           className="h-8 text-sm text-muted-foreground"
                         />
@@ -826,6 +954,25 @@ export default function PosConfigManagerPageV2() {
               </ConfigSectionCard>
             )}
 
+            {/* Cart Fields */}
+            <ConfigSectionCard
+              icon={ShoppingBag}
+              title="Cart Fields"
+              description="Configure fields shown during checkout for each order"
+              badge={<Badge variant="outline">{editableConfig.cartFields?.length || 0} fields</Badge>}
+            >
+              <CartFieldsSection
+                cartFields={editableConfig.cartFields || []}
+                onAddField={(field) => addToArray('cartFields', field)}
+                onRemoveField={(index) => removeFromArray('cartFields', index)}
+                onUpdateField={(index, updates) => {
+                  const currentFields = editableConfig.cartFields || [];
+                  const updatedField = { ...currentFields[index], ...updates };
+                  handleArrayChange('cartFields', index, Object.keys(updates)[0], Object.values(updates)[0]);
+                }}
+              />
+            </ConfigSectionCard>
+
             {/* Custom Fields */}
             <ConfigSectionCard
               icon={Wand2}
@@ -844,7 +991,7 @@ export default function PosConfigManagerPageV2() {
                             <Input
                               value={field.label}
                               onChange={e =>
-                                handleArrayChange<CustomFieldType>('customFields', index, 'label', e.target.value)
+                                handleArrayChange('customFields', index, 'label', e.target.value)
                               }
                               className="h-8 text-sm"
                             />
@@ -853,7 +1000,7 @@ export default function PosConfigManagerPageV2() {
                             <Label className="text-sm">Field Type</Label>
                             <Select
                               value={field.type}
-                              onValueChange={v => handleArrayChange<CustomFieldType>('customFields', index, 'type', v)}
+                              onValueChange={v => handleArrayChange('customFields', index, 'type', v)}
                             >
                               <SelectTrigger className="h-8">
                                 <SelectValue />

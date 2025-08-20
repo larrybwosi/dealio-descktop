@@ -49,18 +49,33 @@ export interface LocationOption {
   id: string;
   label: string;
   description?: string;
+  [key: string]: string | undefined;
 }
 
 export interface QueueCardField {
   key: keyof OrderQueue;
   icon: LucideIcon;
   label?: string; // Optional suffix label like 'items'
+  //eslint-disable-next-line
+  [key: string]: any;
 }
 
 export interface OrderDetailsField {
   key: keyof OrderQueue | string; // Allow for keys from a nested 'details' object
   label: string;
   isBadge?: boolean; // To render the status as a badge
+}
+
+export interface CartField {
+  id: string;
+  label: string;
+  type: 'text' | 'select' | 'number' | 'date' | 'phone' | 'email' | 'address';
+  required: boolean;
+  options?: string[];
+  placeholder?: string;
+  defaultValue?: string | number;
+  validation?: string; // Regex pattern for validation
+  errorMessage?: string;
 }
 
 export interface BusinessConfig {
@@ -75,6 +90,7 @@ export interface BusinessConfig {
   showLoyaltyPoints: boolean;
   defaultDiscount: number;
   taxLabel?: string;
+  cartFields?: CartField[];
   customFields?: {
     id: string;
     label: string;
@@ -95,6 +111,31 @@ export interface BusinessConfig {
 export const businessConfigs: Record<BusinessType, BusinessConfig> = {
   restaurant: {
     businessType: 'restaurant',
+    cartFields: [
+      {
+        id: 'customer_name',
+        label: 'Customer Name',
+        type: 'text',
+        required: true,
+        placeholder: 'Enter customer name'
+      },
+      {
+        id: 'phone',
+        label: 'Contact Number',
+        type: 'phone',
+        required: true,
+        placeholder: 'Enter contact number',
+        validation: '^[+]?[(]?[0-9]{3}[)]?[-s.]?[0-9]{3}[-s.]?[0-9]{4,6}$',
+        errorMessage: 'Please enter a valid phone number'
+      },
+      {
+        id: 'special_instructions',
+        label: 'Special Instructions',
+        type: 'text',
+        required: false,
+        placeholder: 'Any special instructions for your order?'
+      }
+    ],
     queueCardDisplay: [
       { key: 'customerName', icon: User, label: 'Customer' },
       { key: 'datetime', icon: Clock, label: '' },

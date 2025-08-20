@@ -5,8 +5,11 @@ export class BusinessConfigManager {
   private static instance: BusinessConfigManager;
   private currentBusinessType: BusinessType = 'restaurant';
   private customConfigs: Map<string, BusinessConfig> = new Map();
+  private readonly STORAGE_KEY = 'restaurant_pos_config';
 
-  private constructor() {}
+  private constructor() {
+    this.loadFromLocalStorage();
+  }
 
   static getInstance(): BusinessConfigManager {
     if (!BusinessConfigManager.instance) {
@@ -24,6 +27,7 @@ export class BusinessConfigManager {
   // Set current business type
   setBusinessType(businessType: BusinessType): void {
     this.currentBusinessType = businessType;
+    this.saveToLocalStorage();
   }
 
   // Get current business type
@@ -42,6 +46,7 @@ export class BusinessConfigManager {
 
     const customKey = `custom_${businessType}`;
     this.customConfigs.set(customKey, customConfig);
+    this.saveToLocalStorage();
   }
 
   // Get all available business types
@@ -79,6 +84,7 @@ export class BusinessConfigManager {
       const data = JSON.parse(configJson);
       this.currentBusinessType = data.currentBusinessType;
       this.customConfigs = new Map(data.customConfigs);
+      this.saveToLocalStorage();
     } catch (error) {
       console.error('Failed to import configuration:', error);
     }
@@ -88,6 +94,34 @@ export class BusinessConfigManager {
   resetToDefaults(): void {
     this.customConfigs.clear();
     this.currentBusinessType = 'restaurant';
+    this.saveToLocalStorage();
+  }
+
+  // Save configuration to local storage
+  private saveToLocalStorage(): void {
+    try {
+      const configData = {
+        currentBusinessType: this.currentBusinessType,
+        customConfigs: Array.from(this.customConfigs.entries()),
+      };
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(configData));
+    } catch (error) {
+      console.error('Failed to save configuration to local storage:', error);
+    }
+  }
+
+  // Load configuration from local storage
+  private loadFromLocalStorage(): void {
+    try {
+      const storedConfig = localStorage.getItem(this.STORAGE_KEY);
+      if (storedConfig) {
+        const data = JSON.parse(storedConfig);
+        this.currentBusinessType = data.currentBusinessType;
+        this.customConfigs = new Map(data.customConfigs);
+      }
+    } catch (error) {
+      console.error('Failed to load configuration from local storage:', error);
+    }
   }
 }
 
@@ -101,6 +135,7 @@ export function useBusinessConfig() {
     configManager.setBusinessType(newBusinessType);
     setBusinessTypeState(newBusinessType);
     setConfig(configManager.getCurrentConfig());
+    // The saveToLocalStorage is now called inside configManager.setBusinessType
   };
 
   const createCustomConfig = (overrides: Partial<BusinessConfig>) => {

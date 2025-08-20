@@ -373,14 +373,6 @@ const LoginForm = () => {
  * A wrapper to ensure the application is only viewed on larger screens.
  */
 const DesktopOnlyView = ({ children }: { children: React.ReactNode }) => {
-  const [isMobile, setIsMobile] = useState(false);
-
-  // This should ideally be handled with CSS media queries for better performance,
-  // but a JS check is fine for a simple message overlay.
-  // Using a CSS approach:
-  // <div className="hidden sm:block">{children}</div>
-  // <div className="sm:hidden">Message</div>
-
   return (
     <>
       <div className="hidden lg:flex min-h-screen w-full">{children}</div>

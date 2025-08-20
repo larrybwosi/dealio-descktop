@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { toast } from 'sonner';
-
-// UI Components
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,7 +10,6 @@ import { ProductCard } from './product-card';
 import { ProductListError } from './product-list-error';
 import { ProductSkeleton } from '@/components/ui/skeletons/ProductSkeleton';
 
-// Icons
 import { Search, RefreshCw, X, Package } from 'lucide-react';
 
 // Types & Utilities
@@ -20,6 +17,7 @@ import { CartItem, Product } from '@/types';
 import { cn } from '@/lib/utils';
 import { useProductState } from '@/store';
 import { useListProducts } from '@/lib/services/products';
+import { getFuzzyMatchScore } from '@/utils/search';
 
 // --- TYPE DEFINITIONS ---
 interface ProductListProps {
@@ -32,88 +30,12 @@ interface ScanPayload {
 
 type SortOption = 'relevance' | 'name' | 'price' | 'category';
 
-// --- HELPER FUNCTIONS ---
-/**
- * Creates a unique key for a product, optionally with a variant.
- * This ensures that state for different variants of the same product is handled correctly.
- * @param productId - The ID of the product.
- * @param variantName - The name of the selected variant (optional).
- * @returns A unique string identifier.
- */
 const getProductKey = (productId: string, variantName?: string): string => {
   return variantName ? `${productId}-${variantName}` : productId;
 };
 
-// --- FUZZY SEARCH UTILITIES ---
-// Note: These complex functions are prime candidates for extraction into a separate `utils/search.ts` file.
 
-const normalizeString = (str: string): string => {
-  if (!str) return '';
-  return str
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '') // Keep only alphanumeric characters and spaces
-    .replace(/\s+/g, ' ')
-    .trim();
-};
-
-const calculateLevenshteinDistance = (a: string, b: string): number => {
-  if (a.length === 0) return b.length;
-  if (b.length === 0) return a.length;
-
-  const matrix = Array(b.length + 1)
-    .fill(null)
-    .map(() => Array(a.length + 1).fill(null));
-
-  for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
-  for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
-
-  for (let j = 1; j <= b.length; j++) {
-    for (let i = 1; i <= a.length; i++) {
-      const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
-      matrix[j][i] = Math.min(
-        matrix[j][i - 1] + 1, // Deletion
-        matrix[j - 1][i] + 1, // Insertion
-        matrix[j - 1][i - 1] + indicator // Substitution
-      );
-    }
-  }
-  return matrix[b.length][a.length];
-};
-
-const getFuzzyMatchScore = (searchTerm: string, targetString: string): number => {
-  const normalizedSearch = normalizeString(searchTerm);
-  const normalizedTarget = normalizeString(targetString);
-
-  if (!normalizedSearch) return 100; // If search is empty, everything is a perfect match.
-  if (!normalizedTarget) return 0; // If target is empty, no match.
-  if (normalizedTarget.includes(normalizedSearch)) return 100; // Perfect substring match is highest score.
-
-  const words = normalizedSearch.split(' ');
-  let totalScore = 0;
-
-  for (const word of words) {
-    let bestWordScore = 0;
-    if (normalizedTarget.includes(word)) {
-      bestWordScore = 1; // Direct word match
-    } else {
-      const targetWords = normalizedTarget.split(' ');
-      for (const targetWord of targetWords) {
-        const distance = calculateLevenshteinDistance(word, targetWord);
-        const similarity = 1 - distance / Math.max(word.length, targetWord.length);
-        if (similarity > bestWordScore) {
-          bestWordScore = similarity;
-        }
-      }
-    }
-    // We only consider scores above a certain threshold to be relevant.
-    totalScore += bestWordScore > 0.7 ? bestWordScore : 0;
-  }
-  return (totalScore / words.length) * 100;
-};
-
-// --- MAIN COMPONENT ---
 export function ProductList({ onAddToCart }: ProductListProps) {
-  // --- 1. STATE & DATA FETCHING ---
   const { data: products = [], isLoading, error, refetch } = useListProducts();
   const { selectedCategory, setSelectedCategory } = useProductState();
 
@@ -126,24 +48,11 @@ export function ProductList({ onAddToCart }: ProductListProps) {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // --- 2. MEMOIZED VALUES & DERIVED STATE ---
-
-  /**
-   * Memoized list of available categories derived from the product list.
-   * Using useMemo prevents this array from being recalculated on every render.
-   */
   const availableCategories: string[] = useMemo(
     () => ['All', ...new Set(products.map(p => p.category?.name).filter(Boolean) as string[])],
     [products]
   );
 
-  /**
-   * Memoized and optimized product filtering and sorting logic.
-   * - Filters by category.
-   * - Filters by search query, calculating a relevance score ONCE per product.
-   * - Sorts the results based on the selected sort option, using the pre-calculated
-   * score for 'relevance' sorting to maximize performance.
-   */
   const filteredAndSortedProducts = useMemo(() => {
     // Step 1: Filter by the selected category
     const categoryFiltered =
@@ -413,58 +322,44 @@ export function ProductList({ onAddToCart }: ProductListProps) {
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
       {/* Header & Controls */}
       <div className="p-4 md:p-6 border-b border-gray-200">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Package className="h-7 w-7 text-gray-500" />
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Products</h2>
-                <p className="text-sm text-gray-500">
-                  {filteredAndSortedProducts.length} of {products.length} products shown
-                </p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" onClick={handleRefetch} disabled={isLoading || isRetrying}>
-              <RefreshCw className={cn('h-4 w-4 mr-2', (isLoading || isRetrying) && 'animate-spin')} />
-              Refresh
-            </Button>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center gap-3">
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                ref={searchInputRef}
-                placeholder="Search products... (Ctrl+K)"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="pl-10 pr-10"
-                disabled={isLoading || !!error}
-              />
-              {searchQuery && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                  onClick={clearSearch}
-                  disabled={isLoading || !!error}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            <select
-              value={sortBy}
-              onChange={e => setSortBy(e.target.value as SortOption)}
-              className="w-full md:w-auto px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              ref={searchInputRef}
+              placeholder="Search products... (Ctrl+K)"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-10 pr-10"
               disabled={isLoading || !!error}
-            >
-              <option value="relevance">Sort by Relevance</option>
-              <option value="name">Sort by Name (A-Z)</option>
-              <option value="price">Sort by Price (Low-High)</option>
-              <option value="category">Sort by Category</option>
-            </select>
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={clearSearch}
+                disabled={isLoading || !!error}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
+          <Button variant="outline" size="sm" onClick={handleRefetch} disabled={isLoading || isRetrying}>
+            <RefreshCw className={cn('h-4 w-4 mr-2', (isLoading || isRetrying) && 'animate-spin')} />
+            Refresh
+          </Button>
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value as SortOption)}
+            className="w-full md:w-auto px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+            disabled={isLoading || !!error}
+          >
+            <option value="relevance">Sort by Relevance</option>
+            <option value="name">Sort by Name (A-Z)</option>
+            <option value="price">Sort by Price (Low-High)</option>
+            <option value="category">Sort by Category</option>
+          </select>
         </div>
       </div>
 
