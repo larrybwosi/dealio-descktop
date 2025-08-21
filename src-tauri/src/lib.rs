@@ -1,9 +1,10 @@
 use tauri_plugin_printer_v2::init;
 use tauri_plugin_sentry::{minidump, sentry};
+use tauri_plugin_updater::UpdaterExt;
 
 use hidapi::HidApi;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-use tauri::{AppHandle, Emitter };
+use tauri::{AppHandle, Emitter};
 
 #[derive(Clone, serde::Serialize)]
 struct Payload {
@@ -99,6 +100,28 @@ fn start_scanner_listener(app_handle: AppHandle) {
     });
 }
 
+async fn update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
+    if let Some(update) = app.updater()?.check().await? {
+        let mut downloaded = 0;
+
+        update
+            .download_and_install(
+                |chunk_length, content_length| {
+                    downloaded += chunk_length;
+                    println!("downloaded {downloaded} from {content_length:?}");
+                },
+                || {
+                    println!("download finished");
+                },
+            )
+            .await?;
+
+        println!("update installed");
+        app.restart();
+    }
+
+    Ok(())
+}
 
 pub fn run() {
     // Initialize Sentry client
@@ -117,7 +140,8 @@ pub fn run() {
     // Everything after here runs in only the app process
 
     let mut builder = tauri::Builder::default()
-        .plugin(tauri_plugin_sentry::init(&client)) 
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_sentry::init(&client))
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_deep_link::init())
@@ -153,7 +177,19 @@ pub fn run() {
 
         builder = builder.setup(|app| {
             let handle = app.handle().clone();
-            start_scanner_listener(handle);
+
+            // Clone handle for the async task
+            let update_handle = handle.clone();
+            
+            // Start the update check in the background
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = update(update_handle).await {
+                    eprintln!("Update check failed: {}", e);
+                }
+            });
+
+            // Start the scanner listener
+            start_scanner_listener(handle.clone());
 
             let autostart_manager = app.autolaunch();
             if let Err(e) = autostart_manager.enable() {
@@ -165,6 +201,26 @@ pub fn run() {
                     },
                 );
             }
+            Ok(())
+        });
+    }
+
+    // For non-desktop platforms (mobile)
+    #[cfg(not(desktop))]
+    {
+        builder = builder.setup(|app| {
+            let handle = app.handle().clone();
+
+            // Clone handle for the async task
+            let update_handle = handle.clone();
+            
+            // Start the update check in the background (if supported on mobile)
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = update(update_handle).await {
+                    eprintln!("Update check failed: {}", e);
+                }
+            });
+
             Ok(())
         });
     }

@@ -8,6 +8,7 @@ import { AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { OrgProvider } from './providers/org-context';
 import { useBetterAuthTauri } from '@daveyplate/better-auth-tauri/react';
+
 import { authClient } from './lib/authClient';
 import DealioSplashScreen from './pages/splash';
 import PosConfigManagerPage from './pages/PosConfigManagerPage';
@@ -18,6 +19,7 @@ import { SessionProvider } from './providers/session';
 import PrintersPage from './pages/printers';
 import SalesDashboard from './pages/sales';
 import Receipt from './pages/page';
+
 
 const HomeRouteWrapper = ({ children }) => <OrgProvider>{children}</OrgProvider>;
 

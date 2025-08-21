@@ -20,6 +20,7 @@
     "hid:default",
     "deep-link:default",
     "upload:default",
+    "updater:default",
     "dialog:allow-message",
     "dialog:allow-open",
     "notification:default",
@@ -55,24 +56,29 @@
         { "path": "$DOCUMENT/Dealio/*" }
       ]
     },
-{
-  "identifier": "fs:scope",
-  "allow": [
-    { "path": "$DOWNLOAD" },
-    { "path": "$DOWNLOAD/*" },
-    { "path": "$DOWNLOAD/Dealio" },
-    { "path": "$DOWNLOAD/Dealio/*" },
-    { "path": "$DOCUMENT" },
-    { "path": "$DOCUMENT/*" },
-    { "path": "$DOCUMENT/Dealio" },
-    { "path": "$DOCUMENT/Dealio/*" },
-    { "path": "$APPDATA" },
-    { "path": "$APPDATA/*" }
-  ]
-},
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$DOWNLOAD" },
+        { "path": "$DOWNLOAD/*" },
+        { "path": "$DOWNLOAD/Dealio" },
+        { "path": "$DOWNLOAD/Dealio/*" },
+        { "path": "$DOCUMENT" },
+        { "path": "$DOCUMENT/*" },
+        { "path": "$DOCUMENT/Dealio" },
+        { "path": "$DOCUMENT/Dealio/*" },
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/*" }
+      ]
+    },
     {
       "identifier": "http:default",
-      "allow": [{ "url": "https://*.tauri.app" },{ "url": "https://*:*"}, { "url": "https://dealioerp.vercel.app"}, { "url": "http://localhost:3000" }]
+      "allow": [
+        { "url": "https://*.tauri.app" },
+        { "url": "https://*:*" },
+        { "url": "https://dealioerp.vercel.app" },
+        { "url": "http://localhost:3000" }
+      ]
     }
   ]
 }

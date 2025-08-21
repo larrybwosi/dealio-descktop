@@ -122,11 +122,11 @@ const LoginBranding = () => (
       <div className="mt-12">
         <div className="relative p-6 bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700">
           <Quote className="absolute top-4 left-4 w-8 h-8 text-gray-600" />
-          <p className="text-lg italic text-gray-300">
+          <p className="text-lg italic text-gray-300 ml-6">
             "Dealio has revolutionized our workflow. The insights we gain are invaluable, and the platform is incredibly
             intuitive."
           </p>
-          <p className="mt-4 text-right font-semibold text-gray-200">- Jane Doe, CEO at Innovate Inc.</p>
+          <p className="mt-4 text-right font-semibold text-gray-200">- Dean, CEO at Dealio Inc.</p>
         </div>
       </div>
     </div>
@@ -174,7 +174,7 @@ const LoginForm = () => {
     let errorMessage = 'An unexpected error occurred. Please try again.';
     // **This is the key part for handling your specific error structure**
     if (axios.isAxiosError(error) && error.response?.data?.message) {
-      // We found a specific error message from the API response.
+      // We found a specific error message from the API response. Jane
       errorMessage = error.response.data.message;
     } else if (error instanceof Error) {
       // Fallback for other types of errors (network issues, etc.)
