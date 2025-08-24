@@ -38,7 +38,7 @@ export function ProductCard({
   };
 
   return (
-    <div key={productId} className="border rounded-md overflow-hidden">
+    <div key={productId} className="border rounded-md overflow-hidden flex flex-col h-full">
       <div className="h-48 w-full overflow-hidden bg-gray-100">
         {product.image ? (
           <img
@@ -55,7 +55,8 @@ export function ProductCard({
           </div>
         )}
       </div>
-      <div className="p-3">
+
+      <div className="p-3 flex flex-col flex-grow">
         <div className="flex justify-between items-start">
           <h3 className="font-medium">{product.name}</h3>
           {product.category && (
@@ -75,7 +76,7 @@ export function ProductCard({
         )}
 
         {product.variants?.length > 1 && (
-          <div className="mt-3">
+          <div className="mt-3 mb-4">
             <div className="text-xs text-gray-600 mb-2">Select variant:</div>
             <div className="flex flex-wrap gap-1">
               {/* eslint-disable-next-line */}
@@ -96,41 +97,47 @@ export function ProductCard({
         )}
 
         {product.variants?.length === 1 && (
-          <div className="mt-2">
-            <Button variant="outline" size="sm" className="text-xs h-7 px-2 rounded-sm" onClick={handleQuickAdd}>
-              Add {product.variants[0].name} ({product.variants[0].price})
-            </Button>
+          <div className="mt-2 mb-4">
+            <div className="text-xs text-gray-600 mb-1">
+              {product.variants[0].name} - {product.variants[0].price}
+            </div>
           </div>
         )}
 
-        <div className="mt-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => onQuantityChange(-1)}
-              disabled={currentQuantity === 0}
-            >
-              <MinusIcon className="h-3 w-3" />
-            </Button>
-            <span className="text-sm w-6 text-center">{currentQuantity}</span>
-            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onQuantityChange(1)}>
-              <PlusIcon className="h-3 w-3" />
-            </Button>
-          </div>
+        {/* Spacer to push controls to bottom */}
+        <div className="flex-grow"></div>
 
-          {currentQuantity === 0 ? (
-            <Button onClick={handleQuickAdd} className="h-8 text-xs">
-              <ShoppingCart className="mr-1 h-3 w-3" />
-              Add to cart
-            </Button>
-          ) : (
-            <Button onClick={handleAddToCart} className="h-8 text-xs">
-              <ShoppingCart className="mr-1 h-3 w-3" />
-              Add to cart
-            </Button>
-          )}
+        {/* Bottom controls section */}
+        <div className="mt-4 pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => onQuantityChange(-1)}
+                disabled={currentQuantity === 0}
+              >
+                <MinusIcon className="h-3 w-3" />
+              </Button>
+              <span className="text-sm w-6 text-center font-medium">{currentQuantity}</span>
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onQuantityChange(1)}>
+                <PlusIcon className="h-3 w-3" />
+              </Button>
+            </div>
+
+            {currentQuantity === 0 ? (
+              <Button onClick={handleQuickAdd} className="h-8 text-xs">
+                <ShoppingCart className="mr-1 h-3 w-3" />
+                Add to cart
+              </Button>
+            ) : (
+              <Button onClick={handleAddToCart} className="h-8 text-xs p-0.5 mx-2" variant='outline'>
+                <ShoppingCart className="mr-1 h-3 w-2" />
+                Add to cart
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>

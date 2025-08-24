@@ -351,6 +351,22 @@ class ApiClient {
     refund: async (organizationId: string, saleId: string): Promise<ApiResponse<Sale>> =>
       this.axiosInstance.post(`/${organizationId}/sales/${saleId}/refund`).then(res => res.data),
   };
+    locations = {
+      list: async (organizationId: string): Promise<ApiResponse<InventoryLocation[]>> =>
+        this.axiosInstance.get(`/${organizationId}/locations`).then(res => res.data),
+      create: async (organizationId: string, data: Partial<InventoryLocation>): Promise<ApiResponse<InventoryLocation>> =>
+        this.axiosInstance.post(`/${organizationId}/locations`, data).then(res => res.data),
+      get: async (organizationId: string, locationId: string): Promise<ApiResponse<InventoryLocation>> =>
+        this.axiosInstance.get(`/${organizationId}/locations/${locationId}`).then(res => res.data),
+      update: async (
+        organizationId: string,
+        locationId: string,
+        data: Partial<InventoryLocation>
+      ): Promise<ApiResponse<InventoryLocation>> =>
+        this.axiosInstance.patch(`/${organizationId}/locations/${locationId}`, data).then(res => res.data),
+      delete: async (organizationId: string, locationId: string): Promise<ApiResponse<void>> =>
+        this.axiosInstance.delete(`/${organizationId}/locations/${locationId}`).then(res => res.data),
+    };
 
   notifications = {
     list: async (params?: { limit?: number; unreadOnly?: boolean }): Promise<ApiResponse<Notification[]>> =>

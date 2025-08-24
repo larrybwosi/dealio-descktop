@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, JSX } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,6 +68,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useBusinessConfig } from '@/lib/business-config-manager';
 import { BusinessConfig, BusinessType, LocationOption, OrderType, CartField } from '@/types/business-config';
 import { useNavigate } from 'react-router';
+import LocationSettings from '@/components/location-settings';
 
 interface CustomFieldType {
   name: string;
@@ -289,8 +290,10 @@ export default function PosConfigManagerPageV2() {
   const [editableConfig, setEditableConfig] = useState<BusinessConfig | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isImportDialogOpen, setImportDialogOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate()
+  const fileInputRef = useRef<HTMLInputElement>(null); // Add these to your existing state declarations
+  const [selectedLocation, setSelectedLocation] = useState<string>(config.locations?.[0]?.id || '');
+  const [enableStockTaking, setEnableStockTaking] = useState<boolean>(config.enableStockTaking || false);
+  const navigate = useNavigate();
 
   const ALL_ORDER_TYPES: OrderType[] = [
     'Dine in',
@@ -305,130 +308,127 @@ export default function PosConfigManagerPageV2() {
 
   const PAYMENT_METHODS = ['Credit Card', 'Cash', 'Mobile Pay', 'Gift Card', 'Bank Transfer'];
   const CUSTOM_FIELD_TYPES = ['text', 'number', 'date', 'select', 'checkbox', 'phone', 'email'];
-const CART_FIELD_TYPES = ['text', 'select', 'number', 'date', 'phone', 'email', 'address'];
+  const CART_FIELD_TYPES = ['text', 'select', 'number', 'date', 'phone', 'email', 'address'];
 
-const CartFieldsSection = ({
-  cartFields,
-  onAddField,
-  onRemoveField,
-  onUpdateField,
-}: {
-  cartFields: CartField[];
-  onAddField: (field: CartField) => void;
-  onRemoveField: (index: number) => void;
-  onUpdateField: (index: number, field: Partial<CartField>) => void;
-}): JSX.Element => {
-  return (
-    <ConfigSectionCard
-      icon={ShoppingBag}
-      title="Cart Fields"
-      description="Customize fields shown during checkout for each order"
-      badge={<Badge variant="outline">{cartFields?.length || 0} fields</Badge>}
-    >
-      <div className="space-y-4">
-        <div className="grid gap-4">
-          {cartFields?.map((field, index) => (
-            <div key={field.id} className="flex items-start gap-4 p-4 border rounded-lg">
-              <div className="flex-1 space-y-4">
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <Label htmlFor={`field-label-${index}`}>Field Label</Label>
-                    <Input
-                      id={`field-label-${index}`}
-                      value={field.label}
-                      onChange={e => onUpdateField(index, { label: e.target.value })}
-                    />
-                  </div>
-                  <div className="w-40">
-                    <Label htmlFor={`field-type-${index}`}>Type</Label>
-                    <Select
-                      value={field.type}
-                      onValueChange={value => onUpdateField(index, { type: value as CartField['type'] })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CART_FIELD_TYPES.map(type => (
-                          <SelectItem key={type} value={type}>
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <Label htmlFor={`field-placeholder-${index}`}>Placeholder</Label>
-                    <Input
-                      id={`field-placeholder-${index}`}
-                      value={field.placeholder || ''}
-                      onChange={e => onUpdateField(index, { placeholder: e.target.value })}
-                    />
-                  </div>
-                  {field.type === 'select' && (
+  const CartFieldsSection = ({
+    cartFields,
+    onAddField,
+    onRemoveField,
+    onUpdateField,
+  }: {
+    cartFields: CartField[];
+    onAddField: (field: CartField) => void;
+    onRemoveField: (index: number) => void;
+    onUpdateField: (index: number, field: Partial<CartField>) => void;
+  }): JSX.Element => {
+    return (
+      <ConfigSectionCard
+        icon={ShoppingBag}
+        title="Cart Fields"
+        description="Customize fields shown during checkout for each order"
+        badge={<Badge variant="outline">{cartFields?.length || 0} fields</Badge>}
+      >
+        <div className="space-y-4">
+          <div className="grid gap-4">
+            {cartFields?.map((field, index) => (
+              <div key={field.id} className="flex items-start gap-4 p-4 border rounded-lg">
+                <div className="flex-1 space-y-4">
+                  <div className="flex gap-4">
                     <div className="flex-1">
-                      <Label htmlFor={`field-options-${index}`}>Options (comma-separated)</Label>
+                      <Label htmlFor={`field-label-${index}`}>Field Label</Label>
                       <Input
-                        id={`field-options-${index}`}
-                        value={field.options?.join(', ') || ''}
-                        onChange={e => onUpdateField(index, { options: e.target.value.split(',').map(s => s.trim()) })}
+                        id={`field-label-${index}`}
+                        value={field.label}
+                        onChange={e => onUpdateField(index, { label: e.target.value })}
                       />
                     </div>
-                  )}
-                </div>
-                <div className="flex gap-4 items-center">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id={`field-required-${index}`}
-                      checked={field.required}
-                      onCheckedChange={checked => onUpdateField(index, { required: checked })}
-                    />
-                    <Label htmlFor={`field-required-${index}`}>Required</Label>
+                    <div className="w-40">
+                      <Label htmlFor={`field-type-${index}`}>Type</Label>
+                      <Select
+                        value={field.type}
+                        onValueChange={value => onUpdateField(index, { type: value as CartField['type'] })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CART_FIELD_TYPES.map(type => (
+                            <SelectItem key={type} value={type}>
+                              {type.charAt(0).toUpperCase() + type.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  {(field.type === 'text' || field.type === 'phone' || field.type === 'email') && (
+                  <div className="flex gap-4">
                     <div className="flex-1">
-                      <Label htmlFor={`field-validation-${index}`}>Validation Pattern (regex)</Label>
+                      <Label htmlFor={`field-placeholder-${index}`}>Placeholder</Label>
                       <Input
-                        id={`field-validation-${index}`}
-                        value={field.validation || ''}
-                        onChange={e => onUpdateField(index, { validation: e.target.value })}
+                        id={`field-placeholder-${index}`}
+                        value={field.placeholder || ''}
+                        onChange={e => onUpdateField(index, { placeholder: e.target.value })}
                       />
                     </div>
-                  )}
+                    {field.type === 'select' && (
+                      <div className="flex-1">
+                        <Label htmlFor={`field-options-${index}`}>Options (comma-separated)</Label>
+                        <Input
+                          id={`field-options-${index}`}
+                          value={field.options?.join(', ') || ''}
+                          onChange={e =>
+                            onUpdateField(index, { options: e.target.value.split(',').map(s => s.trim()) })
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-4 items-center">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id={`field-required-${index}`}
+                        checked={field.required}
+                        onCheckedChange={checked => onUpdateField(index, { required: checked })}
+                      />
+                      <Label htmlFor={`field-required-${index}`}>Required</Label>
+                    </div>
+                    {(field.type === 'text' || field.type === 'phone' || field.type === 'email') && (
+                      <div className="flex-1">
+                        <Label htmlFor={`field-validation-${index}`}>Validation Pattern (regex)</Label>
+                        <Input
+                          id={`field-validation-${index}`}
+                          value={field.validation || ''}
+                          onChange={e => onUpdateField(index, { validation: e.target.value })}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
+                <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={() => onRemoveField(index)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="flex-shrink-0"
-                onClick={() => onRemoveField(index)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
+            ))}
+          </div>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() =>
+              onAddField({
+                id: `field_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                label: 'New Field',
+                type: 'text',
+                required: false,
+              })
+            }
+          >
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Add Field
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() =>
-            onAddField({
-              id: `field_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-              label: 'New Field',
-              type: 'text',
-              required: false,
-            })
-          }
-        >
-          <PlusCircle className="h-4 w-4 mr-2" />
-          Add Field
-        </Button>
-      </div>
-    </ConfigSectionCard>
-  );
-};
+      </ConfigSectionCard>
+    );
+  };
 
   useEffect(() => {
     // Load the current configuration when the component mounts
@@ -445,12 +445,7 @@ const CartFieldsSection = ({
     setEditableConfig(prev => (prev ? { ...prev, [key]: value } : null));
   };
 
-  const handleArrayChange = (
-    arrayKey: keyof BusinessConfig,
-    index: number,
-    field: string,
-    value: unknown
-  ) => {
+  const handleArrayChange = (arrayKey: keyof BusinessConfig, index: number, field: string, value: unknown) => {
     if (!editableConfig) return;
     const currentArray = editableConfig[arrayKey] as Array<Record<string, unknown>> | undefined;
     if (!currentArray) return;
@@ -484,13 +479,19 @@ const CartFieldsSection = ({
     handleConfigChange('orderTypes', newTypes);
   };
 
-  const handleSaveChanges = () => {
-    if (editableConfig) {
-      const { businessType, ...overrides } = editableConfig;
-      createCustomConfig(overrides);
-      toast.success('Configuration Saved!', { description: 'Your new settings have been applied.' });
-    }
-  };
+const handleSaveChanges = () => {
+  if (editableConfig) {
+    const { businessType, ...overrides } = {
+      ...editableConfig,
+      selectedLocation,
+      enableStockTaking,
+    };
+    createCustomConfig(overrides);
+    toast.success('Configuration Saved!', {
+      description: 'Your new settings have been applied.',
+    });
+  }
+};
 
   const handleExport = () => {
     const configJson = exportConfig();
@@ -724,7 +725,6 @@ const CartFieldsSection = ({
                 </div>
               </div>
             </ConfigSectionCard>
-
             {/* Payment Methods */}
             <ConfigSectionCard
               icon={CreditCard}
@@ -754,7 +754,6 @@ const CartFieldsSection = ({
                 </div>
               </div>
             </ConfigSectionCard>
-
             {/* Component Display */}
             <ConfigSectionCard
               icon={Tv}
@@ -785,7 +784,9 @@ const CartFieldsSection = ({
                         <Package className="h-4 w-4" />
                         Category Navigation
                       </Label>
-                      <p className="text-xs text-muted-foreground mt-1">Display product categories for quick navigation</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Display product categories for quick navigation
+                      </p>
                     </div>
                     <Switch
                       id="show-categories"
@@ -812,7 +813,6 @@ const CartFieldsSection = ({
                 </div>
               </div>
             </ConfigSectionCard>
-
             {/* Order Types */}
             <ConfigSectionCard
               icon={ListTodo}
@@ -863,13 +863,14 @@ const CartFieldsSection = ({
                           {ot}
                         </Label>
                       </div>
-                      <span className="text-xs text-muted-foreground">{getOrderTypeVisuals(businessType)[ot]?.description}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {getOrderTypeVisuals(businessType)[ot]?.description}
+                      </span>
                     </div>
                   ))}
                 </div>
               </div>
             </ConfigSectionCard>
-
             {/* Location Settings */}
             {editableConfig.requiresLocation && (
               <ConfigSectionCard
@@ -917,9 +918,7 @@ const CartFieldsSection = ({
                         <Input
                           placeholder="Description"
                           value={loc.description}
-                          onChange={e =>
-                            handleArrayChange('locations', index, 'description', e.target.value)
-                          }
+                          onChange={e => handleArrayChange('locations', index, 'description', e.target.value)}
                           className="h-8 text-sm text-muted-foreground"
                         />
                         <Button
@@ -953,7 +952,6 @@ const CartFieldsSection = ({
                 </div>
               </ConfigSectionCard>
             )}
-
             {/* Cart Fields */}
             <ConfigSectionCard
               icon={ShoppingBag}
@@ -963,8 +961,8 @@ const CartFieldsSection = ({
             >
               <CartFieldsSection
                 cartFields={editableConfig.cartFields || []}
-                onAddField={(field) => addToArray('cartFields', field)}
-                onRemoveField={(index) => removeFromArray('cartFields', index)}
+                onAddField={field => addToArray('cartFields', field)}
+                onRemoveField={index => removeFromArray('cartFields', index)}
                 onUpdateField={(index, updates) => {
                   const currentFields = editableConfig.cartFields || [];
                   const updatedField = { ...currentFields[index], ...updates };
@@ -972,7 +970,6 @@ const CartFieldsSection = ({
                 }}
               />
             </ConfigSectionCard>
-
             {/* Custom Fields */}
             <ConfigSectionCard
               icon={Wand2}
@@ -990,9 +987,7 @@ const CartFieldsSection = ({
                             <Label className="text-sm">Field Label</Label>
                             <Input
                               value={field.label}
-                              onChange={e =>
-                                handleArrayChange('customFields', index, 'label', e.target.value)
-                              }
+                              onChange={e => handleArrayChange('customFields', index, 'label', e.target.value)}
                               className="h-8 text-sm"
                             />
                           </div>
@@ -1093,7 +1088,6 @@ const CartFieldsSection = ({
                 </div>
               </div>
             </ConfigSectionCard>
-
             {/* Advanced Settings */}
             <ConfigSectionCard
               icon={Clock}
@@ -1166,6 +1160,12 @@ const CartFieldsSection = ({
                 </div>
               </div>
             </ConfigSectionCard>
+            
+            <LocationSettings
+              enableStockTaking={enableStockTaking}
+              selectedLocation={selectedLocation}
+              onStockTakingToggle={setEnableStockTaking}
+            />
           </div>
         </div>
       </div>

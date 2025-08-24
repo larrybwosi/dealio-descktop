@@ -105,6 +105,10 @@ export interface BusinessConfig {
   itemQuantityControls: boolean;
   showItemVariants: boolean;
   showItemAdditions: boolean;
+  selectedLocation?: string;
+  enableStockTaking?: boolean;
+  lowStockThreshold?: number;
+  autoUpdateStock?: boolean;
 }
 
 // Business configurations
