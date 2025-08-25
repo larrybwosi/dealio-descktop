@@ -114,10 +114,8 @@ export const removePendingSales = (saleIds: string[]): void => {
 const generateSaleId = (): string => {
   return `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
-
 // Add sync sales function to apiClient (you'll need to add this to your apiClient)
 const syncSales = async (organizationId: string, request: SyncSalesRequest): Promise<SyncSalesResponse> => {
-  // Assuming your apiClient follows a similar pattern, update this based on your actual apiClient structure
   return apiClient.sales.sync(`/organizations/${organizationId}/sales/sync`, request).then(res => res.data);
 };
 

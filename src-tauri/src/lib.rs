@@ -23,10 +23,11 @@ fn start_scanner_listener(app_handle: AppHandle) {
             }
         };
 
-        // IMPORTANT: Replace with your actual Vendor and Product IDs
-        // You can find these in your system's device manager.
-        let vid = 0x1234;
-        let pid = 0x5678;
+        // REPLACED WITH YOUR ACTUAL VENDOR AND PRODUCT IDs
+        let vid = 0xE851;  // Changed from 0x1234
+        let pid = 0x2100;  // Changed from 0x5678
+
+        println!("[Scanner] Looking for devices with VID: {:04X}, PID: {:04X}", vid, pid);
 
         for device_info in api.device_list() {
             if device_info.vendor_id() == vid && device_info.product_id() == pid {
@@ -97,6 +98,8 @@ fn start_scanner_listener(app_handle: AppHandle) {
                 });
             }
         }
+
+        println!("[Scanner] Finished scanning for devices. No matching devices found with VID: {:04X}, PID: {:04X}", vid, pid);
     });
 }
 

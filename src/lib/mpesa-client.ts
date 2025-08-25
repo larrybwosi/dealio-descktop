@@ -1,14 +1,6 @@
-import Ably, { Message } from 'ably';
+import { Message } from 'ably';
 import api from './axios';
-
-// Note: You need to install the Ably JS SDK: `npm install ably`
-
-// Ensure you have your Ably public API key in your .env file
-// For Next.js/Vite, it should be prefixed with NEXT_PUBLIC_ or VITE_PUBLIC_
-const ABLY_KEY = import.meta.env.VITE_PUBLIC_ABLY_API_KEY;
-
-// Initialize Ably client. It's good practice to do this once.
-const ably = new Ably.Realtime(ABLY_KEY!);
+import { ably } from './ably';
 
 interface InitiateMpesaPaymentParams {
   phoneNumber: string;

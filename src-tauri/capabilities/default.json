@@ -44,6 +44,9 @@
     "http:allow-fetch-read-body",
     "fs:allow-remove",
     "sentry:default",
+    "hid:allow-open",
+    "hid:allow-read",
+    "hid:allow-write",
     {
       "identifier": "opener:allow-open-path",
       "allow": [
