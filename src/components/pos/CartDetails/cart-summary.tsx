@@ -28,8 +28,7 @@ export const CartSummaryComponent = memo(
 
     const handleDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value;
-      console.log('Discount value changed:', newValue);
-      
+
       // If empty or invalid, set to 0
       if (newValue === '' || isNaN(parseFloat(newValue))) {
         onDiscountValueChange(0);
@@ -60,7 +59,6 @@ export const CartSummaryComponent = memo(
               <span>Discount</span>
               <div className="relative">
                 <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground">
-                  $
                 </span>
                 <Input
                   type="number"

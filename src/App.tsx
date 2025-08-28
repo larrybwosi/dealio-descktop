@@ -19,6 +19,7 @@ import { SessionProvider } from './providers/session';
 import PrintersPage from './pages/printers';
 import SalesDashboard from './pages/sales';
 import Receipt from './pages/page';
+import { NotificationProvider } from './providers/ably-notification-provider';
 
 
 const HomeRouteWrapper = ({ children }) => <OrgProvider>{children}</OrgProvider>;
@@ -121,27 +122,29 @@ const App = () => {
                   },
                 }}
               />
-              <Routes>
-                {/* Home routes with OrgProvider */}
-                <Route
-                  path="/"
-                  element={
-                    <HomeRouteWrapper>
-                      <Index />
-                    </HomeRouteWrapper>
-                  }
-                />
+              <NotificationProvider>
+                <Routes>
+                  {/* Home routes with OrgProvider */}
+                  <Route
+                    path="/"
+                    element={
+                      <HomeRouteWrapper>
+                        <Index />
+                      </HomeRouteWrapper>
+                    }
+                  />
 
-                {/* Other routes without OrgProvider */}
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/splashscreen" element={<DealioSplashScreen />} />
-                <Route path="/settings" element={<PosConfigManagerPage />} />
-                <Route path="/order-lists" element={<PendingOrdersPage />} />
-                <Route path="/printers" element={<PrintersPage />} />
-                <Route path="/receipt" element={<Receipt />} />
-                <Route path="/sales" element={<SalesDashboard />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+                  {/* Other routes without OrgProvider */}
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/splashscreen" element={<DealioSplashScreen />} />
+                  <Route path="/settings" element={<PosConfigManagerPage />} />
+                  <Route path="/order-lists" element={<PendingOrdersPage />} />
+                  <Route path="/printers" element={<PrintersPage />} />
+                  <Route path="/receipt" element={<Receipt />} />
+                  <Route path="/sales" element={<SalesDashboard />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </NotificationProvider>
             </SessionProvider>
           </BrowserRouter>
         </TooltipProvider>
