@@ -9,7 +9,6 @@ import { printPdf } from 'tauri-plugin-printer-v2';
 import { BaseDirectory, writeFile, mkdir, exists } from '@tauri-apps/plugin-fs';
 import { documentDir } from '@tauri-apps/api/path';
 import { usePrinterStore } from '@/store/printer-store';
-import { fetch } from '@tauri-apps/plugin-http';
 import { API_ENDPOINT } from '@/lib/axios';
 import { useOrgStore } from '@/lib/tanstack-axios';
 import axios from 'axios';

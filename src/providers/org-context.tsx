@@ -222,7 +222,7 @@ export const OrgProvider: React.FC<OrgProviderProps> = ({ children }) => {
       }
     }
   };
-
+  
   const retry = () => {
     if (!isSessionLoading && session) {
       fetchAndSetOrg();

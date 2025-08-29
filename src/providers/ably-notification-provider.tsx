@@ -1,13 +1,13 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
-import * as Ably from 'ably';
+import { createContext, useContext, useEffect, useState, useRef, useCallback, memo } from 'react';
 import { X, Check, CheckCheck, Bell, AlertCircle, ShoppingCart, Info } from 'lucide-react';
 import { useOrgStore } from '@/lib/tanstack-axios';
 import { ably } from '@/lib/ably';
 import { cn } from '@/lib/utils';
 import { fetch } from '@tauri-apps/plugin-http';
 import { API_ENDPOINT } from '@/lib/axios';
+import { Realtime } from 'ably';
 
 // Define the shape of a notification for the client
 interface ClientNotification {
@@ -27,15 +27,14 @@ const soundMap: Record<NotificationSound, string> = {
   'system-alert': '/sounds/alert.mp3',
 };
 
-// Custom Toast Component
+// Custom Toast Component - Memoized to prevent re-renders
 interface CustomToastProps {
   notification: ClientNotification;
   onClose: () => void;
   onMarkAsRead: (id: string) => void;
-  isVisible: boolean;
 }
 
-const CustomToast = ({ notification, onClose, onMarkAsRead, isVisible }: CustomToastProps) => {
+const CustomToast = memo(({ notification, onClose, onMarkAsRead }: CustomToastProps) => {
   const getIcon = () => {
     switch (notification.type) {
       case 'NEW_ORDER':
@@ -61,8 +60,8 @@ const CustomToast = ({ notification, onClose, onMarkAsRead, isVisible }: CustomT
   return (
     <div
       className={cn(
-        'transform transition-all duration-300 ease-in-out',
-        isVisible ? 'translate-x-0 opacity-100 scale-100' : '-translate-x-full opacity-0 scale-95'
+        'relative transform transition-all duration-300 ease-in-out',
+        'translate-x-0 opacity-100 scale-100'
       )}
     >
       <div
@@ -74,7 +73,6 @@ const CustomToast = ({ notification, onClose, onMarkAsRead, isVisible }: CustomT
       >
         <div className="flex items-start space-x-3">
           <div className="flex-shrink-0 mt-0.5">{getIcon()}</div>
-
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-1">
               <h4 className="text-sm font-semibold text-white truncate">{notification.title}</h4>
@@ -98,7 +96,6 @@ const CustomToast = ({ notification, onClose, onMarkAsRead, isVisible }: CustomT
 
             <div className="flex items-center justify-between mt-3">
               <span className="text-xs text-gray-500">{new Date(notification.createdAt).toLocaleTimeString()}</span>
-
               {notification.isRead && (
                 <div className="flex items-center text-xs text-green-400">
                   <CheckCheck className="h-3 w-3 mr-1" />
@@ -111,34 +108,36 @@ const CustomToast = ({ notification, onClose, onMarkAsRead, isVisible }: CustomT
       </div>
     </div>
   );
-};
+});
 
-// Toast Container
+CustomToast.displayName = 'CustomToast';
+
+// Toast Container - Memoized to prevent re-renders of the entire container
 interface ToastContainerProps {
   toasts: Array<{
     id: string;
     notification: ClientNotification;
-    timestamp: number;
   }>;
   onRemoveToast: (id: string) => void;
   onMarkAsRead: (notificationId: string) => void;
 }
 
-const ToastContainer = ({ toasts, onRemoveToast, onMarkAsRead }: ToastContainerProps) => {
+const ToastContainer = memo(({ toasts, onRemoveToast, onMarkAsRead }: ToastContainerProps) => {
   return (
     <div className="fixed bottom-4 left-4 z-50 space-y-2 max-w-sm">
-      {toasts.map((toast, index) => (
+      {toasts.map(toast => (
         <CustomToast
           key={toast.id}
           notification={toast.notification}
           onClose={() => onRemoveToast(toast.id)}
           onMarkAsRead={onMarkAsRead}
-          isVisible={true}
         />
       ))}
     </div>
   );
-};
+});
+
+ToastContainer.displayName = 'ToastContainer';
 
 // Create the context
 interface NotificationContextType {
@@ -146,7 +145,7 @@ interface NotificationContextType {
   unreadCount: number;
   markAsRead: (notificationId: string) => void;
   markAllAsRead: () => void;
-  showToast: (notification: ClientNotification) => void;
+  // showToast is no longer exposed via context as it's an internal implementation detail
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -171,92 +170,68 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
     Array<{
       id: string;
       notification: ClientNotification;
-      timestamp: number;
     }>
   >([]);
 
   const { organizationId, locationId } = useOrgStore();
-  const ablyClient = useRef<Ably.Realtime | null>(null);
+  const ablyClient = useRef<Realtime | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isMounted = useRef(false);
 
-  const playSound = useCallback((type: string) => {
-    let sound: NotificationSound = 'default';
-    if (type === 'NEW_ORDER') sound = 'new-order';
-    if (type === 'SYSTEM_ALERT') sound = 'system-alert';
-
-    if (audioRef.current) {
-      audioRef.current.src = soundMap[sound];
-      audioRef.current.play().catch(error => console.error('Audio play failed:', error));
-    }
-  }, []);
-
-  const showToast = useCallback((notification: ClientNotification) => {
-    const toastId = `toast-${notification.id}-${Date.now()}`;
-    const newToast = {
-      id: toastId,
-      notification,
-      timestamp: Date.now(),
-    };
-
-    setToasts(prev => [newToast, ...prev.slice(0, 4)]); // Keep max 5 toasts
-
-    // Auto remove toast after 8 seconds
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== toastId));
-    }, 8000);
-  }, []);
-
-  const removeToast = useCallback((toastId: string) => {
-    setToasts(prev => prev.filter(t => t.id !== toastId));
-  }, []);
-
+  // Initialize Ably client and channels in a single effect
   useEffect(() => {
-    // Initialize the audio element
+    isMounted.current = true;
     audioRef.current = new Audio();
 
-    const initializeAbly = async () => {
-      ably.connection.on('connected', () => {
-        console.log('Ably connected!');
-      });
+    const orgChannel = ably.channels.get(`organization:${organizationId}`);
+    const locationChannel = locationId ? ably.channels.get(`location:${locationId}`) : null;
 
-      const orgChannel = ably.channels.get(`organization:${organizationId}`);
+    //eslint-disable-next-line
+    const handleNewNotification = (message: any) => {
+      const newNotification = message.data as ClientNotification;
 
-      orgChannel.subscribe('new-notification', message => {
-        const newNotification = message.data as ClientNotification;
+      // Use functional state updates to avoid stale closures
+      setNotifications(prev => [newNotification, ...prev]);
+      setUnreadCount(prev => prev + 1);
 
-        // Update state
-        setNotifications(prev => [newNotification, ...prev]);
-        setUnreadCount(prev => prev + 1);
+      // Show custom toast and play sound
+      const toastId = `toast-${newNotification.id}-${Date.now()}`;
+      const newToast = { id: toastId, notification: newNotification };
 
-        // Show custom toast
-        showToast(newNotification);
+      setToasts(prev => [newToast, ...prev.slice(0, 4)]);
 
-        // Play sound
-        playSound(newNotification.type);
-      });
+      // Auto-remove toast after 8 seconds
+      setTimeout(() => {
+        if (isMounted.current) {
+          setToasts(prev => prev.filter(t => t.id !== toastId));
+        }
+      }, 8000);
 
-      if (locationId) {
-        const locationChannel = ably.channels.get(`location:${locationId}`);
-        locationChannel.subscribe('new-notification', message => {
-          const newNotification = message.data as ClientNotification;
-          setNotifications(prev => [newNotification, ...prev]);
-          setUnreadCount(prev => prev + 1);
-          showToast(newNotification);
-          playSound(newNotification.type);
-        });
+      let sound: NotificationSound = 'default';
+      if (newNotification.type === 'NEW_ORDER') sound = 'new-order';
+      if (newNotification.type === 'SYSTEM_ALERT') sound = 'system-alert';
+
+      if (audioRef.current) {
+        audioRef.current.src = soundMap[sound];
+        audioRef.current.play().catch(error => console.error('Audio play failed:', error));
       }
     };
 
-    initializeAbly();
+    orgChannel.subscribe('new-notification', handleNewNotification);
+    if (locationChannel) {
+      locationChannel.subscribe('new-notification', handleNewNotification);
+    }
 
-    return () => {
-      ablyClient.current?.connection.close();
+    // Ably connection state logging
+    //eslint-disable-next-line
+    const connectionStateListener = (stateChange: any) => {
+      console.log(`Ably connection state: ${stateChange.current}`);
     };
-  }, [organizationId, locationId, playSound, showToast]);
+    ably.connection.on(connectionStateListener);
 
-  // Fetch initial notifications
-  useEffect(() => {
+    // Fetch initial notifications
     const fetchNotifications = async () => {
+      if (!organizationId) return;
       try {
         const response = await fetch(`${API_ENDPOINT}/api/organizations/${organizationId}/notifications`);
         const data = await response.json();
@@ -267,35 +242,56 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       }
     };
 
-    if (organizationId) {
-      fetchNotifications();
-    }
-  }, [organizationId]);
+    fetchNotifications();
 
-  const markAsRead = async (notificationId: string) => {
-    try {
-      const response = await fetch(`${API_ENDPOINT}/api/organizations/${organizationId}/notifications/${notificationId}/read`, {
-        method: 'PATCH'});
-
-      if (response.ok) {
-        setNotifications(prev => prev.map(n => (n.id === notificationId ? { ...n, isRead: true } : n)));
-        setUnreadCount(prev => Math.max(0, prev - 1));
-
-        // Update toast as well
-        setToasts(prev =>
-          prev.map(toast =>
-            toast.notification.id === notificationId
-              ? { ...toast, notification: { ...toast.notification, isRead: true } }
-              : toast
-          )
-        );
+    return () => {
+      // Cleanup function
+      isMounted.current = false;
+      orgChannel.unsubscribe('new-notification', handleNewNotification);
+      if (locationChannel) {
+        locationChannel.unsubscribe('new-notification', handleNewNotification);
       }
-    } catch (error) {
-      console.error('Failed to mark notification as read:', error);
-    }
-  };
+      ably.connection.off(connectionStateListener);
+      // Ably client is typically a singleton, so we don't close it here.
+      // If you are using a new client per component, you would close it.
+    };
+  }, [organizationId, locationId]);
 
-  const markAllAsRead = async () => {
+  const removeToast = useCallback((toastId: string) => {
+    setToasts(prev => prev.filter(t => t.id !== toastId));
+  }, []);
+
+  const markAsRead = useCallback(
+    async (notificationId: string) => {
+      try {
+        const response = await fetch(
+          `${API_ENDPOINT}/api/organizations/${organizationId}/notifications/${notificationId}/read`,
+          {
+            method: 'PATCH',
+          }
+        );
+
+        if (response.ok) {
+          // Batch state updates to trigger a single re-render
+          setNotifications(prev => prev.map(n => (n.id === notificationId ? { ...n, isRead: true } : n)));
+          setUnreadCount(prev => Math.max(0, prev - 1));
+
+          setToasts(prev =>
+            prev.map(toast =>
+              toast.notification.id === notificationId
+                ? { ...toast, notification: { ...toast.notification, isRead: true } }
+                : toast
+            )
+          );
+        }
+      } catch (error) {
+        console.error('Failed to mark notification as read:', error);
+      }
+    },
+    [organizationId]
+  );
+
+  const markAllAsRead = useCallback(async () => {
     try {
       const response = await fetch(`${API_ENDPOINT}/api/organizations/${organizationId}/notifications/read-all`, {
         method: 'PATCH',
@@ -308,18 +304,17 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
     } catch (error) {
       console.error('Failed to mark all notifications as read:', error);
     }
+  }, [organizationId]);
+
+  const contextValue = {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
   };
 
   return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        markAsRead,
-        markAllAsRead,
-        showToast,
-      }}
-    >
+    <NotificationContext.Provider value={contextValue}>
       {children}
       <ToastContainer toasts={toasts} onRemoveToast={removeToast} onMarkAsRead={markAsRead} />
     </NotificationContext.Provider>
