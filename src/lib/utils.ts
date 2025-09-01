@@ -4,6 +4,7 @@ import LocaleCurrency from 'locale-currency';
 import { useMemo } from 'react';
 import { Decimal } from '@/prisma/client/runtime/library';
 import { useOrgStore } from './tanstack-axios';
+import { useBusinessConfig } from './business-config-manager';
 
 /**
  * Merge Tailwind CSS classes with clsx
@@ -66,7 +67,11 @@ export const useFormattedCurrency = (): ((
   options?: Intl.NumberFormatOptions
 ) => string) => {
   // Get the organization from the application store
-  const { currency } = useOrgStore()
+  const { currency: storeCurrency } = useOrgStore()
+  
+  const { config:{ currency:businessConfigCurrency }} = useBusinessConfig();
+  const currency = businessConfigCurrency || storeCurrency || 'USD';
+    
 
   // Determine the user's locale: use navigator.language if available, otherwise fallback to 'en-US'
   const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US';

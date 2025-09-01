@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,6 +69,7 @@ import { useBusinessConfig } from '@/lib/business-config-manager';
 import { BusinessConfig, BusinessType, LocationOption, OrderType, CartField } from '@/types/business-config';
 import { useNavigate } from 'react-router';
 import LocationSettings from '@/components/location-settings';
+import { useOrgStore } from '@/lib/tanstack-axios';
 
 interface CustomFieldType {
   name: string;
@@ -275,7 +276,7 @@ const ConfigSectionCard = ({
   );
 };
 
-export default function PosConfigManagerPageV2() {
+export default function SettingsPage() {
   const {
     businessType,
     config,
@@ -294,6 +295,7 @@ export default function PosConfigManagerPageV2() {
   const [selectedLocation, setSelectedLocation] = useState<string>(config.locations?.[0]?.id || '');
   const [enableStockTaking, setEnableStockTaking] = useState<boolean>(config.enableStockTaking || false);
   const navigate = useNavigate();
+  const { currency, set: setOrg } = useOrgStore();
 
   const ALL_ORDER_TYPES: OrderType[] = [
     'Dine in',
@@ -537,638 +539,820 @@ const handleSaveChanges = () => {
   }
 
   return (
-    <TooltipProvider>
-      <div className="bg-muted/40 min-h-screen">
-        <div className="mx-auto p-4 sm:p-6 space-y-6">
-          <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-4">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="w-9 px-0">
-                  <ArrowLeft className="h-4 w-4" />
-                  <span className="sr-only">Back</span>
-                </Button>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">POS Configuration</h1>
-              </div>
-              <p className="ml-[52px] text-sm text-muted-foreground">
-                Manage all settings for your <BusinessTypeBadge type={businessType} /> point of sale system.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Dialog open={isImportDialogOpen} onOpenChange={setImportDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Upload className="h-4 w-4 mr-2" /> Import
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Import Configuration</DialogTitle>
-                    <DialogDescription>
-                      Select a previously exported JSON configuration file to load its settings.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
-                      accept=".json"
-                    />
-                  </div>
-                </DialogContent>
-              </Dialog>
-              <Button variant="outline" size="sm" onClick={handleExport}>
-                <Save className="h-4 w-4 mr-2" /> Export
+    <div className="bg-muted/40 min-h-screen">
+      <div className="mx-auto p-4 sm:p-6 space-y-6">
+        <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="w-9 px-0">
+                <ArrowLeft className="h-4 w-4" />
+                <span className="sr-only">Back</span>
               </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">POS Configuration</h1>
+            </div>
+            <p className="ml-[52px] text-sm text-muted-foreground">
+              Manage all settings for your <BusinessTypeBadge type={businessType} /> point of sale system.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Dialog open={isImportDialogOpen} onOpenChange={setImportDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Upload className="h-4 w-4 mr-2" /> Import
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Import Configuration</DialogTitle>
+                  <DialogDescription>
+                    Select a previously exported JSON configuration file to load its settings.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
+                    accept=".json"
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Save className="h-4 w-4 mr-2" /> Export
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" /> Reset
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently reset all your custom settings to the system defaults.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleReset}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    <RotateCcw className="h-4 w-4 mr-2" /> Reset
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently reset all your custom settings to the system defaults.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleReset}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Yes, Reset Settings
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </header>
+                    Yes, Reset Settings
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </header>
 
-          {isDirty && (
-            <div className="sticky top-4 z-50 p-3 rounded-lg shadow-lg bg-background border border-primary/20 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="h-5 w-5 text-primary" />
-                <div>
-                  <h3 className="font-semibold text-sm">You have unsaved changes</h3>
-                  <p className="text-xs text-muted-foreground">Click save to apply your modifications.</p>
-                </div>
+        {isDirty && (
+          <div className="sticky top-4 z-50 p-3 rounded-lg shadow-lg bg-background border border-primary/20 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-primary" />
+              <div>
+                <h3 className="font-semibold text-sm">You have unsaved changes</h3>
+                <p className="text-xs text-muted-foreground">Click save to apply your modifications.</p>
               </div>
-              <Button size="sm" onClick={handleSaveChanges}>
-                <Save className="h-4 w-4 mr-2" />
-                Save Changes
-              </Button>
             </div>
-          )}
+            <Button size="sm" onClick={handleSaveChanges}>
+              <Save className="h-4 w-4 mr-2" />
+              Save Changes
+            </Button>
+          </div>
+        )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
-            {/* General Settings */}
-            <ConfigSectionCard
-              icon={Settings}
-              title="General Settings"
-              description="Core POS behavior and business type."
-              badge={<FeatureBadge enabled={true} />}
-            >
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="business-type" className="text-sm">
-                    Business Type
-                  </Label>
-                  <Select value={businessType} onValueChange={value => setBusinessType(value as BusinessType)}>
-                    <SelectTrigger id="business-type" className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableBusinessTypes.map(bt => (
-                        <SelectItem key={bt} value={bt} className="capitalize text-sm">
-                          {bt}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="business-name" className="text-sm">
-                    Business Display Name
-                  </Label>
-                  <Input
-                    id="business-name"
-                    value={editableConfig.name}
-                    onChange={e => handleConfigChange('name', e.target.value)}
-                    className="h-9"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <Label htmlFor="requires-customer" className="font-normal text-sm flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        Requires Customer
-                      </Label>
-                    </div>
-                    <Switch
-                      id="requires-customer"
-                      checked={editableConfig.requiresCustomer}
-                      onCheckedChange={v => handleConfigChange('requiresCustomer', v)}
-                      className="h-5 w-9"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <Label htmlFor="show-loyalty" className="font-normal text-sm flex items-center gap-2">
-                        <Gift className="h-4 w-4" />
-                        Loyalty Points
-                      </Label>
-                    </div>
-                    <Switch
-                      id="show-loyalty"
-                      checked={editableConfig.showLoyaltyPoints}
-                      onCheckedChange={v => handleConfigChange('showLoyaltyPoints', v)}
-                      className="h-5 w-9"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <Label htmlFor="enable-tips" className="font-normal text-sm flex items-center gap-2">
-                        <Percent className="h-4 w-4" />
-                        Tips Enabled
-                      </Label>
-                    </div>
-                    <Switch
-                      id="enable-tips"
-                      checked={editableConfig.enableTips}
-                      onCheckedChange={v => handleConfigChange('enableTips', v)}
-                      className="h-5 w-9"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <Label htmlFor="enable-discounts" className="font-normal text-sm flex items-center gap-2">
-                        <Tag className="h-4 w-4" />
-                        Discounts
-                      </Label>
-                    </div>
-                    <Switch
-                      id="enable-discounts"
-                      checked={editableConfig.enableDiscounts}
-                      onCheckedChange={v => handleConfigChange('enableDiscounts', v)}
-                      className="h-5 w-9"
-                    />
-                  </div>
-                </div>
-              </div>
-            </ConfigSectionCard>
-            {/* Payment Methods */}
-            <ConfigSectionCard
-              icon={CreditCard}
-              title="Payment Methods"
-              description="Configure accepted payment methods and their display in the payment interface. These methods will appear as options during checkout."
-              badge={<Badge variant="outline">{editableConfig.paymentMethods?.length || 0} methods</Badge>}
-            >
-              <div className="space-y-3">
-                <Label className="text-sm">Enabled Payment Methods</Label>
-                <div className="flex flex-wrap gap-2">
-                  {PAYMENT_METHODS.map(method => (
-                    <Badge
-                      key={method}
-                      variant={editableConfig.paymentMethods?.includes(method) ? 'default' : 'secondary'}
-                      className="cursor-pointer text-xs"
-                      onClick={() => {
-                        const current = editableConfig.paymentMethods || [];
-                        const newMethods = current.includes(method)
-                          ? current?.filter(m => m !== method)
-                          : [...current, method];
-                        handleConfigChange('paymentMethods', newMethods);
-                      }}
-                    >
-                      {method}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </ConfigSectionCard>
-            {/* Component Display */}
-            <ConfigSectionCard
-              icon={Tv}
-              title="Component Display"
-              description="Configure which components and cards are visible in your POS interface."
-              badge={<Badge variant="outline">Display Settings</Badge>}
-            >
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <Label htmlFor="show-order-queue" className="font-normal text-sm flex items-center gap-2">
-                        <ListTodo className="h-4 w-4" />
-                        Order Queue Card
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-1">Shows pending orders and their status</p>
-                    </div>
-                    <Switch
-                      id="show-order-queue"
-                      checked={editableConfig.showOrderQueue}
-                      onCheckedChange={v => handleConfigChange('showOrderQueue', v)}
-                      className="h-5 w-9"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <Label htmlFor="show-categories" className="font-normal text-sm flex items-center gap-2">
-                        <Package className="h-4 w-4" />
-                        Category Navigation
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Display product categories for quick navigation
-                      </p>
-                    </div>
-                    <Switch
-                      id="show-categories"
-                      checked={editableConfig.showCategories}
-                      onCheckedChange={v => handleConfigChange('showCategories', v)}
-                      className="h-5 w-9"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <Label htmlFor="show-quick-actions" className="font-normal text-sm flex items-center gap-2">
-                        <Wand2 className="h-4 w-4" />
-                        Quick Action Buttons
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-1">Display shortcuts for common actions</p>
-                    </div>
-                    <Switch
-                      id="show-quick-actions"
-                      checked={editableConfig.showQuickActions}
-                      onCheckedChange={v => handleConfigChange('showQuickActions', v)}
-                      className="h-5 w-9"
-                    />
-                  </div>
-                </div>
-              </div>
-            </ConfigSectionCard>
-            {/* Order Types */}
-            <ConfigSectionCard
-              icon={ListTodo}
-              title="Order Types"
-              description="Enable or disable order types for your business. Each type affects the order flow and required information."
-              badge={<Badge variant="outline">{editableConfig.orderTypes.length} active</Badge>}
-            >
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  {editableConfig.orderTypes.map(ot => (
-                    <OrderTypeBadge key={ot} type={ot} businessType={businessType} />
-                  ))}
-                </div>
-                <Separator className="my-2" />
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                  {ALL_ORDER_TYPES?.filter(ot => {
-                    // Filter order types based on business type
-                    switch (businessType) {
-                      case 'restaurant':
-                      case 'cafe':
-                        return ['Dine in', 'Takeaway', 'Delivery', 'Pickup'].includes(ot);
-                      case 'retail':
-                      case 'clothing':
-                      case 'electronics':
-                        return ['In-store', 'Pickup', 'Ship to home', 'Online'].includes(ot);
-                      case 'hardware':
-                        return ['In-store', 'Pickup', 'Delivery', 'Curbside'].includes(ot);
-                      case 'supermarket':
-                        return ['In-store', 'Pickup', 'Delivery', 'Curbside', 'Online'].includes(ot);
-                      case 'pharmacy':
-                        return ['In-store', 'Pickup'].includes(ot);
-                      default:
-                        return true;
-                    }
-                  }).map(ot => (
-                    <div
-                      key={ot}
-                      className="flex items-center justify-between rounded-lg border p-2 hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id={`ot-${ot}`}
-                          checked={editableConfig.orderTypes.includes(ot)}
-                          onCheckedChange={() => handleOrderTypeToggle(ot)}
-                          className="h-4 w-7"
-                        />
-                        <Label htmlFor={`ot-${ot}`} className="font-normal text-sm cursor-pointer">
-                          {ot}
-                        </Label>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {getOrderTypeVisuals(businessType)[ot]?.description}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </ConfigSectionCard>
-            {/* Location Settings */}
-            {editableConfig.requiresLocation && (
-              <ConfigSectionCard
-                icon={Building2}
-                title="Location Settings"
-                description="Manage tables, pickup spots, or service areas."
-                badge={<Badge variant="outline">{editableConfig.locations?.length || 0} locations</Badge>}
-              >
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="location-label" className="text-sm">
-                        Location Field Label
-                      </Label>
-                      <Input
-                        id="location-label"
-                        value={editableConfig.locationLabel}
-                        onChange={e => handleConfigChange('locationLabel', e.target.value)}
-                        className="h-9"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="location-placeholder" className="text-sm">
-                        Location Field Placeholder
-                      </Label>
-                      <Input
-                        id="location-placeholder"
-                        value={editableConfig.locationPlaceholder}
-                        onChange={e => handleConfigChange('locationPlaceholder', e.target.value)}
-                        className="h-9"
-                      />
-                    </div>
-                  </div>
-                  <Separator className="my-2" />
-                  <Label className="text-sm">Available Locations</Label>
-                  <div className="space-y-2 rounded-md border max-h-60 overflow-y-auto">
-                    {editableConfig.locations?.map((loc, index) => (
-                      <div key={index} className="flex items-center gap-2 p-2 border-b last:border-b-0">
-                        <Input
-                          placeholder="Label"
-                          value={loc.label}
-                          onChange={e => handleArrayChange('locations', index, 'label', e.target.value)}
-                          className="h-8 text-sm"
-                        />
-                        <Input
-                          placeholder="Description"
-                          value={loc.description}
-                          onChange={e => handleArrayChange('locations', index, 'description', e.target.value)}
-                          className="h-8 text-sm text-muted-foreground"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => removeFromArray('locations', index)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
+          {/* General Settings */}
+          <ConfigSectionCard
+            icon={Settings}
+            title="General Settings"
+            description="Core POS behavior, business type, and currency settings."
+            badge={<FeatureBadge enabled={true} />}
+          >
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="business-type" className="text-sm">
+                  Business Type
+                </Label>
+                <Select value={businessType} onValueChange={value => setBusinessType(value as BusinessType)}>
+                  <SelectTrigger id="business-type" className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableBusinessTypes.map(bt => (
+                      <SelectItem key={bt} value={bt} className="capitalize text-sm">
+                        {bt}
+                      </SelectItem>
                     ))}
-                    <div className="p-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full h-8"
-                        onClick={() =>
-                          addToArray<LocationOption>('locations', {
-                            id: `new_loc_${Date.now()}`,
-                            label: 'New Location',
-                            description: '',
-                          })
-                        }
-                      >
-                        <PlusCircle className="h-3.5 w-3.5 mr-2" />
-                        Add Location
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </ConfigSectionCard>
-            )}
-            {/* Cart Fields */}
-            <ConfigSectionCard
-              icon={ShoppingBag}
-              title="Cart Fields"
-              description="Configure fields shown during checkout for each order"
-              badge={<Badge variant="outline">{editableConfig.cartFields?.length || 0} fields</Badge>}
-            >
-              <CartFieldsSection
-                cartFields={editableConfig.cartFields || []}
-                onAddField={field => addToArray('cartFields', field)}
-                onRemoveField={index => removeFromArray('cartFields', index)}
-                onUpdateField={(index, updates) => {
-                  const currentFields = editableConfig.cartFields || [];
-                  const updatedField = { ...currentFields[index], ...updates };
-                  handleArrayChange('cartFields', index, Object.keys(updates)[0], Object.values(updates)[0]);
-                }}
-              />
-            </ConfigSectionCard>
-            {/* Custom Fields */}
-            <ConfigSectionCard
-              icon={Wand2}
-              title="Custom Fields"
-              description="Add custom data fields to the order process."
-              badge={<Badge variant="outline">{editableConfig.customFields?.length || 0} fields</Badge>}
-            >
-              <div className="space-y-3 rounded-md border max-h-96 overflow-y-auto">
-                {editableConfig.customFields?.map((field, index) => (
-                  <div key={index} className="p-3 border-b last:border-b-0 bg-background/50">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-grow space-y-3">
-                        <div className="grid grid-cols-1 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-sm">Field Label</Label>
-                            <Input
-                              value={field.label}
-                              onChange={e => handleArrayChange('customFields', index, 'label', e.target.value)}
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-sm">Field Type</Label>
-                            <Select
-                              value={field.type}
-                              onValueChange={v => handleArrayChange('customFields', index, 'type', v)}
-                            >
-                              <SelectTrigger className="h-8">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {CUSTOM_FIELD_TYPES.map(type => (
-                                  <SelectItem key={type} value={type} className="text-sm">
-                                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        {field.type === 'select' && (
-                          <div className="space-y-1">
-                            <Label className="text-sm">Options (comma-separated)</Label>
-                            <Input
-                              value={field.options?.join(', ')}
-                              onChange={e =>
-                                handleArrayChange<CustomFieldType>(
-                                  'customFields',
-                                  index,
-                                  'options',
-                                  e.target.value.split(',').map(s => s.trim())
-                                )
-                              }
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                        )}
-                        <div className="flex items-center gap-3 pt-1">
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              id={`cf-req-${index}`}
-                              checked={field.required}
-                              onCheckedChange={v =>
-                                handleArrayChange<CustomFieldType>('customFields', index, 'required', v)
-                              }
-                              className="h-4 w-7"
-                            />
-                            <Label htmlFor={`cf-req-${index}`} className="font-normal text-xs">
-                              Required
-                            </Label>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              id={`cf-show-${index}`}
-                              checked={field.showInReceipt}
-                              onCheckedChange={v =>
-                                handleArrayChange<CustomFieldType>('customFields', index, 'showInReceipt', v)
-                              }
-                              className="h-4 w-7"
-                            />
-                            <Label htmlFor={`cf-show-${index}`} className="font-normal text-xs">
-                              Show in Receipt
-                            </Label>
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 mt-5"
-                        onClick={() => removeFromArray('customFields', index)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                <div className="p-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full h-8"
-                    onClick={() =>
-                      addToArray<CustomFieldType>('customFields', {
-                        id: `new_${Date.now()}`,
-                        label: 'New Field',
-                        type: 'text',
-                        required: false,
-                        showInReceipt: true,
-                      })
-                    }
-                  >
-                    <PlusCircle className="h-3.5 w-3.5 mr-2" />
-                    Add Custom Field
-                  </Button>
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
-            </ConfigSectionCard>
-            {/* Advanced Settings */}
-            <ConfigSectionCard
-              icon={Clock}
-              title="Advanced Settings"
-              description="Configure system behaviors, timeouts, and performance settings that affect the POS interface and operations."
-              badge={<Badge variant="destructive">Advanced</Badge>}
-            >
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="order-timeout" className="text-sm flex items-center gap-2">
-                    Order Timeout (minutes)
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="h-4 w-4 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>After this time, incomplete orders will be automatically cancelled</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </Label>
-                  <Input
-                    id="order-timeout"
-                    type="number"
-                    min="1"
-                    max="120"
-                    value={editableConfig.orderTimeout || 30}
-                    onChange={e => handleConfigChange('orderTimeout', parseInt(e.target.value) || 30)}
-                    className="h-9"
+              <div className="space-y-2">
+                <Label htmlFor="business-name" className="text-sm">
+                  Business Display Name
+                </Label>
+                <Input
+                  id="business-name"
+                  value={editableConfig.name}
+                  onChange={e => handleConfigChange('name', e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="default-currency" className="text-sm">
+                  Default Currency
+                </Label>
+                <Select
+                  value={currency} // Use the currency from org store
+                  onValueChange={newCurrency => {
+                    // Update both the org store and local config
+                    console.log('Changing currency to:', newCurrency, 'from', currency);
+                    setOrg({ currency: newCurrency });
+                    console.log('Org store currency updated to:', currency);
+                    handleConfigChange('currency', newCurrency);
+                  }}
+                >
+                  <SelectTrigger id="default-currency" className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD ($) - US Dollar</SelectItem>
+                    <SelectItem value="EUR">EUR (€) - Euro</SelectItem>
+                    <SelectItem value="GBP">GBP (£) - British Pound</SelectItem>
+                    <SelectItem value="JPY">JPY (¥) - Japanese Yen</SelectItem>
+                    <SelectItem value="CAD">CAD ($) - Canadian Dollar</SelectItem>
+                    <SelectItem value="AUD">AUD ($) - Australian Dollar</SelectItem>
+                    <SelectItem value="CHF">CHF (Fr) - Swiss Franc</SelectItem>
+                    <SelectItem value="CNY">CNY (¥) - Chinese Yuan</SelectItem>
+                    <SelectItem value="INR">INR (₹) - Indian Rupee</SelectItem>
+                    <SelectItem value="BRL">BRL (R$) - Brazilian Real</SelectItem>
+                    <SelectItem value="MXN">MXN ($) - Mexican Peso</SelectItem>
+                    <SelectItem value="SGD">SGD ($) - Singapore Dollar</SelectItem>
+                    <SelectItem value="NZD">NZD ($) - New Zealand Dollar</SelectItem>
+                    <SelectItem value="KSH">KES (KSh) - Kenyan Shilling</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <Label htmlFor="requires-customer" className="font-normal text-sm flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Requires Customer
+                    </Label>
+                  </div>
+                  <Switch
+                    id="requires-customer"
+                    checked={editableConfig.requiresCustomer}
+                    onCheckedChange={v => handleConfigChange('requiresCustomer', v)}
+                    className="h-5 w-9"
                   />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="auto-print" className="text-sm">
-                    Auto-Print Receipts
-                  </Label>
-                  <Select
-                    value={editableConfig.autoPrint || 'none'}
-                    onValueChange={v => handleConfigChange('autoPrint', v)}
-                  >
-                    <SelectTrigger id="auto-print" className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none" className="text-sm">
-                        Disabled
-                      </SelectItem>
-                      <SelectItem value="all" className="text-sm">
-                        All Orders
-                      </SelectItem>
-                      <SelectItem value="cash" className="text-sm">
-                        Cash Payments Only
-                      </SelectItem>
-                      <SelectItem value="non-cash" className="text-sm">
-                        Non-Cash Payments
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">
-                  <Label htmlFor="enable-audit" className="font-normal text-sm">
-                    Enable Audit Logging
-                  </Label>
+                  <div>
+                    <Label htmlFor="show-loyalty" className="font-normal text-sm flex items-center gap-2">
+                      <Gift className="h-4 w-4" />
+                      Loyalty Points
+                    </Label>
+                  </div>
                   <Switch
-                    id="enable-audit"
-                    checked={editableConfig.enableAuditLog}
-                    onCheckedChange={v => handleConfigChange('enableAuditLog', v)}
+                    id="show-loyalty"
+                    checked={editableConfig.showLoyaltyPoints}
+                    onCheckedChange={v => handleConfigChange('showLoyaltyPoints', v)}
+                    className="h-5 w-9"
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <Label htmlFor="enable-tips" className="font-normal text-sm flex items-center gap-2">
+                      <Percent className="h-4 w-4" />
+                      Tips Enabled
+                    </Label>
+                  </div>
+                  <Switch
+                    id="enable-tips"
+                    checked={editableConfig.enableTips}
+                    onCheckedChange={v => handleConfigChange('enableTips', v)}
+                    className="h-5 w-9"
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <Label htmlFor="enable-discounts" className="font-normal text-sm flex items-center gap-2">
+                      <Tag className="h-4 w-4" />
+                      Discounts
+                    </Label>
+                  </div>
+                  <Switch
+                    id="enable-discounts"
+                    checked={editableConfig.enableDiscounts}
+                    onCheckedChange={v => handleConfigChange('enableDiscounts', v)}
                     className="h-5 w-9"
                   />
                 </div>
               </div>
+            </div>
+          </ConfigSectionCard>
+
+          {/* Payment Methods - Updated with full configurability */}
+          <ConfigSectionCard
+            icon={CreditCard}
+            title="Payment Methods"
+            description="Configure accepted payment methods with custom settings. Add, modify, or remove payment options."
+            badge={<Badge variant="outline">{editableConfig.paymentMethods?.length || 0} methods</Badge>}
+          >
+            <div className="space-y-4">
+              <div className="grid gap-3">
+                {editableConfig.paymentMethods?.map((method, index) => (
+                  <div key={method.id} className="flex items-start gap-3 p-3 border rounded-lg">
+                    <div className="flex-1 space-y-3">
+                      <div className="flex gap-3">
+                        <div className="flex-1">
+                          <Label htmlFor={`payment-name-${index}`} className="text-sm">
+                            Display Name
+                          </Label>
+                          <Input
+                            id={`payment-name-${index}`}
+                            value={method.name}
+                            onChange={e => handleArrayChange('paymentMethods', index, 'name', e.target.value)}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="w-24">
+                          <Label htmlFor={`payment-type-${index}`} className="text-sm">
+                            Type
+                          </Label>
+                          <Select
+                            value={method.type}
+                            onValueChange={v => handleArrayChange('paymentMethods', index, 'type', v)}
+                          >
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="card">Card</SelectItem>
+                              <SelectItem value="cash">Cash</SelectItem>
+                              <SelectItem value="digital">Digital</SelectItem>
+                              <SelectItem value="voucher">Voucher</SelectItem>
+                              <SelectItem value="bank">Bank</SelectItem>
+                              <SelectItem value="other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="flex gap-3 items-center">
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            id={`payment-enabled-${index}`}
+                            checked={method.enabled}
+                            onCheckedChange={v => handleArrayChange('paymentMethods', index, 'enabled', v)}
+                            className="h-4 w-7"
+                          />
+                          <Label htmlFor={`payment-enabled-${index}`} className="text-xs">
+                            Enabled
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            id={`payment-change-${index}`}
+                            checked={method.requiresExactAmount || false}
+                            onCheckedChange={v => handleArrayChange('paymentMethods', index, 'requiresExactAmount', v)}
+                            className="h-4 w-7"
+                          />
+                          <Label htmlFor={`payment-change-${index}`} className="text-xs">
+                            Exact Amount
+                          </Label>
+                        </div>
+                        <div className="flex-1">
+                          <Label htmlFor={`payment-fee-${index}`} className="text-xs">
+                            Processing Fee (%)
+                          </Label>
+                          <Input
+                            id={`payment-fee-${index}`}
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={method.processingFee || 0}
+                            onChange={e =>
+                              handleArrayChange(
+                                'paymentMethods',
+                                index,
+                                'processingFee',
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="h-7 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 flex-shrink-0"
+                      onClick={() => removeFromArray('paymentMethods', index)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() =>
+                  addToArray('paymentMethods', {
+                    id: `pm_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                    name: 'New Payment Method',
+                    type: 'other',
+                    enabled: true,
+                    requiresExactAmount: false,
+                    processingFee: 0,
+                  })
+                }
+              >
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Add Payment Method
+              </Button>
+
+              {/* Quick enable/disable for common payment methods */}
+              <Separator />
+              <div className="space-y-2">
+                <Label className="text-sm">Quick Toggle Common Methods</Label>
+                <div className="flex flex-wrap gap-2">
+                  {['Credit Card', 'Cash', 'Mobile Pay', 'Gift Card', 'Bank Transfer'].map(commonMethod => {
+                    const isEnabled = editableConfig.paymentMethods?.some(
+                      m => m.name.toLowerCase() === commonMethod.toLowerCase() && m.enabled
+                    );
+                    return (
+                      <Badge
+                        key={commonMethod}
+                        variant={isEnabled ? 'default' : 'secondary'}
+                        className="cursor-pointer text-xs"
+                        onClick={() => {
+                          const existingIndex = editableConfig.paymentMethods?.findIndex(
+                            m => m.name.toLowerCase() === commonMethod.toLowerCase()
+                          );
+
+                          if (existingIndex !== -1 && existingIndex !== undefined) {
+                            // Toggle existing method
+                            handleArrayChange(
+                              'paymentMethods',
+                              existingIndex,
+                              'enabled',
+                              !editableConfig.paymentMethods[existingIndex].enabled
+                            );
+                          } else {
+                            // Add new method
+                            addToArray('paymentMethods', {
+                              id: `pm_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                              name: commonMethod,
+                              type:
+                                commonMethod === 'Cash'
+                                  ? 'cash'
+                                  : commonMethod === 'Credit Card'
+                                  ? 'card'
+                                  : commonMethod === 'Mobile Pay'
+                                  ? 'digital'
+                                  : commonMethod === 'Gift Card'
+                                  ? 'voucher'
+                                  : 'bank',
+                              enabled: true,
+                              requiresExactAmount: commonMethod === 'Cash',
+                              processingFee: commonMethod === 'Credit Card' ? 2.5 : 0,
+                            });
+                          }
+                        }}
+                      >
+                        {commonMethod}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </ConfigSectionCard>
+          {/* Component Display */}
+          <ConfigSectionCard
+            icon={Tv}
+            title="Component Display"
+            description="Configure which components and cards are visible in your POS interface."
+            badge={<Badge variant="outline">Display Settings</Badge>}
+          >
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3">
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <Label htmlFor="show-order-queue" className="font-normal text-sm flex items-center gap-2">
+                      <ListTodo className="h-4 w-4" />
+                      Order Queue Card
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">Shows pending orders and their status</p>
+                  </div>
+                  <Switch
+                    id="show-order-queue"
+                    checked={editableConfig.showOrderQueue}
+                    onCheckedChange={v => handleConfigChange('showOrderQueue', v)}
+                    className="h-5 w-9"
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <Label htmlFor="show-categories" className="font-normal text-sm flex items-center gap-2">
+                      <Package className="h-4 w-4" />
+                      Category Navigation
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Display product categories for quick navigation
+                    </p>
+                  </div>
+                  <Switch
+                    id="show-categories"
+                    checked={editableConfig.showCategories}
+                    onCheckedChange={v => handleConfigChange('showCategories', v)}
+                    className="h-5 w-9"
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <Label htmlFor="show-quick-actions" className="font-normal text-sm flex items-center gap-2">
+                      <Wand2 className="h-4 w-4" />
+                      Quick Action Buttons
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">Display shortcuts for common actions</p>
+                  </div>
+                  <Switch
+                    id="show-quick-actions"
+                    checked={editableConfig.showQuickActions}
+                    onCheckedChange={v => handleConfigChange('showQuickActions', v)}
+                    className="h-5 w-9"
+                  />
+                </div>
+              </div>
+            </div>
+          </ConfigSectionCard>
+          {/* Order Types */}
+          <ConfigSectionCard
+            icon={ListTodo}
+            title="Order Types"
+            description="Enable or disable order types for your business. Each type affects the order flow and required information."
+            badge={<Badge variant="outline">{editableConfig.orderTypes.length} active</Badge>}
+          >
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {editableConfig.orderTypes.map(ot => (
+                  <OrderTypeBadge key={ot} type={ot} businessType={businessType} />
+                ))}
+              </div>
+              <Separator className="my-2" />
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                {ALL_ORDER_TYPES?.filter(ot => {
+                  // Filter order types based on business type
+                  switch (businessType) {
+                    case 'restaurant':
+                    case 'cafe':
+                      return ['Dine in', 'Takeaway', 'Delivery', 'Pickup'].includes(ot);
+                    case 'retail':
+                    case 'clothing':
+                    case 'electronics':
+                      return ['In-store', 'Pickup', 'Ship to home', 'Online'].includes(ot);
+                    case 'hardware':
+                      return ['In-store', 'Pickup', 'Delivery', 'Curbside'].includes(ot);
+                    case 'supermarket':
+                      return ['In-store', 'Pickup', 'Delivery', 'Curbside', 'Online'].includes(ot);
+                    case 'pharmacy':
+                      return ['In-store', 'Pickup'].includes(ot);
+                    default:
+                      return true;
+                  }
+                }).map(ot => (
+                  <div
+                    key={ot}
+                    className="flex items-center justify-between rounded-lg border p-2 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id={`ot-${ot}`}
+                        checked={editableConfig.orderTypes.includes(ot)}
+                        onCheckedChange={() => handleOrderTypeToggle(ot)}
+                        className="h-4 w-7"
+                      />
+                      <Label htmlFor={`ot-${ot}`} className="font-normal text-sm cursor-pointer">
+                        {ot}
+                      </Label>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {getOrderTypeVisuals(businessType)[ot]?.description}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </ConfigSectionCard>
+          {/* Location Settings */}
+          {editableConfig.requiresLocation && (
+            <ConfigSectionCard
+              icon={Building2}
+              title="Location Settings"
+              description="Manage tables, pickup spots, or service areas."
+              badge={<Badge variant="outline">{editableConfig.locations?.length || 0} locations</Badge>}
+            >
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="location-label" className="text-sm">
+                      Location Field Label
+                    </Label>
+                    <Input
+                      id="location-label"
+                      value={editableConfig.locationLabel}
+                      onChange={e => handleConfigChange('locationLabel', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="location-placeholder" className="text-sm">
+                      Location Field Placeholder
+                    </Label>
+                    <Input
+                      id="location-placeholder"
+                      value={editableConfig.locationPlaceholder}
+                      onChange={e => handleConfigChange('locationPlaceholder', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+                <Separator className="my-2" />
+                <Label className="text-sm">Available Locations</Label>
+                <div className="space-y-2 rounded-md border max-h-60 overflow-y-auto">
+                  {editableConfig.locations?.map((loc, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 border-b last:border-b-0">
+                      <Input
+                        placeholder="Label"
+                        value={loc.label}
+                        onChange={e => handleArrayChange('locations', index, 'label', e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                      <Input
+                        placeholder="Description"
+                        value={loc.description}
+                        onChange={e => handleArrayChange('locations', index, 'description', e.target.value)}
+                        className="h-8 text-sm text-muted-foreground"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => removeFromArray('locations', index)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="p-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-8"
+                      onClick={() =>
+                        addToArray<LocationOption>('locations', {
+                          id: `new_loc_${Date.now()}`,
+                          label: 'New Location',
+                          description: '',
+                        })
+                      }
+                    >
+                      <PlusCircle className="h-3.5 w-3.5 mr-2" />
+                      Add Location
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </ConfigSectionCard>
-            
-            <LocationSettings
-              enableStockTaking={enableStockTaking}
-              selectedLocation={selectedLocation}
-              onStockTakingToggle={setEnableStockTaking}
+          )}
+          {/* Cart Fields */}
+          <ConfigSectionCard
+            icon={ShoppingBag}
+            title="Cart Fields"
+            description="Configure fields shown during checkout for each order"
+            badge={<Badge variant="outline">{editableConfig.cartFields?.length || 0} fields</Badge>}
+          >
+            <CartFieldsSection
+              cartFields={editableConfig.cartFields || []}
+              onAddField={field => addToArray('cartFields', field)}
+              onRemoveField={index => removeFromArray('cartFields', index)}
+              onUpdateField={(index, updates) => {
+                const currentFields = editableConfig.cartFields || [];
+                const updatedField = { ...currentFields[index], ...updates };
+                handleArrayChange('cartFields', index, Object.keys(updates)[0], Object.values(updates)[0]);
+              }}
             />
-          </div>
+          </ConfigSectionCard>
+          {/* Custom Fields */}
+          <ConfigSectionCard
+            icon={Wand2}
+            title="Custom Fields"
+            description="Add custom data fields to the order process."
+            badge={<Badge variant="outline">{editableConfig.customFields?.length || 0} fields</Badge>}
+          >
+            <div className="space-y-3 rounded-md border max-h-96 overflow-y-auto">
+              {editableConfig.customFields?.map((field, index) => (
+                <div key={index} className="p-3 border-b last:border-b-0 bg-background/50">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-grow space-y-3">
+                      <div className="grid grid-cols-1 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-sm">Field Label</Label>
+                          <Input
+                            value={field.label}
+                            onChange={e => handleArrayChange('customFields', index, 'label', e.target.value)}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-sm">Field Type</Label>
+                          <Select
+                            value={field.type}
+                            onValueChange={v => handleArrayChange('customFields', index, 'type', v)}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CUSTOM_FIELD_TYPES.map(type => (
+                                <SelectItem key={type} value={type} className="text-sm">
+                                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      {field.type === 'select' && (
+                        <div className="space-y-1">
+                          <Label className="text-sm">Options (comma-separated)</Label>
+                          <Input
+                            value={field.options?.join(', ')}
+                            onChange={e =>
+                              handleArrayChange<CustomFieldType>(
+                                'customFields',
+                                index,
+                                'options',
+                                e.target.value.split(',').map(s => s.trim())
+                              )
+                            }
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3 pt-1">
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            id={`cf-req-${index}`}
+                            checked={field.required}
+                            onCheckedChange={v =>
+                              handleArrayChange<CustomFieldType>('customFields', index, 'required', v)
+                            }
+                            className="h-4 w-7"
+                          />
+                          <Label htmlFor={`cf-req-${index}`} className="font-normal text-xs">
+                            Required
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            id={`cf-show-${index}`}
+                            checked={field.showInReceipt}
+                            onCheckedChange={v =>
+                              handleArrayChange<CustomFieldType>('customFields', index, 'showInReceipt', v)
+                            }
+                            className="h-4 w-7"
+                          />
+                          <Label htmlFor={`cf-show-${index}`} className="font-normal text-xs">
+                            Show in Receipt
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 mt-5"
+                      onClick={() => removeFromArray('customFields', index)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              <div className="p-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full h-8"
+                  onClick={() =>
+                    addToArray<CustomFieldType>('customFields', {
+                      id: `new_${Date.now()}`,
+                      label: 'New Field',
+                      type: 'text',
+                      required: false,
+                      showInReceipt: true,
+                    })
+                  }
+                >
+                  <PlusCircle className="h-3.5 w-3.5 mr-2" />
+                  Add Custom Field
+                </Button>
+              </div>
+            </div>
+          </ConfigSectionCard>
+          {/* Advanced Settings */}
+          <ConfigSectionCard
+            icon={Clock}
+            title="Advanced Settings"
+            description="Configure system behaviors, timeouts, and performance settings that affect the POS interface and operations."
+            badge={<Badge variant="destructive">Advanced</Badge>}
+          >
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="order-timeout" className="text-sm flex items-center gap-2">
+                  Order Timeout (minutes)
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>After this time, incomplete orders will be automatically cancelled</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </Label>
+                <Input
+                  id="order-timeout"
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={editableConfig.orderTimeout || 30}
+                  onChange={e => handleConfigChange('orderTimeout', parseInt(e.target.value) || 30)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="auto-print" className="text-sm">
+                  Auto-Print Receipts
+                </Label>
+                <Select
+                  value={editableConfig.autoPrint || 'none'}
+                  onValueChange={v => handleConfigChange('autoPrint', v)}
+                >
+                  <SelectTrigger id="auto-print" className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" className="text-sm">
+                      Disabled
+                    </SelectItem>
+                    <SelectItem value="all" className="text-sm">
+                      All Orders
+                    </SelectItem>
+                    <SelectItem value="cash" className="text-sm">
+                      Cash Payments Only
+                    </SelectItem>
+                    <SelectItem value="non-cash" className="text-sm">
+                      Non-Cash Payments
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <Label htmlFor="enable-audit" className="font-normal text-sm">
+                  Enable Audit Logging
+                </Label>
+                <Switch
+                  id="enable-audit"
+                  checked={editableConfig.enableAuditLog}
+                  onCheckedChange={v => handleConfigChange('enableAuditLog', v)}
+                  className="h-5 w-9"
+                />
+              </div>
+            </div>
+          </ConfigSectionCard>
+
+          <LocationSettings
+            enableStockTaking={enableStockTaking}
+            selectedLocation={selectedLocation}
+            onStockTakingToggle={setEnableStockTaking}
+          />
         </div>
       </div>
-    </TooltipProvider>
+    </div>
   );
 }

@@ -52,6 +52,9 @@ export function CartDetails({
   const [isCustomerInfoOpen, setIsCustomerInfoOpen] = useState(true);
   const { taxRate, currency } = useOrgStore();
   const formatCurrency = useFormattedCurrency();
+  console.log('CartDetails render - currency from store:', currency);
+  
+  console.log('Org store currency :', formatCurrency(100));
 
   const businessConfig = useMemo(() => getBusinessConfig(businessType), [businessType]);
 

@@ -91,6 +91,8 @@ export interface BusinessConfig {
   defaultDiscount: number;
   taxLabel?: string;
   cartFields?: CartField[];
+  currency?: string; // Default currency code
+  taxRate?: number; // Default tax rate percentage
   customFields?: {
     id: string;
     label: string;
