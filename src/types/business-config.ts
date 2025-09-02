@@ -93,6 +93,11 @@ export interface BusinessConfig {
   cartFields?: CartField[];
   currency?: string; // Default currency code
   taxRate?: number; // Default tax rate percentage
+  enableDiscounts?: boolean;
+  paymentMethods?: string[]; // e.g. ['Cash', 'Credit Card', 'Mobile Payment']
+  showOrderQueue?: boolean;
+  showQuickActions?: boolean;
+  showCategories?: boolean;
   customFields?: {
     id: string;
     label: string;

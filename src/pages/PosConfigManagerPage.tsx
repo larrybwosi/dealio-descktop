@@ -1203,7 +1203,7 @@ const handleSaveChanges = () => {
                           <Input
                             value={field.options?.join(', ')}
                             onChange={e =>
-                              handleArrayChange<CustomFieldType>(
+                              handleArrayChange(
                                 'customFields',
                                 index,
                                 'options',
@@ -1220,7 +1220,7 @@ const handleSaveChanges = () => {
                             id={`cf-req-${index}`}
                             checked={field.required}
                             onCheckedChange={v =>
-                              handleArrayChange<CustomFieldType>('customFields', index, 'required', v)
+                              handleArrayChange('customFields', index, 'required', v)
                             }
                             className="h-4 w-7"
                           />
@@ -1233,7 +1233,7 @@ const handleSaveChanges = () => {
                             id={`cf-show-${index}`}
                             checked={field.showInReceipt}
                             onCheckedChange={v =>
-                              handleArrayChange<CustomFieldType>('customFields', index, 'showInReceipt', v)
+                              handleArrayChange('customFields', index, 'showInReceipt', v)
                             }
                             className="h-4 w-7"
                           />
@@ -1260,7 +1260,7 @@ const handleSaveChanges = () => {
                   size="sm"
                   className="w-full h-8"
                   onClick={() =>
-                    addToArray<CustomFieldType>('customFields', {
+                    addToArray('customFields', {
                       id: `new_${Date.now()}`,
                       label: 'New Field',
                       type: 'text',
@@ -1331,17 +1331,6 @@ const handleSaveChanges = () => {
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <Label htmlFor="enable-audit" className="font-normal text-sm">
-                  Enable Audit Logging
-                </Label>
-                <Switch
-                  id="enable-audit"
-                  checked={editableConfig.enableAuditLog}
-                  onCheckedChange={v => handleConfigChange('enableAuditLog', v)}
-                  className="h-5 w-9"
-                />
               </div>
             </div>
           </ConfigSectionCard>
