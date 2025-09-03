@@ -2,7 +2,6 @@ import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import LocaleCurrency from 'locale-currency';
 import { useMemo } from 'react';
-import { Decimal } from '@/prisma/client/runtime/library';
 import { useOrgStore } from './tanstack-axios';
 import { useBusinessConfig } from './business-config-manager';
 
@@ -282,6 +281,7 @@ export function calculatePercentageChange(
 }
 
 // Add this helper function for better debugging
+// eslint-disable-next-line
 export const safeJsonParse = <T>(value: any, key: string): T | null => {
   try {
     if (value === null || value === undefined) return null;

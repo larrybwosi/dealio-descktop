@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { ably } from '@/lib/ably';
 import { Message } from 'ably';
 import { toast } from 'sonner';
@@ -18,108 +18,210 @@ interface AblyOrderProviderProps {
   children: React.ReactNode;
 }
 
+interface Order {
+  id: string;
+  orderNumber: string;
+}
+
+// Constants
+const DEALIO_FOLDER = 'Dealio';
+const DEFAULT_PRINTER = 'XP-80C';
+const RECEIPT_MIME_TYPE = 'application/pdf';
+
 export const AblyOrderProvider: React.FC<AblyOrderProviderProps> = ({ children }) => {
-    const { printers, defaultPrinter } = usePrinterStore();
-    const { organizationId } = useOrgStore();
+  const { printers, defaultPrinter } = usePrinterStore();
+  const { organizationId } = useOrgStore();
+  const isSubscribedRef = useRef(false);
 
-    const handleFetchReceipt = useCallback(async (orgId: string, orderId: string): Promise<Blob | null> => {
-        console.log('Fetching receipt for order ID:', orderId);
-        if (!orderId || !orgId) {
-            console.error('Organization ID or Order ID not provided for receipt fetch.');
-            return null;
+  /**
+   * Ensures the Dealio directory exists in the user's documents folder
+   */
+  const ensureDirectoryExists = useCallback(async (): Promise<string> => {
+    const docsPath = await documentDir();
+    const dealioPath = `${docsPath}${DEALIO_FOLDER}`;
+
+    if (!(await exists(DEALIO_FOLDER, { baseDir: BaseDirectory.Document }))) {
+      await mkdir(DEALIO_FOLDER, { baseDir: BaseDirectory.Document, recursive: true });
+    }
+
+    return dealioPath;
+  }, []);
+
+  /**
+   * Fetches receipt PDF from the API
+   */
+  const fetchReceipt = useCallback(
+    async (orderId: string): Promise<Blob | null> => {
+      if (!orderId || !organizationId) {
+        console.error('Missing required parameters for receipt fetch:', { orderId, organizationId });
+        return null;
+      }
+
+      try {
+        console.log(`Fetching receipt for order: ${orderId}`);
+
+        const response = await axios.get(
+          `${API_ENDPOINT}/api/organizations/${organizationId}/orders/${orderId}/receipt`,
+          { adapter: axiosTauriApiAdapter }
+        );
+
+        if (!response.data) {
+          throw new Error(`Receipt fetch failed with status: ${response.status}`);
         }
-        try {
-            const response = await axios.get(`${API_ENDPOINT}/api/organizations/${orgId}/orders/${orderId}/receipt`,{ adapter: axiosTauriApiAdapter });
 
-            if (!response.data) {
-                console.error('Receipt fetch failed:', response.status, response.data);
-                throw new Error('Failed to fetch receipt');
-            }
-            // With Tauri's HTTP plugin, the binary data is in response.data as an array of numbers.
-            return new Blob([new Uint8Array(response.data as number[])], { type: 'application/pdf' });
-        } catch (error) {
-            console.error('Error fetching receipt:', error);
-            toast.error('Could not fetch receipt', {
-                description: 'Please try again later from the sales history.',
-            });
-            return null;
+        // Convert Tauri's number array response to Blob
+        return new Blob([new Uint8Array(response.data as number[])], {
+          type: RECEIPT_MIME_TYPE,
+        });
+      } catch (error) {
+        console.error('Receipt fetch error:', error);
+        toast.error('Could not fetch receipt', {
+          description: 'Please try again later from the sales history.',
+        });
+        return null;
+      }
+    },
+    [organizationId]
+  );
+
+  /**
+   * Saves PDF blob to local file system
+   */
+  const saveReceiptToFile = useCallback(
+    async (blob: Blob, orderId: string): Promise<string | null> => {
+      try {
+        const arrayBuffer = await blob.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const fileName = `Invoice_${orderId}.pdf`;
+
+        const dealioPath = await ensureDirectoryExists();
+        const filePath = `${dealioPath}/${fileName}`;
+
+        await writeFile(filePath, uint8Array);
+
+        return filePath;
+      } catch (error) {
+        console.error('Error saving receipt to file:', error);
+        throw new Error('Failed to save receipt file');
+      }
+    },
+    [ensureDirectoryExists]
+  );
+
+  /**
+   * Sends PDF to printer
+   */
+  const sendToPrinter = useCallback(
+    async (filePath: string, orderId: string): Promise<void> => {
+      const printerName = defaultPrinter || printers[0]?.Name || DEFAULT_PRINTER;
+
+      console.log(`Printing order ${orderId} to printer: ${printerName}`);
+
+      await printPdf({
+        path: filePath,
+        printer: printerName,
+        id: orderId,
+        remove_after_print: true,
+        print_settings: '',
+      });
+    },
+    [defaultPrinter, printers]
+  );
+
+  /**
+   * Main receipt printing handler
+   */
+  const printReceipt = useCallback(
+    async (orderId: string): Promise<void> => {
+      if (!orderId || !organizationId) {
+        console.error('Missing required parameters for printing:', { orderId, organizationId });
+        return;
+      }
+
+      try {
+        // Fetch receipt
+        const blob = await fetchReceipt(orderId);
+        if (!blob) return;
+
+        // Save to file
+        const filePath = await saveReceiptToFile(blob, orderId);
+        if (!filePath) return;
+
+        // Send to printer
+        await sendToPrinter(filePath, orderId);
+
+        toast.success('Receipt sent to printer!');
+      } catch (error) {
+        console.error('Receipt printing error:', error);
+        toast.error('Failed to print receipt.');
+      }
+    },
+    [organizationId, fetchReceipt, saveReceiptToFile, sendToPrinter]
+  );
+
+  /**
+   * Handles incoming Ably order messages
+   */
+  const handleNewOrder = useCallback(
+    async (message: Message): Promise<void> => {
+      try {
+        const order = message.data as Order;
+
+        if (!order?.id) {
+          console.error('Invalid order data received:', message);
+          return;
         }
-    }, []);
 
-    // This function saves the receipt locally and sends it to the printer.
-    const handlePrintReceipt = useCallback(async (orderId: string) => {
-        if (!orderId || !organizationId) return;
-        
-        try {
-            const blob = await handleFetchReceipt(organizationId, orderId);
-            if (!blob) return;
+        console.log('New order received via Ably:', order.id);
 
-            const arrayBuffer = await blob.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
-            const fileName = `Invoice_${orderId}.pdf`;
+        toast.info(`New order ${order.orderNumber} received. Printing...`);
 
-            // Ensure the 'Dealio' directory exists in the user's documents folder.
-            if (!(await exists('Dealio', { baseDir: BaseDirectory.Document }))) {
-                await mkdir('Dealio', { baseDir: BaseDirectory.Document, recursive: true });
-            }
+        await printReceipt(order.id);
+      } catch (error) {
+        console.error('Error handling new order:', error);
+        toast.error('Error processing new order');
+      }
+    },
+    [printReceipt]
+  );
 
-            const docsPath = await documentDir();
-            const filePath = `${docsPath}Dealio/${fileName}`;
-            await writeFile(filePath, uint8Array);
+  /**
+   * Manages Ably channel subscription
+   */
+  useEffect(() => {
+    // Early exit inside useEffect instead of before hooks
+    if (!organizationId) {
+      console.warn('AblyOrderProvider: No organization ID available, skipping subscription');
+      return;
+    }
 
-            const printerName = defaultPrinter || printers[0]?.Name || 'XP-80C';
-            console.log(`Printing ${orderId} to printer: ${printerName}`);
+    if (isSubscribedRef.current) return;
 
-            await printPdf({
-                path: filePath,
-                printer: printerName,
-                id: orderId,
-                remove_after_print: true,
-                print_settings: '',
-            });
+    const channelName = `organization:${organizationId}`;
+    const channel = ably.channels.get(channelName);
 
-            toast.success('Receipt sent to printer!');
-        } catch (error) {
-            console.error('Error printing receipt:', error);
-            toast.error('Failed to print receipt.');
-        }
-    }, [organizationId, defaultPrinter, printers, handleFetchReceipt]);
-
-    // This is the main handler for incoming Ably messages.
-    const handleNewOrder = useCallback(
-        async (message: Message) => {
-            const order = message.data;
-            const orderId = order?.id;
-
-            if (!orderId) {
-                console.error('No order ID received in Ably message', message);
-                return;
-            }
-
-            console.log('New order received via Ably:', orderId);
-            toast.info(`New order ${order.orderNumber} received. Printing...`);
-
-            await handlePrintReceipt(orderId);
-        },
-        [handlePrintReceipt] // 2. CRITICAL FIX: Add the memoized handler as a dependency.
-    );
-
-    // This effect manages the Ably channel subscription.
-    useEffect(() => {
-        if (!organizationId) return;
-
-        const channelName = `organization:${organizationId}`;
-        const channel = ably.channels.get(channelName);
-
-        channel.subscribe('new-order', handleNewOrder);
+    const subscribe = async () => {
+      try {
+        await channel.subscribe('new-order', handleNewOrder);
+        isSubscribedRef.current = true;
         console.log(`Subscribed to Ably channel: ${channelName}`);
+      } catch (error) {
+        console.error('Failed to subscribe to Ably channel:', error);
+        toast.error('Failed to connect to order notifications');
+      }
+    };
 
-        // Cleanup function to unsubscribe when the component unmounts or organizationId changes.
-        return () => {
-            channel.unsubscribe('new-order', handleNewOrder);
-            console.log(`Unsubscribed from Ably channel: ${channelName}`);
-        };
-    }, [organizationId, handleNewOrder]);
+    subscribe();
 
-    return <>{children}</>;
+    // Cleanup function
+    return () => {
+      if (isSubscribedRef.current) {
+        channel.unsubscribe('new-order', handleNewOrder);
+        isSubscribedRef.current = false;
+        console.log(`Unsubscribed from Ably channel: ${channelName}`);
+      }
+    };
+  }, [organizationId, handleNewOrder]);
+
+  return <>{children}</>;
 };

@@ -257,7 +257,7 @@ Dealio follows best practices for code quality and testing:
 
 MIT License
 
-Copyright (c) 2023-2024 Dealio Contributors
+Copyright (c) 2023-2025 Dealio Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -296,7 +296,7 @@ Please read our [Contributing Guidelines](CONTRIBUTING.md) for more details.
 
 For support and questions:
 - **GitHub Issues**: Create an issue for bug reports or feature requests
-- **Documentation**: Check our [Wiki](https://github.com/yourusername/dealio/wiki) for guides
+- **Documentation**: Check our [Wiki](https://github.com/larrybwosi/dealio/wiki) for guides
 - **Discussions**: Join our community discussions on GitHub
 - **Email**: Contact the development team at support@dealio.example.com
 

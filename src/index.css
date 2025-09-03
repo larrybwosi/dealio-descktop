@@ -288,5 +288,37 @@
 
   body {
     @apply bg-background text-foreground;
+    /* Prevent overscroll behavior */
+    overscroll-behavior: none;
+    /* Ensure body takes full height */
+    height: 100vh;
+    /* Prevent elastic scrolling */
+    overflow: hidden;
+  }
+
+  /* Allow scrolling within main content */
+  #root, .app-container {
+    height: 100vh;
+    overflow: auto;
+  }
+
+  /* Alternative approach if the above doesn't work */
+  html, body {
+    overscroll-behavior-y: contain;
+    position: fixed;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* Additional solution for iOS devices */
+@supports (-webkit-touch-callout: none) {
+  body {
+    /* Prevent elastic scrolling on iOS */
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
   }
 }

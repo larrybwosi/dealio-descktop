@@ -1,5 +1,5 @@
 import { BusinessType, BusinessConfig, businessConfigs, OrderType } from '@/types/business-config';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export class BusinessConfigManager {
   private static instance: BusinessConfigManager;
@@ -194,91 +194,5 @@ export const ConfigValidator = {
   //eslint-disable-next-line
   validateCustomerRequirement: (config: BusinessConfig, customer: any): boolean => {
     return !config.requiresCustomer || customer !== null;
-  },
-};
-
-// Preset configurations for quick setup
-export const businessPresets = {
-  // Fast food restaurant
-  fastFood: {
-    businessType: 'restaurant' as BusinessType,
-    name: 'Fast Food Restaurant',
-    orderTypes: ['Dine in', 'Takeaway', 'Drive-through'] as OrderType[],
-    requiresLocation: true,
-    locationLabel: 'Order location',
-    locations: [
-      { id: 'counter', label: 'Counter' },
-      { id: 'drive_through', label: 'Drive Through' },
-      { id: 'table_1', label: 'Table 1' },
-      { id: 'table_2', label: 'Table 2' },
-    ],
-    customFields: [
-      {
-        id: 'customer_name',
-        label: 'Name for order',
-        type: 'text' as const,
-        required: true,
-        placeholder: 'Enter name',
-      },
-    ],
-    paymentButtonText: 'Place order',
-  },
-
-  // Online bookstore
-  onlineBookstore: {
-    businessType: 'bookshop' as BusinessType,
-    name: 'Online Bookstore',
-    orderTypes: ['Ship to home', 'Pickup'] as OrderType[],
-    requiresCustomer: true,
-    customFields: [
-      {
-        id: 'shipping_speed',
-        label: 'Shipping speed',
-        type: 'select' as const,
-        required: true,
-        options: ['Standard (5-7 days)', 'Express (2-3 days)', 'Overnight'],
-        placeholder: 'Select shipping speed',
-      },
-      {
-        id: 'gift_message',
-        label: 'Gift message',
-        type: 'text' as const,
-        required: false,
-        placeholder: 'Optional gift message',
-      },
-    ],
-  },
-
-  // Medical pharmacy
-  medicalPharmacy: {
-    businessType: 'pharmacy' as BusinessType,
-    name: 'Medical Pharmacy',
-    orderTypes: ['In-store', 'Pickup'] as OrderType[],
-    requiresCustomer: true,
-    showLoyaltyPoints: false,
-    customFields: [
-      {
-        id: 'prescription_id',
-        label: 'Prescription ID',
-        type: 'text' as const,
-        required: false,
-        placeholder: 'Enter prescription number',
-      },
-      {
-        id: 'doctor_name',
-        label: 'Prescribing doctor',
-        type: 'text' as const,
-        required: false,
-        placeholder: 'Doctor name',
-      },
-      {
-        id: 'insurance_plan',
-        label: 'Insurance plan',
-        type: 'select' as const,
-        required: false,
-        options: ['None', 'Medicare', 'Medicaid', 'Private Insurance'],
-        placeholder: 'Select insurance',
-      },
-    ],
   },
 };

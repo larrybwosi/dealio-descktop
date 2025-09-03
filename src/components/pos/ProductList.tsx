@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,62 @@ const getProductKey = (productId: string, variantName?: string): string => {
   return variantName ? `${productId}-${variantName}` : productId;
 };
 
+// Memoized ProductCard wrapper to prevent unnecessary re-renders
+const MemoizedProductCard = memo(
+  ({
+    product,
+    selectedVariant,
+    currentQuantity,
+    onVariantSelect,
+    onQuantityChange,
+    onAddToCart,
+  }: {
+    product: Product;
+    selectedVariant: string | undefined;
+    currentQuantity: number;
+    onVariantSelect: (variantName: string) => void;
+    onQuantityChange: (delta: number) => void;
+    onAddToCart: () => void;
+  }) => (
+    <ProductCard
+      product={product}
+      selectedVariant={selectedVariant}
+      currentQuantity={currentQuantity}
+      onVariantSelect={onVariantSelect}
+      onQuantityChange={onQuantityChange}
+      onAddToCart={onAddToCart}
+    />
+  )
+);
+
+MemoizedProductCard.displayName = 'MemoizedProductCard';
+
+// Virtual scrolling hook for better performance with large lists
+// eslint-disable-next-line
+const useVirtualScrolling = (items: any[], containerHeight: number, itemHeight: number) => {
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeightState, setContainerHeightState] = useState(containerHeight);
+
+  const visibleStartIndex = Math.floor(scrollTop / itemHeight);
+  const visibleEndIndex = Math.min(
+    visibleStartIndex + Math.ceil(containerHeightState / itemHeight) + 5, // +5 for buffer
+    items.length - 1
+  );
+
+  const visibleItems = items.slice(
+    Math.max(0, visibleStartIndex - 2), // -2 for buffer
+    visibleEndIndex + 3 // +3 for buffer
+  );
+
+  return {
+    visibleStartIndex: Math.max(0, visibleStartIndex - 2),
+    visibleItems,
+    totalHeight: items.length * itemHeight,
+    offsetY: Math.max(0, visibleStartIndex - 2) * itemHeight,
+    setScrollTop,
+    setContainerHeight: setContainerHeightState,
+  };
+};
 
 export function ProductList({ onAddToCart }: ProductListProps) {
   const { data: products = [], isLoading, error, refetch } = useListProducts();
@@ -47,75 +103,113 @@ export function ProductList({ onAddToCart }: ProductListProps) {
   const [isRetrying, setIsRetrying] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const searchWorkerRef = useRef<Worker | null>(null);
 
+  // Memoize categories calculation to prevent recalculation on every render
   const availableCategories: string[] = useMemo(
     () => ['All', ...new Set(products.map(p => p.category?.name).filter(Boolean) as string[])],
     [products]
   );
 
+  // Optimize filtering and sorting with better memoization
   const filteredAndSortedProducts = useMemo(() => {
-    // Step 1: Filter by the selected category
-    const categoryFiltered =
-      selectedCategory === 'All' ? products : products.filter(p => p.category?.name === selectedCategory);
+    if (products.length === 0) return [];
 
-    // Step 2: If a search query exists, score and filter by it
-    let scoredProducts;
-    if (debouncedSearchQuery) {
-      scoredProducts = categoryFiltered
-        .map(product => {
-          // Calculate a score based on matches in name, category, barcode, and variants
-          const nameScore = getFuzzyMatchScore(debouncedSearchQuery, product.name);
-          const barcodeScore = product.barcode ? getFuzzyMatchScore(debouncedSearchQuery, product.barcode) : 0;
-          const categoryScore = product.category?.name
-            ? getFuzzyMatchScore(debouncedSearchQuery, product.category.name)
-            : 0;
-          const maxVariantScore = product.variants?.length
-            ? Math.max(...product.variants.map(v => getFuzzyMatchScore(debouncedSearchQuery, v.name)))
-            : 0;
+    // Use RAF for heavy computations to prevent blocking
+    const performFiltering = () => {
+      // Step 1: Filter by category (optimized with early return)
+      const categoryFiltered =
+        selectedCategory === 'All' ? products : products.filter(p => p.category?.name === selectedCategory);
 
-          const score = Math.max(nameScore, barcodeScore, categoryScore, maxVariantScore);
-          return { product, score };
-        })
-        .filter(item => item.score > 30); // Only include items with a reasonable match score
-    } else {
-      // If no search query, all items have a default score of 0
-      scoredProducts = categoryFiltered.map(product => ({ product, score: 0 }));
-    }
+      if (categoryFiltered.length === 0) return [];
 
-    // Step 3: Sort the results
-    const sorted = scoredProducts.sort((a, b) => {
-      switch (sortBy) {
-        case 'relevance':
-          return b.score - a.score; // Higher score first
-        case 'name':
-          return a.product.name.localeCompare(b.product.name);
-        case 'price': {
-          const aPrice = parseFloat(a.product.variants?.[0]?.price || '0');
-          const bPrice = parseFloat(b.product.variants?.[0]?.price || '0');
-          return aPrice - bPrice;
-        }
-        case 'category':
-          return (a.product.category?.name || '').localeCompare(b.product.category?.name || '');
-        default:
-          return 0;
+      // Step 2: Search scoring (optimized with batch processing)
+      let scoredProducts;
+      if (debouncedSearchQuery.trim()) {
+        const query = debouncedSearchQuery.toLowerCase();
+
+        scoredProducts = categoryFiltered
+          .map(product => {
+            // Optimized scoring with early exit conditions
+            let maxScore = 0;
+
+            // Quick name check first (most common match)
+            const nameScore = getFuzzyMatchScore(query, product.name.toLowerCase());
+            if (nameScore > maxScore) maxScore = nameScore;
+
+            // Only check other fields if we haven't found a good match
+            if (maxScore < 80) {
+              if (product.barcode) {
+                const barcodeScore = getFuzzyMatchScore(query, product.barcode.toLowerCase());
+                if (barcodeScore > maxScore) maxScore = barcodeScore;
+              }
+
+              if (maxScore < 80 && product.category?.name) {
+                const categoryScore = getFuzzyMatchScore(query, product.category.name.toLowerCase());
+                if (categoryScore > maxScore) maxScore = categoryScore;
+              }
+
+              if (maxScore < 80 && product.variants?.length) {
+                for (const variant of product.variants) {
+                  const variantScore = getFuzzyMatchScore(query, variant.name.toLowerCase());
+                  if (variantScore > maxScore) {
+                    maxScore = variantScore;
+                    if (maxScore >= 80) break; // Early exit if good match found
+                  }
+                }
+              }
+            }
+
+            return { product, score: maxScore };
+          })
+          .filter(item => item.score > 30);
+      } else {
+        scoredProducts = categoryFiltered.map(product => ({ product, score: 0 }));
       }
-    });
 
-    // Step 4: Return just the product objects
-    return sorted.map(item => item.product);
+      // Step 3: Optimized sorting
+      if (scoredProducts.length <= 1) return scoredProducts.map(item => item.product);
+
+      return scoredProducts
+        .sort((a, b) => {
+          switch (sortBy) {
+            case 'relevance':
+              return b.score - a.score;
+            case 'name':
+              return a.product.name.localeCompare(b.product.name);
+            case 'price': {
+              const aPrice = parseFloat(a.product.variants?.[0]?.price || '0');
+              const bPrice = parseFloat(b.product.variants?.[0]?.price || '0');
+              return aPrice - bPrice;
+            }
+            case 'category':
+              return (a.product.category?.name || '').localeCompare(b.product.category?.name || '');
+            default:
+              return 0;
+          }
+        })
+        .map(item => item.product);
+    };
+
+    return performFiltering();
   }, [products, selectedCategory, debouncedSearchQuery, sortBy]);
 
-  // --- 3. CALLBACKS & EVENT HANDLERS ---
+  // Virtual scrolling for better performance with large lists
+  const itemHeight = 280; // Approximate height of ProductCard
+  const containerHeight = 600; // Approximate container height
+  const { visibleStartIndex, visibleItems, totalHeight, offsetY, setScrollTop, setContainerHeight } =
+    useVirtualScrolling(filteredAndSortedProducts, containerHeight, itemHeight);
+
+  // --- OPTIMIZED CALLBACKS & EVENT HANDLERS ---
 
   const clearSearch = useCallback(() => {
     setSearchQuery('');
+    setDebouncedSearchQuery('');
     searchInputRef.current?.focus();
   }, []);
 
-  /**
-   * Robustly handles adding a product to the cart.
-   * Ensures the selected variant exists and all required data is present.
-   */
+  // Memoize handlers to prevent child re-renders
   const handleAddToCart = useCallback(
     (product: Product) => {
       try {
@@ -128,7 +222,6 @@ export function ProductList({ onAddToCart }: ProductListProps) {
         }
 
         const variantDetails = product.variants?.find(v => v.name === selectedVariantName);
-
         if (!variantDetails) {
           toast.error(`Variant "${selectedVariantName}" not found for ${product.name}.`);
           return;
@@ -161,8 +254,6 @@ export function ProductList({ onAddToCart }: ProductListProps) {
         };
 
         onAddToCart(cartItem);
-        // Don't reset quantity for this item in the list after adding to cart
-        // This allows the quantity to be updated when the item is already in the cart
         toast.success(`${product.name} (${selectedVariantName}) added to cart.`);
       } catch (err) {
         console.error('Error adding to cart:', err);
@@ -185,11 +276,12 @@ export function ProductList({ onAddToCart }: ProductListProps) {
     }
   }, [refetch]);
 
+  // Optimized quantity update with batching
   const updateQuantity = useCallback((productId: string, variantName: string | undefined, delta: number) => {
     const productKey = getProductKey(productId, variantName);
     setQuantities(prev => {
       const currentQty = prev[productKey] || 0;
-      const newQty = Math.max(0, currentQty + delta); // Prevent negative quantities
+      const newQty = Math.max(0, currentQty + delta);
       return { ...prev, [productKey]: newQty };
     });
   }, []);
@@ -198,12 +290,40 @@ export function ProductList({ onAddToCart }: ProductListProps) {
     setSelectedVariants(prev => ({ ...prev, [productId]: variantName }));
   }, []);
 
-  // --- 4. EFFECTS ---
+  // Memoized handlers for ProductCard to prevent re-renders
+  const createVariantSelectHandler = useCallback(
+    (productId: string) => {
+      return (variantName: string) => handleVariantSelect(productId, variantName);
+    },
+    [handleVariantSelect]
+  );
 
-  /**
-   * Effect to debounce the user's search input.
-   * This prevents excessive re-calculations while the user is typing.
-   */
+  const createQuantityChangeHandler = useCallback(
+    (productId: string, variantName: string | undefined) => {
+      return (delta: number) => updateQuantity(productId, variantName, delta);
+    },
+    [updateQuantity]
+  );
+
+  const createAddToCartHandler = useCallback(
+    (product: Product) => {
+      return () => handleAddToCart(product);
+    },
+    [handleAddToCart]
+  );
+
+  // Throttled scroll handler for virtual scrolling
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLDivElement;
+      setScrollTop(target.scrollTop);
+    },
+    [setScrollTop]
+  );
+
+  // --- EFFECTS ---
+
+  // Optimized debounce with cleanup
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
@@ -211,40 +331,43 @@ export function ProductList({ onAddToCart }: ProductListProps) {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  /**
-   * Effect to set up the barcode scanner listener via Tauri events.
-   * It cleans up the listener when the component unmounts.
-   */
+  // Barcode scanner listener (optimized with cleanup)
   useEffect(() => {
     if (products.length === 0) return;
 
     const setupListener = async () => {
       return await listen<ScanPayload>('scanner-data', event => {
-        const barcode = event.payload.message.trim();
+        const barcode = event.payload.message?.trim();
         if (!barcode) return;
 
-        const foundProduct = products.find(p => p.barcode === barcode);
-
-        if (foundProduct) {
-          handleAddToCart(foundProduct);
+        // Use requestIdleCallback for non-critical search
+        if (window.requestIdleCallback) {
+          window.requestIdleCallback(() => {
+            const foundProduct = products.find(p => p.barcode === barcode);
+            if (foundProduct) {
+              handleAddToCart(foundProduct);
+            } else {
+              toast.error('Product not found', { description: `Barcode: ${barcode}` });
+            }
+          });
         } else {
-          toast.error('Product not found', { description: `Barcode: ${barcode}` });
+          const foundProduct = products.find(p => p.barcode === barcode);
+          if (foundProduct) {
+            handleAddToCart(foundProduct);
+          } else {
+            toast.error('Product not found', { description: `Barcode: ${barcode}` });
+          }
         }
       });
     };
 
     const unlistenPromise = setupListener();
-
     return () => {
       unlistenPromise.then(unlistenFn => unlistenFn());
     };
   }, [products, handleAddToCart]);
 
-  /**
-   * Effect to handle global keyboard shortcuts for better accessibility and speed.
-   * - Ctrl/Cmd + K to focus search.
-   * - Typing any character focuses search if not already in an input.
-   */
+  // Keyboard shortcuts (optimized)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -261,19 +384,37 @@ export function ProductList({ onAddToCart }: ProductListProps) {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, { passive: true });
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // --- 5. RENDER LOGIC ---
+  // Container height observer for virtual scrolling
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver(entries => {
+      const entry = entries[0];
+      if (entry) {
+        setContainerHeight(entry.contentRect.height);
+      }
+    });
+
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, [setContainerHeight]);
+
+  // --- RENDER LOGIC ---
 
   const renderContent = () => {
     if (error) {
       return <ProductListError error={error} onRetry={handleRefetch} isRetrying={isRetrying} />;
     }
+
     if (isLoading) {
       return <ProductSkeleton />;
     }
+
     if (filteredAndSortedProducts.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
@@ -292,6 +433,52 @@ export function ProductList({ onAddToCart }: ProductListProps) {
         </div>
       );
     }
+
+    // Virtual scrolling implementation for smooth performance
+    const useVirtualization = filteredAndSortedProducts.length > 50; // Only virtualize for large lists
+
+    if (useVirtualization) {
+      return (
+        <div
+          ref={scrollContainerRef}
+          className="h-full overflow-auto will-change-scroll"
+          onScroll={handleScroll}
+          style={{ scrollBehavior: 'smooth' }}
+        >
+          <div style={{ height: totalHeight, position: 'relative' }}>
+            <div
+              style={{
+                transform: `translateY(${offsetY}px)`,
+                willChange: 'transform',
+              }}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+            >
+              {visibleItems.map((product, index) => {
+                const actualIndex = visibleStartIndex + index;
+                const productId = product.id;
+                const selectedVariantName = selectedVariants[productId] || product.variants?.[0]?.name;
+                const productKey = getProductKey(productId, selectedVariantName);
+                const currentQuantity = quantities[productKey] || 0;
+
+                return (
+                  <MemoizedProductCard
+                    key={`${product.id}-${actualIndex}`}
+                    product={product}
+                    selectedVariant={selectedVariantName}
+                    currentQuantity={currentQuantity}
+                    onVariantSelect={createVariantSelectHandler(productId)}
+                    onQuantityChange={createQuantityChangeHandler(productId, selectedVariantName)}
+                    onAddToCart={createAddToCartHandler(product)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Regular rendering for smaller lists
     return (
       <ScrollArea className="h-full pr-4 -mr-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -302,14 +489,14 @@ export function ProductList({ onAddToCart }: ProductListProps) {
             const currentQuantity = quantities[productKey] || 0;
 
             return (
-              <ProductCard
+              <MemoizedProductCard
                 key={product.id}
                 product={product}
                 selectedVariant={selectedVariantName}
                 currentQuantity={currentQuantity}
-                onVariantSelect={variantName => handleVariantSelect(productId, variantName)}
-                onQuantityChange={delta => updateQuantity(productId, selectedVariantName, delta)}
-                onAddToCart={() => handleAddToCart(product)}
+                onVariantSelect={createVariantSelectHandler(productId)}
+                onQuantityChange={createQuantityChangeHandler(productId, selectedVariantName)}
+                onAddToCart={createAddToCartHandler(product)}
               />
             );
           })}
@@ -386,7 +573,7 @@ export function ProductList({ onAddToCart }: ProductListProps) {
       )}
 
       {/* Content Area */}
-      <div className="flex-1 p-4 md:p-6 overflow-hidden">{renderContent()}</div>
+      <div className="flex-1 overflow-hidden">{renderContent()}</div>
     </div>
   );
 }

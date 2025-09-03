@@ -1,4 +1,4 @@
-import Ably, { Message } from 'ably';
+import Ably from 'ably';
 
 const ABLY_KEY = import.meta.env.VITE_PUBLIC_ABLY_API_KEY;
 
