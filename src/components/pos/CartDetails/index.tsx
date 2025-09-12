@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Eye, ChevronDown, ChevronUp, Trash2, CreditCard, User, ShoppingCart } from 'lucide-react';
+import { ChevronDown, ChevronUp, Trash2, CreditCard, User, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CartItem, OrderType, Customer } from '@/types';
 import { BusinessType, getBusinessConfig, requiresLocationForOrderType } from '@/types/business-config';
-import { useFormattedCurrency } from '@/lib/utils';
 import { useOrgStore } from '@/lib/tanstack-axios';
 import { CartItemComponent } from './cart-item';
 import { CartSummaryComponent } from './cart-summary';
@@ -50,11 +49,7 @@ export function CartDetails({
   discountValue,
 }: CartDetailsProps) {
   const [isCustomerInfoOpen, setIsCustomerInfoOpen] = useState(true);
-  const { taxRate, currency } = useOrgStore();
-  const formatCurrency = useFormattedCurrency();
-  console.log('CartDetails render - currency from store:', currency);
-  
-  console.log('Org store currency :', formatCurrency(100));
+  const { taxRate } = useOrgStore();
 
   const businessConfig = useMemo(() => getBusinessConfig(businessType), [businessType]);
 
@@ -274,7 +269,6 @@ export function CartDetails({
                 key={item.id}
                 item={item}
                 businessConfig={businessConfig}
-                formatCurrency={formatCurrency}
                 onUpdateQuantity={handleUpdateQuantity}
                 onRemoveItem={handleRemoveItem}
               />
@@ -286,7 +280,6 @@ export function CartDetails({
       <CartSummaryComponent
         summary={summary}
         businessConfig={businessConfig}
-        formatCurrency={formatCurrency}
         onProceed={onProceedPayment}
         isCartEmpty={cartItems.length === 0}
         discountValue={discountValue}

@@ -291,9 +291,8 @@ export default function SettingsPage() {
   const [editableConfig, setEditableConfig] = useState<BusinessConfig | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isImportDialogOpen, setImportDialogOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null); // Add these to your existing state declarations
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedLocation, setSelectedLocation] = useState<string>(config.locations?.[0]?.id || '');
-  const [enableStockTaking, setEnableStockTaking] = useState<boolean>(config.enableStockTaking || false);
   const navigate = useNavigate();
   const { currency, set: setOrg } = useOrgStore();
 
@@ -486,7 +485,7 @@ const handleSaveChanges = () => {
     const { businessType, ...overrides } = {
       ...editableConfig,
       selectedLocation,
-      enableStockTaking,
+      enableStockTaking: editableConfig.enableStockTaking,
     };
     createCustomConfig(overrides);
     toast.success('Configuration Saved!', {
@@ -1336,9 +1335,9 @@ const handleSaveChanges = () => {
           </ConfigSectionCard>
 
           <LocationSettings
-            enableStockTaking={enableStockTaking}
+            enableStockTaking={editableConfig.enableStockTaking}
             selectedLocation={selectedLocation}
-            onStockTakingToggle={setEnableStockTaking}
+            onStockTakingToggle={() => handleConfigChange('enableStockTaking', !editableConfig.enableStockTaking)}
           />
         </div>
       </div>

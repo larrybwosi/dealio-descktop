@@ -26,6 +26,7 @@ const LocationSettings = ({ enableStockTaking, selectedLocation, onStockTakingTo
   const onLocationChange = (locationId: string) => {
     set({ locationId });
   };
+  console.log('Enable Stock Taking:', enableStockTaking);
 
   // Loading skeleton
   if (isLoading) {

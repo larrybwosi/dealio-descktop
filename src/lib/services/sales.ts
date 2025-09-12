@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { apiClient, ApiResponse, useOrgStore } from '../tanstack-axios';
+import { useBusinessConfig } from '@/lib/business-config-manager.ts';
 
 // Types
 interface Sale {
@@ -248,9 +249,12 @@ export const useRetryPendingSales = () => {
 export const useCreateSale = () => {
   const queryClient = useQueryClient();
   const organizationId = useOrgStore(state => state.organizationId);
+  const config = useBusinessConfig()
+  const enableStockTracking = config.config.enableStockTaking;
+  // console.log('enableStock: ',enableStockTaking)
 
   return useMutation<ApiResponse<Sale>, Error, SaleData>({
-    mutationFn: data => apiClient.sales.create(organizationId!, data),
+    mutationFn: data => apiClient.sales.create(organizationId!, { ...data, enableStockTracking }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales', organizationId] });
     },

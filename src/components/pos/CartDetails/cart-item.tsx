@@ -4,19 +4,18 @@ import { Minus, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BusinessType, getBusinessConfig } from '@/types/business-config';
 import { CartItem } from '@/types';
+import { useFormattedCurrency } from '@/lib/utils';
 
 interface CartItemProps {
   item: CartItem;
   businessConfig: ReturnType<typeof getBusinessConfig>;
-  formatCurrency: (value: number) => string;
   onUpdateQuantity: (id: string, quantity: number) => void;
   onRemoveItem: (id: string) => void;
 }
 
 export const CartItemComponent = memo(
-  ({ item, businessConfig, formatCurrency, onUpdateQuantity, onRemoveItem }: CartItemProps) => {
-    // Add console.log to debug if needed
-    console.log('Rendering CartItem:', item.id, item.quantity);
+  ({ item, businessConfig, onUpdateQuantity, onRemoveItem }: CartItemProps) => {
+    const formatCurrency = useFormattedCurrency();
 
     return (
       <div className="flex gap-4 items-center transition-colors hover:bg-gray-50 p-2 rounded-lg">

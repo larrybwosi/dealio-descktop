@@ -46,7 +46,7 @@ export function ProductCard({
             alt={product.name}
             className="w-full h-full object-cover"
             onError={e => {
-              (e.target as HTMLImageElement).src = 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Image';
+              (e.target as HTMLImageElement).src = '/placeholder.svg';
             }}
           />
         ) : (

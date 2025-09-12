@@ -3,11 +3,11 @@ import { CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { BusinessType, getBusinessConfig } from '@/types/business-config';
+import { useFormattedCurrency } from '@/lib/utils';
 
 interface CartSummaryProps {
   summary: { subtotal: number; discount: number; tax: number; total: number };
   businessConfig: ReturnType<typeof getBusinessConfig>;
-  formatCurrency: (value: number) => string;
   onProceed: () => void;
   isCartEmpty: boolean;
   discountValue: number;
@@ -18,13 +18,13 @@ export const CartSummaryComponent = memo(
   ({
     summary,
     businessConfig,
-    formatCurrency,
     onProceed,
     isCartEmpty,
     discountValue,
     onDiscountValueChange,
   }: CartSummaryProps) => {
     const [promoCode, setPromoCode] = useState('');
+    const formatCurrency = useFormattedCurrency();
 
     const handleDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value;

@@ -6,7 +6,7 @@ import { CartDetails } from '@/components/pos/CartDetails';
 import { CustomerManagement } from '@/components/pos/customers';
 import PaymentModal from '@/components/pos/PaymentModal';
 import { InvoiceModal } from '@/components/pos/InvoiceModal';
-import { CartItem, Customer, Order, OrderType, OrderQueue } from '@/types';
+import { CartItem, Customer, Order, OrderType } from '@/types';
 import { useOrgStore } from '@/lib/tanstack-axios';
 import { useBusinessConfig } from '@/lib/business-config-manager';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -24,12 +24,10 @@ function PosSystem() {
   const { taxRate } = useOrgStore();
   const businessConfig = useBusinessConfig();
 
-  // Changed from percentage to fixed value discount
   const [discountValue, setDiscountValue] = useState<number>(0);
 
   const { subtotal, discount, tax, total } = useMemo(() => {
     const subtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
-    // Now using fixed discount value instead of percentage
     const discount = Math.min(discountValue, subtotal); // Ensure discount doesn't exceed subtotal
     const tax = (subtotal - discount) * Number(taxRate);
     const total = subtotal - discount + tax;
