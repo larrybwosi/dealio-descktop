@@ -15,7 +15,7 @@ import PosConfigManagerPage from './pages/PosConfigManagerPage';
 import ErrorHandlerProvider from './providers/error';
 import { QueryProvider } from './lib/tanstack-axios';
 import PendingOrdersPage from './pages/PendingOrders';
-import { SessionProvider } from './providers/session';
+// import { SessionProvider } from './providers/session';
 import PrintersPage from './pages/printers';
 import SalesDashboard from './pages/sales';
 import Receipt from './pages/page';
@@ -105,7 +105,7 @@ const App = () => {
       <QueryProvider>
         <TooltipProvider>
           <BrowserRouter>
-            <SessionProvider redirectTo="/login">
+            {/* <SessionProvider redirectTo="/login"> */}
               <Toaster
                 richColors
                 position="top-right"
@@ -145,7 +145,7 @@ const App = () => {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </NotificationProvider>
-            </SessionProvider>
+            {/* </SessionProvider> */}
           </BrowserRouter>
         </TooltipProvider>
       </QueryProvider>

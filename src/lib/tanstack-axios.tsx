@@ -392,11 +392,6 @@ class ApiClient {
   };
 }
 
-// Singleton instance
-export const apiClient = new ApiClient(
-  '/api/organizations'
-);
-
 
 const queryClient = new QueryClient({
   defaultOptions: {

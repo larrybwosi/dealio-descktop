@@ -29,7 +29,7 @@ import { useForm } from 'react-hook-form';
 import axios from 'axios';
 import axiosTauriApiAdapter from 'axios-tauri-api-adapter';
 import { API_ENDPOINT } from '@/lib/axios';
-import { fetch } from '@tauri-apps/plugin-http';
+import { signIn, useSession } from '@/lib/authClient';
 
 // --- ZOD VALIDATION SCHEMAS ---
 const emailLoginSchema = z.object({
@@ -57,9 +57,8 @@ type LoginMethod = 'email' | 'card' | 'apikey';
 // --- API SERVICE (for better separation of concerns) ---
 const authService = {
   loginWithEmail: async (data: EmailLoginFormData) => {
-    const response = await axios.post(`${API_ENDPOINT}/api/auth/sign-in/email`, data, {
-      adapter: axiosTauriApiAdapter,
-    });
+    const response = await signIn.email(data);
+    console.log(response)
     
     return response.data;
   },
@@ -142,28 +141,15 @@ const LoginForm = () => {
   const [generalError, setGeneralError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  const { data} = useSession()
+  console.log(data)
+
   const emailForm = useForm<EmailLoginFormData>({ resolver: zodResolver(emailLoginSchema) });
   const cardForm = useForm<CardLoginFormData>({ resolver: zodResolver(cardLoginSchema) });
   const apiKeyForm = useForm<ApiKeyFormData>({ resolver: zodResolver(apiKeySchema) });
 
   const handleLoginSuccess = async (data: { token: string; user?: { name: string } }) => {
-    
-    localStorage.setItem('bearer_token', data.token);
     const userName = data.user?.name || 'there';
-    const res = await fetch(`${API_ENDPOINT}/api/auth/token`, {
-      headers: {
-        Authorization: `Bearer ${data.token}`,
-      },
-    });
-
-    const resp = await res.json();
-    
-    const jwt = resp?.token || null;
-    if (jwt) {
-      console.log('JWT from login:', jwt);
-      // Store JWT in localStorage for later use
-      localStorage.setItem('jwt_token', jwt);
-    }
     toast.success(`Login successful! Welcome back, ${userName}.`);
     setTimeout(() => {
       window.location.href = '/'; // Full reload to clear state and re-initialize app

@@ -10,7 +10,6 @@ import { CartItem, Customer, Order, OrderType } from '@/types';
 import { useOrgStore } from '@/lib/tanstack-axios';
 import { useBusinessConfig } from '@/lib/business-config-manager';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { withAuth } from '@/providers/session';
 
 function PosSystem() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -224,5 +223,5 @@ function PosSystem() {
   );
 }
 
-const IndexPage = withAuth(PosSystem);
-export default IndexPage;
+// const IndexPage = withAuth(PosSystem);
+export default PosSystem;

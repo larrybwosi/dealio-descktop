@@ -20,9 +20,9 @@ export const axiosClientInstance = axios.create({
   baseURL: `${API_ENDPOINT}/api/organizations`,
   headers: {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
   },
-  adapter: axiosTauriApiAdapter,
+  withCredentials: true,
+  // adapter: axiosTauriApiAdapter,
 });
 
 export default api

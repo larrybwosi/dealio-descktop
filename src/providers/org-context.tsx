@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import axios from 'axios';
-import { useSession } from './session';
 import { useOrgStore } from '@/lib/tanstack-axios';
 import api from '@/lib/axios';
+import { useSession } from '@/lib/authClient';
 
 // Types
 interface LoadingState {
@@ -154,7 +154,7 @@ interface OrgProviderProps {
 // Main Provider Component
 export const OrgProvider: React.FC<OrgProviderProps> = ({ children }) => {
   const navigate = useNavigate();
-  const { isLoading: isSessionLoading, session } = useSession();
+  const { isPending: isSessionLoading, data: session } = useSession();
   const { organizationId, set: setOrgDetails } = useOrgStore();
 
   const [loadingState, setLoadingState] = useState<LoadingState>({
