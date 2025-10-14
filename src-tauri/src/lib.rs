@@ -24,10 +24,13 @@ fn start_scanner_listener(app_handle: AppHandle) {
         };
 
         // REPLACED WITH YOUR ACTUAL VENDOR AND PRODUCT IDs
-        let vid = 0xE851;  // Changed from 0x1234
-        let pid = 0x2100;  // Changed from 0x5678
+        let vid = 0xE851; // Changed from 0x1234
+        let pid = 0x2100; // Changed from 0x5678
 
-        println!("[Scanner] Looking for devices with VID: {:04X}, PID: {:04X}", vid, pid);
+        println!(
+            "[Scanner] Looking for devices with VID: {:04X}, PID: {:04X}",
+            vid, pid
+        );
 
         for device_info in api.device_list() {
             if device_info.vendor_id() == vid && device_info.product_id() == pid {
@@ -143,6 +146,7 @@ pub fn run() {
     // Everything after here runs in only the app process
 
     let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_sentry::init(&client))
         .plugin(tauri_plugin_os::init())
@@ -183,7 +187,7 @@ pub fn run() {
 
             // Clone handle for the async task
             let update_handle = handle.clone();
-            
+
             // Start the update check in the background
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = update(update_handle).await {
@@ -216,7 +220,7 @@ pub fn run() {
 
             // Clone handle for the async task
             let update_handle = handle.clone();
-            
+
             // Start the update check in the background (if supported on mobile)
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = update(update_handle).await {
