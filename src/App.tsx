@@ -15,11 +15,12 @@ import PosConfigManagerPage from './pages/PosConfigManagerPage';
 import ErrorHandlerProvider from './providers/error';
 import { QueryProvider } from './lib/tanstack-axios';
 import PendingOrdersPage from './pages/PendingOrders';
-// import { SessionProvider } from './providers/session';
 import PrintersPage from './pages/printers';
 import SalesDashboard from './pages/sales';
 import Receipt from './pages/page';
 import { NotificationProvider } from './providers/ably-notification-provider';
+import { ZustandHydration } from './providers/zustand-provider';
+import { SessionProvider } from './providers/session';
 
 
 const HomeRouteWrapper = ({ children }) => <OrgProvider>{children}</OrgProvider>;
@@ -105,47 +106,49 @@ const App = () => {
       <QueryProvider>
         <TooltipProvider>
           <BrowserRouter>
-            {/* <SessionProvider redirectTo="/login"> */}
-              <Toaster
-                richColors
-                position="top-right"
-                theme="dark"
-                visibleToasts={3}
-                toastOptions={{
-                  classNames: {
-                    toast: 'flex items-center gap-2 p-4 rounded-md shadow-lg',
-                    success: toastConfigs.success.className,
-                    error: toastConfigs.error.className,
-                    info: toastConfigs.info.className,
-                    warning: toastConfigs.warning.className,
-                    default: toastConfigs.default.className,
-                  },
-                }}
-              />
-              <NotificationProvider>
-                <Routes>
-                  {/* Home routes with OrgProvider */}
-                  <Route
-                    path="/"
-                    element={
-                      <HomeRouteWrapper>
-                        <Index />
-                      </HomeRouteWrapper>
-                    }
-                  />
+            <ZustandHydration>
+              <SessionProvider>
+                <Toaster
+                  richColors
+                  position="top-right"
+                  theme="dark"
+                  visibleToasts={3}
+                  toastOptions={{
+                    classNames: {
+                      toast: 'flex items-center gap-2 p-4 rounded-md shadow-lg',
+                      success: toastConfigs.success.className,
+                      error: toastConfigs.error.className,
+                      info: toastConfigs.info.className,
+                      warning: toastConfigs.warning.className,
+                      default: toastConfigs.default.className,
+                    },
+                  }}
+                />
+                <NotificationProvider>
+                  <Routes>
+                    {/* Home routes with OrgProvider */}
+                    <Route
+                      path="/"
+                      element={
+                        <HomeRouteWrapper>
+                          <Index />
+                        </HomeRouteWrapper>
+                      }
+                    />
 
-                  {/* Other routes without OrgProvider */}
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/splashscreen" element={<DealioSplashScreen />} />
-                  <Route path="/settings" element={<PosConfigManagerPage />} />
-                  <Route path="/order-lists" element={<PendingOrdersPage />} />
-                  <Route path="/printers" element={<PrintersPage />} />
-                  <Route path="/receipt" element={<Receipt />} />
-                  <Route path="/sales" element={<SalesDashboard />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </NotificationProvider>
-            {/* </SessionProvider> */}
+                    {/* Other routes without OrgProvider */}
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/splashscreen" element={<DealioSplashScreen />} />
+                    <Route path="/settings" element={<PosConfigManagerPage />} />
+                    <Route path="/order-lists" element={<PendingOrdersPage />} />
+                    <Route path="/printers" element={<PrintersPage />} />
+                    <Route path="/receipt" element={<Receipt />} />
+                    <Route path="/sales" element={<SalesDashboard />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </NotificationProvider>
+              </SessionProvider>
+            </ZustandHydration>
           </BrowserRouter>
         </TooltipProvider>
       </QueryProvider>

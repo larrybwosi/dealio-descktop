@@ -41,7 +41,6 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   const { printers, defaultPrinter } = usePrinterStore();
   const config = JSON.parse(localStorage.getItem('receipt-config'));
 
-
   // const { phone, email, website, tagline } = orgInfo;
   const isPaid = order.status === 'completed';
   const [qrCodeImage, setQrCodeImage] = useState<string>('');
@@ -78,12 +77,12 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
 
   // --- ✨ Data structured for ThermalReceiptPDF ---
     const organizationData: OrganizationData = {
-      name: config.businessName,
-      tagline: config.businessTagline,
-      address: config.businessAddress,
-      phone: config.businessPhone,
-      email: config.businessEmail,
-      website: config.businessWebsite,
+      name: config?.businessName,
+      tagline: config?.businessTagline,
+      address: config?.businessAddress,
+      phone: config?.businessPhone,
+      email: config?.businessEmail,
+      website: config?.businessWebsite,
     };
 
   const paymentData: PaymentData = {
@@ -99,10 +98,10 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
   // --- ✨ Data structured for standard InvoicePDF ---
   const invoiceData: InvoiceData = {
     order,
-    restaurantName: config.businessName || 'Dealio',
-    restaurantAddress: config.businessAddress || 'Indah Kapuk Beach, Jakarta',
-    restaurantPhone: config.businessPhone || '123-456-7890',
-    restaurantEmail: config.businessEmail || 'info@dealio.co',
+    restaurantName: config?.businessName || 'Dealio',
+    restaurantAddress: config?.businessAddress || 'Indah Kapuk Beach, Jakarta',
+    restaurantPhone: config?.businessPhone || '123-456-7890',
+    restaurantEmail: config?.businessEmail || 'info@dealio.co',
     qrCodeImage: qrCodeImage,
   };
 
@@ -130,12 +129,12 @@ export function InvoiceModal({ isOpen, onClose, order }: InvoiceModalProps) {
     try {
       const { pdf } = await import('@react-pdf/renderer');
       const organizationData: OrganizationData = {
-        name: config.businessName,
-        tagline: config.businessTagline,
-        address: config.businessAddress,
-        phone: config.businessPhone,
-        email: config.businessEmail,
-        website: config.businessWebsite,
+        name: config?.businessName,
+        tagline: config?.businessTagline,
+        address: config?.businessAddress,
+        phone: config?.businessPhone,
+        email: config?.businessEmail,
+        website: config?.businessWebsite,
       };
 
       const pdfDoc = isPaid ? (

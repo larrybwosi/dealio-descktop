@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, useOrgStore } from "../tanstack-axios";
+import api from "../axios";
 
 // Products
 const CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
@@ -14,6 +15,7 @@ interface CachedData {
 export const useListProducts = (inLocation: boolean = true) => {
   const organizationId = useOrgStore(state => state.organizationId);
   const locationId = useOrgStore(state => state.locationId);
+
 
   // Generate cache key based on organizationId and locationId
   const cacheKey = `products_${organizationId}_${inLocation ? locationId : 'no-location'}`;
