@@ -256,7 +256,7 @@ const UserProfileDialog = React.memo(({ isOpen, onOpenChange, user, onLogout }) 
 UserProfileDialog.displayName = 'UserProfileDialog';
 
 const BusinessConfigSidebar = () => {
-  const { businessType, availableBusinessTypes, setBusinessType } = useBusinessConfig();
+  const { businessType, availableBusinessTypes, setBusinessType, config } = useBusinessConfig();
   const [activePath, setActivePath] = React.useState('/dashboard');
   const [isUserModalOpen, setIsUserModalOpen] = React.useState(false);
 
@@ -284,7 +284,11 @@ const BusinessConfigSidebar = () => {
     setIsUserModalOpen(false);
   };
 
-  const menuItems = businessSpecificMenuItems[businessType] || Object.values(baseMenuItems);
+  let menuItems = businessSpecificMenuItems[businessType] || Object.values(baseMenuItems);
+  const enabled = config?.sidebarConfig?.enabledHrefs;
+  if (enabled && Array.isArray(enabled) && enabled.length > 0) {
+    menuItems = menuItems.filter(item => enabled.includes(item.href));
+  }
 
   return (
     <SidebarProvider>

@@ -11,8 +11,10 @@ import {
   Package,
   Wifi,
   WifiOff,
+  FileDown
 } from 'lucide-react';
-import { getPendingSales, removePendingSale, useRetryPendingSales } from '@/lib/services/sales';
+import { getPendingSales, removePendingSale, useRetryPendingSales, downloadPendingSaleTicket, syncPendingSaleOnce } from '@/lib/services/sales';
+import { toast } from 'sonner';
 
 interface PendingSale {
   id: string;
@@ -50,6 +52,7 @@ export default function PendingOrdersPage() {
   const [isRetrying, setIsRetrying] = useState(false);
   const [selectedSales, setSelectedSales] = useState<Set<string>>(new Set());
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const { retryAllPendingSales } = useRetryPendingSales();
 
@@ -123,11 +126,11 @@ export default function PendingOrdersPage() {
         </span>
       );
     }
-    if (retryCount < 3) {
+    if (retryCount < 7) {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
           <AlertCircle className="w-3 h-3" />
-          Retrying ({retryCount}/3)
+          Retrying ({retryCount}/7)
         </span>
       );
     }
@@ -264,8 +267,8 @@ export default function PendingOrdersPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Retries
                   </th>
-                  <th className="relative px-6 py-3">
-                    <span className="sr-only">Actions</span>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -296,10 +299,39 @@ export default function PendingOrdersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
-                        {sale.retryCount}/3
+                        {sale.retryCount}/7
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex items-center gap-2">
+                      <button
+                        onClick={() => downloadPendingSaleTicket(sale.id)}
+                        className="text-gray-600 hover:text-gray-900 transition-colors p-1"
+                        title="Download ticket"
+                      >
+                        <FileDown className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!isOnline) {
+                            toast.error('You are offline. Please connect to the internet to sync.');
+                            return;
+                          }
+                          setSyncingId(sale.id);
+                          try {
+                            await syncPendingSaleOnce(sale.id);
+                            refreshData();
+                          } catch (e: any) {
+                            toast.error(e?.message || 'Failed to sync sale');
+                          } finally {
+                            setSyncingId(null);
+                          }
+                        }}
+                        className="text-blue-600 hover:text-blue-900 transition-colors p-1 disabled:text-gray-400"
+                        title="Sync now"
+                        disabled={syncingId === sale.id || !isOnline}
+                      >
+                        <RefreshCw className={`w-4 h-4 ${syncingId === sale.id ? 'animate-spin' : ''}`} />
+                      </button>
                       <button
                         onClick={() => handleDeleteSale(sale.id)}
                         className="text-red-600 hover:text-red-900 transition-colors p-1"

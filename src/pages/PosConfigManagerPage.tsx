@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,6 +64,7 @@ import {
   CheckCircle,
   XCircle,
   ArrowLeft,
+  PanelLeft,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useBusinessConfig } from '@/lib/business-config-manager';
@@ -249,17 +251,19 @@ const ConfigSectionCard = ({
   description,
   children,
   badge,
+  compact,
 }: {
   icon: LucideIcon;
   title: string;
   description: string;
   children: React.ReactNode;
   badge?: React.ReactNode;
+  compact?: boolean;
 }) => {
   const Icon = icon;
   return (
     <Card className="shadow-sm hover:shadow-md transition-shadow duration-300">
-      <CardHeader className="p-4 pb-2">
+      <CardHeader className={compact ? 'p-3 pb-1.5' : 'p-4 pb-2'}>
         <div className="flex justify-between items-start gap-2">
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -271,7 +275,7 @@ const ConfigSectionCard = ({
           {badge && <div className="flex-shrink-0">{badge}</div>}
         </div>
       </CardHeader>
-      <CardContent className="p-4 pt-0">{children}</CardContent>
+      <CardContent className={compact ? 'p-3 pt-0' : 'p-4 pt-0'}>{children}</CardContent>
     </Card>
   );
 };
@@ -635,6 +639,7 @@ const handleSaveChanges = () => {
             title="General Settings"
             description="Core POS behavior, business type, and currency settings."
             badge={<FeatureBadge enabled={true} />}
+            compact={businessType === 'restaurant'}
           >
             <div className="space-y-4">
               <div className="space-y-2">
@@ -759,6 +764,86 @@ const handleSaveChanges = () => {
                 </div>
               </div>
             </div>
+          </ConfigSectionCard>
+
+          {/* Sidebar Configuration */}
+          <ConfigSectionCard
+            icon={PanelLeft}
+            title="Sidebar Configuration"
+            description="Choose which items appear in the sidebar for this business type."
+            compact={true}
+          >
+            {(() => {
+              const sidebarOptions: { label: string; href: string }[] = (() => {
+                const common = [
+                  { label: 'Dashboard', href: '/dashboard' },
+                  { label: 'Orders', href: '/orders' },
+                  { label: 'Products', href: '/products' },
+                  { label: 'Customers', href: '/customers' },
+                  { label: 'Payments', href: '/payments' },
+                  { label: 'Inventory', href: '/inventory' },
+                  { label: 'Reports', href: '/reports' },
+                  { label: 'Settings', href: '/settings' },
+                ];
+                switch (businessType) {
+                  case 'restaurant':
+                  case 'cafe':
+                    return [...common, { label: 'Menu Items', href: '/menu' }];
+                  case 'bookshop':
+                    return [...common, { label: 'Book Catalog', href: '/books' }];
+                  case 'hardware':
+                    return [...common, { label: 'Tools & Materials', href: '/materials' }];
+                  case 'supermarket':
+                    return [...common, { label: 'Grocery Items', href: '/grocery' }];
+                  case 'pharmacy':
+                    return [...common, { label: 'Medication', href: '/medication' }];
+                  case 'electronics':
+                    return [...common, { label: 'Electronics Catalog', href: '/electronics' }];
+                  case 'clothing':
+                    return [...common, { label: 'Apparel', href: '/apparel' }];
+                  case 'retail':
+                  default:
+                    return common;
+                }
+              })();
+
+              const defaultEnabled = sidebarOptions.map(o => o.href);
+              const enabled = new Set(editableConfig.sidebarConfig?.enabledHrefs || defaultEnabled);
+
+              const toggleHref = (href: string, checked: boolean | 'indeterminate') => {
+                const next = new Set(enabled);
+                if (checked) {
+                  next.add(href);
+                } else {
+                  next.delete(href);
+                }
+                handleConfigChange('sidebarConfig', { enabledHrefs: Array.from(next) } as any);
+              };
+
+              const enableAll = () => handleConfigChange('sidebarConfig', { enabledHrefs: defaultEnabled } as any);
+              const disableAll = () => handleConfigChange('sidebarConfig', { enabledHrefs: [] } as any);
+
+              return (
+                <div className="space-y-3">
+                  <div className="flex gap-2 justify-end">
+                    <Button type="button" size="sm" variant="outline" onClick={enableAll}>Enable All</Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={disableAll}>Disable All</Button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {sidebarOptions.map(opt => (
+                      <label key={opt.href} className="flex items-center gap-3 rounded-md border p-2">
+                        <Checkbox
+                          checked={enabled.has(opt.href)}
+                          onCheckedChange={v => toggleHref(opt.href, v)}
+                        />
+                        <span className="text-sm">{opt.label}</span>
+                        <span className="ml-auto text-xs text-muted-foreground">{opt.href}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </ConfigSectionCard>
 
           {/* Payment Methods - Updated with full configurability */}

@@ -25,7 +25,7 @@ interface SaleData {
   enableStockTracking: boolean;
 }
 
-interface PendingSale {
+export interface PendingSale {
   id: string;
   data: SaleData;
   organizationId: string;
@@ -118,6 +118,64 @@ const generateSaleId = (): string => {
 // Add sync sales function to apiClient (you'll need to add this to your apiClient)
 const syncSales = async (organizationId: string, request: SyncSalesRequest): Promise<SyncSalesResponse> => {
   return apiClient.sales.sync(`/organizations/${organizationId}/sales/sync`, request).then(res => res.data);
+};
+
+export const getPendingSaleById = (saleId: string): PendingSale | undefined => {
+  return getPendingSales().find(s => s.id === saleId);
+};
+
+export const syncPendingSaleOnce = async (saleId: string): Promise<void> => {
+  const pending = getPendingSaleById(saleId);
+  if (!pending) throw new Error('Pending sale not found');
+  try {
+    // attempt to record sale
+    await apiClient.sales.create(pending.organizationId, { ...pending.data });
+    // on success, remove from pending and notify
+    removePendingSale(saleId);
+    toast.success('Sale synced successfully');
+  } catch (error: any) {
+    // increment retry count and re-save
+    const updated: PendingSale = {
+      ...pending,
+      retryCount: (pending.retryCount || 0) + 1,
+      timestamp: Date.now(),
+    };
+    savePendingSale(updated);
+    const message = error?.response?.data?.message || error?.message || 'Failed to sync sale';
+    throw new Error(message);
+  }
+};
+
+export const downloadPendingSaleTicket = (saleId: string): void => {
+  const pending = getPendingSaleById(saleId);
+  if (!pending) {
+    toast.error('Pending sale not found');
+    return;
+  }
+  const lines: string[] = [];
+  lines.push('--- Pending Sale Ticket ---');
+  lines.push(`Sale ID: ${pending.id}`);
+  lines.push(`Organization: ${pending.organizationId}`);
+  lines.push(`Created: ${new Date(pending.timestamp).toLocaleString()}`);
+  const d: any = pending.data as any;
+  lines.push(`Location: ${d?.locationId ?? ''}`);
+  lines.push(`Payment Method: ${d?.paymentMethod ?? ''}`);
+  lines.push('Items:');
+  try {
+    (d?.cartItems || []).forEach((it: any, idx: number) => {
+      lines.push(`  ${idx + 1}. variantId=${it.variantId} qty=${it.quantity}`);
+    });
+  } catch {}
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ticket-${pending.id}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast.success('Ticket downloaded');
 };
 
 // Custom hook for retrying pending sales

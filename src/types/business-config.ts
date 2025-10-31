@@ -78,6 +78,10 @@ export interface CartField {
   errorMessage?: string;
 }
 
+export interface SidebarConfig {
+  enabledHrefs: string[]; // list of sidebar item hrefs enabled for this business type
+}
+
 export interface BusinessConfig {
   businessType: BusinessType;
   name: string;
@@ -116,12 +120,14 @@ export interface BusinessConfig {
   enableStockTaking?: boolean;
   lowStockThreshold?: number;
   autoUpdateStock?: boolean;
+  sidebarConfig?: SidebarConfig;
 }
 
 // Business configurations
 export const businessConfigs: Record<BusinessType, BusinessConfig> = {
   restaurant: {
     businessType: 'restaurant',
+    sidebarConfig: { enabledHrefs: ['/dashboard','/orders','/products','/customers','/payments','/menu','/reports','/settings'] },
     cartFields: [
       {
         id: 'customer_name',
